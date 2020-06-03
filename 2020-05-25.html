@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        let numPoints = 2;
+        let rotation = 0;
+
+        const radius = canvas.height * 0.25;
+        ctx.fillStyle = "skyblue";
+        ctx.strokeStyle = "red";
+
+        document.body.addEventListener("keyup", e => {
+            if (e.key !== " ") {
+                return;
+            }
+            rotation = 0;
+            numPoints++;
+        });
+
+        function draw() {
+            let angle = -Math.PI * 0.5;
+            let increment = 2 * Math.PI / numPoints;
+            let x = Math.cos(angle) * radius;
+            let y = Math.sin(angle) * radius;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            for (let i = 1; i < numPoints; i++) {
+                angle += increment;
+                x = Math.cos(angle) * radius;
+                y = Math.sin(angle) * radius;
+                ctx.lineTo(x, y);
+            }
+
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        requestAnimationFrame(function loop() {
+            ctx.save();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.translate(canvas.width * 0.5, canvas.height * 0.5);
+            ctx.rotate(rotation);
+            draw();
+            ctx.restore();
+            rotation += 0.01;
+            requestAnimationFrame(loop)
+        });
+
+    </script>
+</body>
+</html>

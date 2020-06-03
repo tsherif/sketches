@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/picogl.min.js"></script>
+    <script src="lib/simplex-noise.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createSphere, xformMatrix} from "./lib/utils.js";
+
+        const TEXTURE_DIM = 128;
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const app = PicoGL.createApp(canvas)
+        .clearColor(0, 0, 0, 1)
+        .enable(PicoGL.DEPTH_TEST);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in vec4 position;
+            layout(location=1) in vec3 normal;
+            layout(location=2) in vec2 uv;
+
+            uniform mat4 projMatrix;
+            uniform mat4 viewMatrix;
+            uniform mat4 modelMatrix;
+
+            out vec3 vNormal;
+            out vec2 vUV;
+
+            void main() {
+                vec4 pos = position;
+                vNormal = normal;
+                vUV = uv;
+                gl_Position = projMatrix * viewMatrix * modelMatrix * pos;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            in vec3 vNormal;
+            in vec2 vUV;
+
+            uniform sampler2D noise;
+
+            out vec4 fragColor;
+            void main() {
+                float factor = texture(noise, vUV).r * 0.8 + 0.2;
+                vec3 normal = normalize(vNormal);
+                fragColor = vec4(normal * factor, 1.0);
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const sphereData = createSphere();
+
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.positions);
+        const normals = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.normals);
+        const uvs = app.createVertexBuffer(PicoGL.FLOAT, 2, sphereData.uvs);
+        const indices = app.createIndexBuffer(PicoGL.UNSIGNED_INT, sphereData.indices);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions)
+        .vertexAttributeBuffer(1, normals)
+        .vertexAttributeBuffer(2, uvs)
+        .indexBuffer(indices);
+
+
+        const modelMatrix = mat4.create();
+        const viewMatrix = mat4.lookAt(mat4.create(),
+            [0, 0, 3],
+            [0, 0, 0],
+            [0, 1, 0]
+        );
+        const projMatrix = mat4.perspective(mat4.create(),
+            Math.PI / 3,
+            app.width / app.height,
+            1,
+            10
+        );
+
+        const textureData = new Uint8Array(TEXTURE_DIM * TEXTURE_DIM);
+        const simplex = new SimplexNoise();
+
+
+        let min = Number.POSITIVE_INFINITY;
+        let max = Number.NEGATIVE_INFINITY;
+        for (let x = 0; x < TEXTURE_DIM; ++x) {
+            for (let y = 0; y < TEXTURE_DIM; ++y) {
+                let val = simplex.noise2D(x, y) * 0.5 + 0.5;
+                min = Math.min(val, min);
+                max = Math.max(val, max);
+                textureData[y * TEXTURE_DIM + x] = 256 * val;
+            }
+        }
+
+        const texture = app.createTexture2D(textureData, TEXTURE_DIM, TEXTURE_DIM, {
+            internalFormat: PicoGL.R8
+        });
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .uniform("modelMatrix", modelMatrix)
+        .uniform("viewMatrix", viewMatrix)
+        .uniform("projMatrix", projMatrix)
+        .texture("noise", texture);
+
+        let angle = 0;
+
+        requestAnimationFrame(function draw() {
+            app.clear();
+
+            angle += 0.01;
+            xformMatrix(modelMatrix, null, [0, angle, 0], null);
+
+
+            drawCall
+            .uniform("modelMatrix", modelMatrix)
+            .draw();
+
+            requestAnimationFrame(draw);
+        });
+
+    </script>
+</body>
+</html>

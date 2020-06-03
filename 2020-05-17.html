@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/picogl.min.js"></script>
+    <script src="lib/noise3D.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createSphere} from "./lib/utils.js";
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const app = PicoGL.createApp(canvas)
+        .clearColor(0, 0, 0, 1);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in vec4 position;
+            layout(location=1) in vec3 normal;
+            layout(location=2) in vec2 uv;
+
+            uniform mat4 projMatrix;
+            uniform mat4 viewMatrix;
+            uniform mat4 modelMatrix;
+
+            out vec3 vNormal;
+            out vec2 vUV;
+
+            void main() {
+                vNormal = mat3(modelMatrix) * normal;
+                vUV = uv;
+                gl_Position = projMatrix * viewMatrix * modelMatrix * position;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            in vec3 vNormal;
+            in vec2 vUV;
+
+            uniform sampler2D noise;
+
+            out vec4 fragColor;
+            void main() {
+                vec3 normal = abs(vNormal);
+                fragColor = vec4(normal * texture(noise, vUV).r, 1.0);
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const sphereData = createSphere();
+
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.positions);
+        const normals = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.normals);
+        const uvs = app.createVertexBuffer(PicoGL.FLOAT, 2, sphereData.uvs);
+        const indices = app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, sphereData.indices);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions)
+        .vertexAttributeBuffer(1, normals)
+        .vertexAttributeBuffer(2, uvs)
+        .indexBuffer(indices);
+
+
+        const modelMatrix = mat4.create();
+        const viewMatrix = mat4.lookAt(mat4.create(),
+            [1, 1, 2],
+            [0, 0, 0],
+            [0, 1, 0]
+        );
+        const projMatrix = mat4.perspective(mat4.create(),
+            Math.PI / 3,
+            app.width / app.height,
+            1,
+            10
+        );
+
+        const textureData = new Uint8Array(512 * 512);
+
+        for (let x = 0; x < 512; ++x) {
+            for (let y = 0; y < 512; ++y) {
+                textureData[y * 512 + x] = 255 * snoise([x, y, 1]);
+            }
+
+        }
+
+        const texture = app.createTexture2D(textureData, 512, 512, {
+            internalFormat: PicoGL.R8
+        });
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .uniform("modelMatrix", modelMatrix)
+        .uniform("viewMatrix", viewMatrix)
+        .uniform("projMatrix", projMatrix)
+        .texture("noise", texture);
+
+        requestAnimationFrame(function draw() {
+            app.clear();
+            drawCall.draw();
+        });
+
+    </script>
+</body>
+</html>

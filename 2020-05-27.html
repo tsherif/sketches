@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/picogl.min.js"></script>
+    <script src="lib/simplex-noise.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createSphere, xformMatrix, createQuad} from "./lib/utils.js";
+
+        const NUM_PARTICLES = 1000;
+        const VECTOR_FIELD_DIM = 32;
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const app = PicoGL.createApp(canvas)
+        .clearColor(0, 0, 0, 1)
+        .enable(PicoGL.DEPTH_TEST);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in vec3 shapePosition;
+            layout(location=3) in vec4 position;
+
+            uniform mat4 projMatrix;
+            uniform mat4 viewMatrix;
+
+            out vec3 vFieldPosition;
+
+            void main() {
+                vFieldPosition = position.xyz * 0.5 + 0.5;
+                vec4 pos = position;
+                pos.xyz += shapePosition * 0.01;
+                gl_Position = projMatrix * viewMatrix * pos;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            in vec3 vFieldPosition;
+
+            uniform highp sampler3D vectorField;
+
+            out vec4 fragColor;
+            void main() {
+                vec3 dir = texture(vectorField, vFieldPosition).xyz;
+                fragColor = vec4(abs(dir), 1.0);
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const quadData = createQuad();
+
+        const shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+        const shapeNormals = app.createVertexBuffer(PicoGL.FLOAT, 3, quadData.normals);
+        const shapeUVs = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.uvs);
+
+        const positionData = new Float32Array(NUM_PARTICLES * 3);
+        for (let i = 0; i < NUM_PARTICLES; ++i) {
+            let pi = i * 3;
+            positionData[pi    ] = Math.random() * 2 - 1;
+            positionData[pi + 1] = Math.random() * 2 - 1;
+            positionData[pi + 2] = Math.random() * 2 - 1;
+        }
+
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, shapePositions)
+        .vertexAttributeBuffer(1, shapeNormals)
+        .vertexAttributeBuffer(2, shapeUVs)
+        .instanceAttributeBuffer(3, positions)
+
+        const viewMatrix = mat4.lookAt(mat4.create(),
+            [0, 0, 3],
+            [0, 0, 0],
+            [0, 1, 0]
+        );
+        const projMatrix = mat4.perspective(mat4.create(),
+            Math.PI / 3,
+            app.width / app.height,
+            0.1,
+            10
+        );
+
+        const vectorFieldData = new Float32Array(VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * 4);
+        const simplex = new SimplexNoise();
+        const sphereNormals = createSphere().normals;
+        const numNormals = sphereNormals.length / 3;
+
+
+        for (let x = 0; x < VECTOR_FIELD_DIM; ++x) {
+            for (let y = 0; y < VECTOR_FIELD_DIM; ++y) {
+                for (let z = 0; z < VECTOR_FIELD_DIM; ++z) {
+                    let val = simplex.noise3D(x, y, z) * 0.5 + 0.5;
+                    let ni = Math.floor(val * numNormals) * 3;
+                    let vfi = (VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * z + VECTOR_FIELD_DIM * y + x) * 4;
+
+                    vectorFieldData[vfi] = sphereNormals[ni];
+                    vectorFieldData[vfi + 1] = sphereNormals[ni + 1];
+                    vectorFieldData[vfi + 2] = sphereNormals[ni + 2];
+                }
+            }
+        }
+
+        const vectorField = app.createTexture3D(vectorFieldData, VECTOR_FIELD_DIM, VECTOR_FIELD_DIM, VECTOR_FIELD_DIM, {
+            internalFormat: PicoGL.RGBA32F
+        });
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .primitive(PicoGL.TRIANGLE_STRIP)
+        .uniform("viewMatrix", viewMatrix)
+        .uniform("projMatrix", projMatrix)
+        .texture("vectorField", vectorField);
+
+
+        requestAnimationFrame(function draw() {
+            app.clear();
+
+            drawCall
+            .draw();
+
+            requestAnimationFrame(draw);
+        });
+
+    </script>
+</body>
+</html>
