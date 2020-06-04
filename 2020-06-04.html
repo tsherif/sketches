@@ -308,30 +308,15 @@
         });
 
 
-        const ZOOM_SCALE = 0.001;
+        const ZOOM_SCALE = 0.1;
         const MAX_ZOOM = 7;
         const MIN_ZOOM = 0.1;
         let zoom = vec3.length(vec3.subtract([], eye, look));
         document.addEventListener("wheel", e => {
-            zoom += e.deltaY * ZOOM_SCALE;
+            zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
             zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
             zoomCamera(eye, look, zoom);
         });
-
-        function billboardMatrix(viewMatrix) {
-            viewMatrix[0]  = 1;
-            viewMatrix[1]  = 0;
-            viewMatrix[2]  = 0;
-            viewMatrix[3]  = 0;
-            viewMatrix[4]  = 0;
-            viewMatrix[5]  = 1;
-            viewMatrix[6]  = 0;
-            viewMatrix[8]  = 0;
-            viewMatrix[9]  = 0;
-            viewMatrix[10] = 0;
-            viewMatrix[11] = 1;
-            viewMatrix[12] = 0;
-        }
 
 
     </script>
