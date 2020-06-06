@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/picogl.min.js"></script>
+    <script src="lib/simplex-noise.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createSphere, xformMatrix, createQuad, hexToRGB} from "./lib/utils.js";
+
+        const NUM_PARTICLES = 500;
+        const VECTOR_FIELD_DIM = 32;
+        const VECTOR_FIELD_DIVISOR = VECTOR_FIELD_DIM * 0.25;
+        const PALETTES = [
+            [
+                "d92027",
+                "ff9234",
+                "ffcd3c",
+                "35d0ba"
+            ],
+            [
+                "45046a",
+                "5c2a9d",
+                "b5076b",
+                "f1ebbb"
+            ],
+            [
+                "202040",
+                "543864",
+                "ff6363",
+                "ffbd69"
+            ],
+            [
+                "162447",
+                "1f4068",
+                "1b1b2f",
+                "e43f5a"
+            ]
+        ];
+
+        const PALETTE = PALETTES[Math.floor(Math.random() * PALETTES.length)].map(hexToRGB);
+
+
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const app = PicoGL.createApp(canvas, {preserveDrawingBuffer: true})
+        .clearColor(0.9, 0.9, 0.9, 1)
+        .enable(PicoGL.DEPTH_TEST)
+        .clear();
+
+        const updateVs = `
+            #version 300 es
+
+            layout(location=0) in vec3 position;
+            layout(location=1) in vec3 velocity;
+
+            uniform highp sampler3D vectorField;
+            uniform float t;
+
+            out vec3 vPosition;
+            out vec3 vVelocity;
+
+            void main() {
+                vec3 uv = position.xyz * 0.125 + 0.5;
+                uv += t * vec3(0.75, 1.0, 1.25);
+                vec3 acceleration;
+                if (dot(position, position) > 25.0) {
+                    acceleration = normalize(-position.xyz) * 0.01;
+                } else {
+                    acceleration = texture(vectorField, uv).xyz;
+                }
+
+                vVelocity = (velocity + acceleration) * 0.99;
+                vPosition = position.xyz + vVelocity;
+            }
+        `;
+
+        const updateFs = `
+            #version 300 es
+
+            void main() {}
+        `;
+
+        const drawVs = `
+            #version 300 es
+
+            layout(location=0) in vec4 position;
+            layout(location=1) in vec3 color;
+            layout(location=2) in vec2 shapePosition;
+
+            uniform mat4 projMatrix;
+            uniform mat4 viewMatrix;
+
+            out vec2 vPosition;
+            out vec3 vColor;
+
+            void main() {
+                vPosition = shapePosition;
+                vec3 cameraUp = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+                vec3 cameraRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+                vec3 billboardPosition = shapePosition.x * cameraRight + shapePosition.y * cameraUp;
+                vColor = color;
+                vec4 pos = position;
+                pos.xyz += billboardPosition * 0.01;
+                gl_Position = projMatrix * viewMatrix * pos;
+            }
+        `;
+
+        const drawFs = `
+            #version 300 es
+            precision highp float;
+
+            in vec2 vPosition;
+            in vec3 vColor;
+
+            out vec4 fragColor;
+            void main() {
+                if (dot(vPosition, vPosition) > 1.0) {
+                    discard;
+                }
+                fragColor = vec4(vColor, 1.0);
+            }
+        `;
+
+        const updateProgram = app.createProgram(updateVs, updateFs, { transformFeedbackVaryings: ["vPosition", "vVelocity"] });
+        const drawProgram = app.createProgram(drawVs, drawFs);
+
+        const quadData = createQuad();
+
+        const shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+
+        const positionData = new Float32Array(NUM_PARTICLES * 3);
+        const colorData = new Float32Array(NUM_PARTICLES * 3);
+        for (let i = 0; i < NUM_PARTICLES; ++i) {
+            let pi = i * 3;
+            positionData[pi    ] = Math.random() * 4 - 2;
+            positionData[pi + 1] = Math.random() * 4 - 2;
+            positionData[pi + 2] = Math.random() * 4 - 2;
+
+            const color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+            colorData[pi    ] = color[0];
+            colorData[pi + 1] = color[1];
+            colorData[pi + 2] = color[2];
+        }
+
+        const positionsA = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
+        const positionsB = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData.length);
+        const velocitiesA = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData.length);
+        const velocitiesB = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData.length);
+        const colors = app.createVertexBuffer(PicoGL.FLOAT, 3, colorData);
+
+        const updateVertexArrayA = app.createVertexArray()
+        .vertexAttributeBuffer(0, positionsA)
+        .vertexAttributeBuffer(1, velocitiesA);
+
+        const updateVertexArrayB = app.createVertexArray()
+        .vertexAttributeBuffer(0, positionsB)
+        .vertexAttributeBuffer(1, velocitiesB);
+
+        const drawVertexArrayA = app.createVertexArray()
+        .instanceAttributeBuffer(0, positionsA)
+        .instanceAttributeBuffer(1, colors)
+        .vertexAttributeBuffer(2, shapePositions)
+
+        const drawVertexArrayB = app.createVertexArray()
+        .instanceAttributeBuffer(0, positionsB)
+        .instanceAttributeBuffer(1, colors)
+        .vertexAttributeBuffer(2, shapePositions)
+
+        const feedbackA = app.createTransformFeedback()
+        .feedbackBuffer(0, positionsA)
+        .feedbackBuffer(1, velocitiesA)
+
+        const feedbackB = app.createTransformFeedback()
+        .feedbackBuffer(0, positionsB)
+        .feedbackBuffer(1, velocitiesB)
+
+        let eye = [0, 0, -3];
+        let look = [0, 0, 0];
+        let up = [0, 1, 0];
+
+        const viewMatrix = mat4.lookAt(mat4.create(), eye, look, up);
+
+        const projMatrix = mat4.perspective(mat4.create(),
+            Math.PI / 3,
+            app.width / app.height,
+            0.1,
+            10
+        );
+
+        const vectorFieldData = new Float32Array(VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * 4);
+        const simplex = new SimplexNoise();
+        const sphereNormals = createSphere().normals;
+        const numNormals = sphereNormals.length / 3;
+
+        for (let z = 0; z < VECTOR_FIELD_DIM; ++z) {
+            for (let y = 0; y < VECTOR_FIELD_DIM; ++y) {
+                for (let x = 0; x < VECTOR_FIELD_DIM; ++x) {
+                    let val = simplex.noise3D(
+                        x / VECTOR_FIELD_DIVISOR,
+                        y / VECTOR_FIELD_DIVISOR,
+                        z / VECTOR_FIELD_DIVISOR
+                    ) * 0.5 + 0.5;
+                    let mag = simplex.noise3D(
+                        (x + VECTOR_FIELD_DIM) / VECTOR_FIELD_DIVISOR, 
+                        y / VECTOR_FIELD_DIVISOR, 
+                        z / VECTOR_FIELD_DIVISOR
+                    ) * 0.5 + 0.5;
+                    mag *= 0.0002;
+                    let ni = Math.floor(val * numNormals) * 3;
+                    let vfi = (VECTOR_FIELD_DIM * VECTOR_FIELD_DIM * z + VECTOR_FIELD_DIM * y + x) * 4;
+
+                    vectorFieldData[vfi]     = sphereNormals[ni]     * mag;
+                    vectorFieldData[vfi + 1] = sphereNormals[ni + 1] * mag;
+                    vectorFieldData[vfi + 2] = sphereNormals[ni + 2] * mag;
+                }
+            }
+        }
+
+        const vectorField = app.createTexture3D(vectorFieldData, VECTOR_FIELD_DIM, VECTOR_FIELD_DIM, VECTOR_FIELD_DIM, {
+            internalFormat: PicoGL.RGBA32F,
+            minFilter: PicoGL.LINEAR,
+            magFilter: PicoGL.LINEAR
+        });
+
+        const updateCallA = app.createDrawCall(updateProgram, updateVertexArrayA)
+        .primitive(PicoGL.POINTS)
+        .transformFeedback(feedbackB)
+        .texture("vectorField", vectorField);
+
+        const updateCallB = app.createDrawCall(updateProgram, updateVertexArrayB)
+        .primitive(PicoGL.POINTS)
+        .transformFeedback(feedbackA)
+        .texture("vectorField", vectorField);
+
+        const drawCallA = app.createDrawCall(drawProgram, drawVertexArrayA)
+        .primitive(PicoGL.TRIANGLE_STRIP)
+        .uniform("projMatrix", projMatrix);
+
+        const drawCallB = app.createDrawCall(drawProgram, drawVertexArrayB)
+        .primitive(PicoGL.TRIANGLE_STRIP)
+        .uniform("projMatrix", projMatrix);
+
+        let callA = true;
+
+        let t = 0;
+        requestAnimationFrame(function draw() {
+            t += 0.0001;
+            if (callA) {
+                drawCallA
+                .uniform("viewMatrix", viewMatrix)
+                .draw();
+
+                app.enable(PicoGL.RASTERIZER_DISCARD);
+                updateCallA.uniform("t", t).draw();
+                app.disable(PicoGL.RASTERIZER_DISCARD);
+            } else {
+                drawCallB
+                .uniform("viewMatrix", viewMatrix)
+                .draw();
+                
+                app.enable(PicoGL.RASTERIZER_DISCARD);
+                updateCallB.uniform("t", t).draw();
+                app.disable(PicoGL.RASTERIZER_DISCARD);
+            }
+
+            callA = !callA;
+
+            requestAnimationFrame(draw);
+        });
+
+
+    </script>
+</body>
+</html>
