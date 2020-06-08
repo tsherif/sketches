@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="lib/dat.gui.min.js"></script>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        const RADIUS = 50;
+        const WIDTH = 2 * RADIUS;
+        const HEIGHT = 2 * Math.sin(Math.PI / 3) * RADIUS;
+        const HALF_HEIGHT = 0.5 * HEIGHT;
+
+        let stagger = 0;
+        let black = false;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let y = -HALF_HEIGHT; y - HALF_HEIGHT < canvas.height; y += HALF_HEIGHT) {
+            for (let x = stagger * 1.5 * RADIUS; x - RADIUS < canvas.width; x += WIDTH + RADIUS) {
+                drawHex(ctx, x, y, RADIUS);
+                ctx.fillStyle = black && stagger == 1 ? "black" : "white";
+                black = !black;
+                ctx.stroke();
+                ctx.fill();
+            }
+            stagger = (stagger + 1) % 2;
+        }
+
+        function drawHex(ctx, x, y, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            let angle = Math.PI / 3;
+            for (let i = 0; i < 6; ++i) {
+                ctx.lineTo(x + Math.cos(angle) * radius , y + Math.sin(angle) * radius);
+                angle += Math.PI / 3;
+            }
+            ctx.closePath();
+        }
+
+    </script>
+</body>
+</html>
