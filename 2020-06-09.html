@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="lib/dat.gui.min.js"></script>
+    <script src="lib/picogl.min.js"></script>
+</head>
+<body>
+    <h2>GPGPU Max Sketch</h2>
+    <div id="result"></div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createQuad} from "./lib/utils.js";
+
+        const canvas = document.getElementById("canvas");
+
+        const TEXTURE_DIM = 2;
+        const NUM_ITEMS = TEXTURE_DIM * TEXTURE_DIM;
+        const MAX_VALUE = 1000;
+        const app = PicoGL.createApp(canvas);
+
+        const data = new Float32Array(NUM_ITEMS);
+
+        for (let i = 0; i < NUM_ITEMS; ++i) {
+            data[i] = Math.random() * MAX_VALUE;
+        }
+
+        const textureIn = app.createTexture2D(data, TEXTURE_DIM, TEXTURE_DIM, {
+            internalFormat: PicoGL.R32F,
+            minFilter: PicoGL.NEAREST,
+            magFilter: PicoGL.NEAREST
+        });
+
+        const textureOut = app.createTexture2D(data, TEXTURE_DIM * 0.5, TEXTURE_DIM * 0.5, {
+            internalFormat: PicoGL.R32F,
+            minFilter: PicoGL.NEAREST,
+            magFilter: PicoGL.NEAREST
+        });
+
+        const outFB = app.createFramebuffer()
+        .colorTarget(0, textureOut);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in vec4 position;
+
+            void main() {
+                gl_Position = position;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            uniform highp sampler2D data;
+            uniform vec2 textureOffset;
+            uniform vec2 canvasDim;
+
+            out float maxValue;
+            void main() {
+                vec2 uv = gl_FragCoord.xy / canvasDim;
+                float val1 = texture(data, uv).r;
+                float val2 = texture(data, uv + vec2(textureOffset.x, 0.0)).r;
+                float val3 = texture(data, uv + vec2(0.0, textureOffset.y)).r;
+                float val4 = texture(data, uv + textureOffset).r;
+                maxValue = max(max(val1, val2), max(val3, val4));
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const quadData = createQuad();
+
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions);
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .primitive(PicoGL.TRIANGLE_STRIP)
+        .uniform("textureOffset", new Float32Array([1 / TEXTURE_DIM, 1 / TEXTURE_DIM]))
+        .uniform("canvasDim", new Float32Array([TEXTURE_DIM * 0.5, TEXTURE_DIM * 0.5]))
+        .texture("data", textureIn);
+
+        app.drawFramebuffer(outFB);
+        drawCall.draw();
+
+        app.readFramebuffer(outFB);
+
+        const result = new Float32Array(4);
+        app.readPixel(0, 0, result, {
+            type: PicoGL.FLOAT
+        });
+
+        document.getElementById("result").innerHTML = `
+            Input array: [${Array.from(data).join(", ")}]<BR>
+            Max result: ${result[0]}
+        `;
+
+    </script>
+</body>
+</html>
