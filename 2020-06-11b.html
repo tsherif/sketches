@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+    <script src="lib/dat.gui.min.js"></script>
+    <script src="lib/picogl.min.js"></script>
+</head>
+<body>
+    <h2>GPGPU Max Sketch</h2>
+    Input dimensions: 
+    <select id="dimensions">
+        <option value="256">256</options>
+        <option value="512">512</options>
+        <option value="1024">1024</options>
+        <option selected value="2048">2048</options>
+        <option value="4096">4096</options>
+    </select>
+    <div id="result"></div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {createQuad} from "./lib/utils.js";
+
+        const canvas = document.getElementById("canvas");
+        const app = PicoGL.createApp(canvas);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in vec4 position;
+
+            void main() {
+                gl_Position = position;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            uniform highp sampler2D data;
+            uniform float pixelOffset;
+            uniform float inputDim;
+
+            out float maxValue;
+            void main() {
+                float uvScale = inputDim * pixelOffset;
+                float outputDim = inputDim * 0.5;
+                vec2 uv = (gl_FragCoord.xy - 0.25) / outputDim;
+                uv *= uvScale;
+                float val1 = texture(data, uv).r;
+                float val2 = texture(data, uv + vec2(pixelOffset, 0.0)).r;
+                float val3 = texture(data, uv + vec2(0.0, pixelOffset)).r;
+                float val4 = texture(data, uv + pixelOffset).r;
+                maxValue = max(max(val1, val2), max(val3, val4));
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const quadData = createQuad();
+
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions);
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .primitive(PicoGL.TRIANGLE_STRIP);
+
+        const selection = document.getElementById("dimensions");
+        getMax(parseInt(selection.value), 10);
+
+        selection.addEventListener("change", e => {
+            getMax(parseInt(selection.value), 10);   
+        });
+
+        function getMax(dim) {
+            requestAnimationFrame(() => {
+                const NUM_ITEMS = dim * dim;
+                const MAX_VALUE = NUM_ITEMS * NUM_ITEMS;
+
+                const data = new Float32Array(NUM_ITEMS);
+
+                for (let i = 0; i < NUM_ITEMS; ++i) {
+                    data[i] = Math.random() * 1000000;
+                }
+
+                const textureA = app.createTexture2D(data, dim, dim, {
+                    internalFormat: PicoGL.R32F,
+                    minFilter: PicoGL.NEAREST,
+                    magFilter: PicoGL.NEAREST
+                });
+
+                const textureB = app.createTexture2D(dim, dim, {
+                    internalFormat: PicoGL.R32F,
+                    minFilter: PicoGL.NEAREST,
+                    magFilter: PicoGL.NEAREST
+                });
+
+                const framebufferA = app.createFramebuffer()
+                .colorTarget(0, textureA);
+
+                const framebufferB = app.createFramebuffer()
+                .colorTarget(0, textureB);
+
+                
+                app.gl.finish();
+
+                const gpuStart = performance.now();
+
+                drawCall.uniform("pixelOffset", 1 / dim);
+
+                let currentDim = dim;
+                let currentIn = textureA;
+                let currentOut = framebufferB;
+
+                while (currentDim > 1) {
+                    const outputDim = currentDim >> 1;
+
+                    app.drawFramebuffer(currentOut);
+                    app.viewport(0, 0, outputDim, outputDim);
+                    drawCall
+                    .uniform("inputDim", currentDim)
+                    .texture("data", currentIn)
+                    .draw();
+
+                    currentDim = outputDim;
+
+                    if (currentDim > 1) {
+                        currentIn = currentIn === textureA ? textureB : textureA;
+                        currentOut = currentOut === framebufferA ? framebufferB : framebufferA;
+                    }
+                }
+
+                app.readFramebuffer(currentOut);
+
+                const result = new Float32Array(4);
+                app.readPixel(0, 0, result, {
+                    type: PicoGL.FLOAT
+                });
+
+                const gpuTime = performance.now() - gpuStart;
+
+                const cpuStart = performance.now();
+
+                let max = Number.NEGATIVE_INFINITY;
+                for (let i = 0; i < NUM_ITEMS; ++i) {
+                    max = Math.max(max, data[i]);
+                }
+
+                const cpuTime = performance.now() - cpuStart;
+
+                document.getElementById("result").innerHTML = `
+                    Total elements: ${NUM_ITEMS}<BR>
+                    GPU max result: ${result[0].toFixed(4)}<BR>
+                    CPU max result: ${max.toFixed(4)}<BR>
+                    GPU time: ${gpuTime.toFixed(2)}<BR>
+                    CPU time: ${cpuTime.toFixed(2)}<BR>                
+                `;
+
+                textureA.delete();
+                textureB.delete();
+                framebufferA.delete();
+                framebufferB.delete();
+            });
+        }
+
+        function getArrayHTML(data, dim) {
+          let displayArray = new Array(dim);
+
+          for (let i = 0; i < dim; ++i) {
+              let row = new Array(dim);
+              for (let j = 0; j < dim; ++j) {
+                  row[j] = data[i * dim + j].toPrecision(6);
+              }
+              displayArray[i] = row.join(" | ");
+          }  
+
+          return displayArray.join("<BR>");
+        }
+
+        function printPixels(fb, dim) {
+            app.readFramebuffer(fb);
+            const pixels = new Float32Array(dim * dim * 4);
+            app.gl.readPixels(0, 0, dim, dim, PicoGL.RGBA, PicoGL.FLOAT, pixels);
+
+            console.log("-----------------")
+            for (let y = 0; y < dim; ++y) {
+                let row = new Array(dim);
+                for (let x = 0; x < dim; ++x) {
+                    row[x] = pixels[(y * dim + x) * 4].toPrecision(6);
+                }
+                console.log(`${y}: ${row.join(" | ")}`);
+            }
+            console.log("-----------------\n")
+        }
+
+    </script>
+</body>
+</html>
