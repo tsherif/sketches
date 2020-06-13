@@ -57,18 +57,22 @@
 
         let stagger = 0;
 
-        let color1 = false;
+        let colorStagger = false;
         ctx.strokeStyle = COLOR1;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         for (let y = -HALF_HEIGHT; y - HALF_HEIGHT < canvas.height; y += HALF_HEIGHT) {
+            let color1 = colorStagger;
             for (let x = stagger * 1.5 * RADIUS; x - RADIUS < canvas.width; x += WIDTH + RADIUS) {
                 drawHex(ctx, x, y, RADIUS);
-                ctx.fillStyle = color1 && stagger == 1 ? COLOR1 : COLOR2;
+                ctx.fillStyle = color1 && stagger === 1 ? COLOR1 : COLOR2;
                 color1 = !color1;
                 ctx.stroke();
                 ctx.fill();
             }
             stagger = (stagger + 1) % 2;
+            if (stagger === 0) {
+                colorStagger = !colorStagger;
+            }
         }
 
         function drawHex(ctx, x, y, radius) {
