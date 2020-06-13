@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="lib/dat.gui.min.js"></script>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+
+        const PALETTES = [
+            [
+                "#d92027",
+                "#ff9234",
+                "#ffcd3c",
+                "#35d0ba"
+            ],
+            [
+                "#45046a",
+                "#5c2a9d",
+                "#b5076b",
+                "#f1ebbb"
+            ],
+            [
+                "#202040",
+                "#543864",
+                "#ff6363",
+                "#ffbd69"
+            ],
+            [
+                "#162447",
+                "#1f4068",
+                "#1b1b2f",
+                "#e43f5a"
+            ]
+        ];
+
+        const PALETTE = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        const COLOR1 = PALETTE[0];
+        const COLOR2 = PALETTE[3];
+
+        import {polygonCoordinates, drawPolygon, outsideEdge} from "./lib/polygon.js";
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        const settings = {
+            baseSides: Math.floor(Math.random() * 4 + 3),
+            branchSides: Math.floor(Math.random() * 4 + 3),
+        }
+
+        const centerX = canvas.width * 0.5;
+        const centerY = canvas.height * 0.5;
+        ctx.strokeStyle = "white";
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = COLOR1;
+            const baseShape = polygonCoordinates([
+                [centerX - 75, centerY - 75], 
+                [centerX, centerY]
+            ], settings.baseSides);
+            drawPolygon(ctx, baseShape);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = COLOR2;
+            for (let i = 0; i < settings.baseSides; ++i) {
+                let coords = polygonCoordinates(outsideEdge(baseShape, i), settings.branchSides);
+                drawPolygon(ctx, coords);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+        }
+
+        draw();
+
+        const gui = new dat.GUI();
+        gui.add(settings, "baseSides", 3, 12).step(1).onChange(draw);
+        gui.add(settings, "branchSides", 3, 12).step(1).onChange(draw);
+
+    </script>
+</body>
+</html>
