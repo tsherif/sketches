@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="lib/dat.gui.min.js"></script>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+
+        const PALETTES = [
+            [
+                "#d92027",
+                "#ff9234",
+                "#ffcd3c",
+                "#35d0ba"
+            ],
+            [
+                "#45046a",
+                "#5c2a9d",
+                "#b5076b",
+                "#f1ebbb"
+            ],
+            [
+                "#202040",
+                "#543864",
+                "#ff6363",
+                "#ffbd69"
+            ],
+            [
+                "#162447",
+                "#1f4068",
+                "#1b1b2f",
+                "#e43f5a"
+            ]
+        ];
+
+        const PALETTE = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        const COLOR1 = PALETTE[0];
+        const COLOR2 = PALETTE[3];
+
+        const SIDE_LENTH = 50;
+        const HEIGHT = SIDE_LENTH * Math.sin(Math.PI / 3);
+
+        import {polygonCoordinates, drawPolygon, outsideEdge} from "./lib/polygon.js";
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        function drawKey(base) {
+            const triangle1 = polygonCoordinates(base, 3);
+            const triangle2 = polygonCoordinates(outsideEdge(triangle1, 1), 3);
+
+            ctx.fillStyle = COLOR1;
+            drawPolygon(ctx, triangle1);
+            ctx.fill();
+
+            ctx.fillStyle = COLOR2;
+            drawPolygon(ctx, triangle2);
+            ctx.fill();
+        }
+
+        for (let y = HEIGHT; y - HEIGHT < canvas.height; y += HEIGHT) {
+            for (let x = -SIDE_LENTH; x < canvas.width; x += SIDE_LENTH) {
+                drawKey([
+                    [x, y],
+                    [x + SIDE_LENTH, y]
+                ])
+            }
+        }
+
+
+    </script>
+</body>
+</html>
