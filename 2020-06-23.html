@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="./lib/gl-matrix.js"></script>
+    <script src="./lib/picogl.min.js"></script>
+    <script src="lib/dat.gui.min.js"></script>
+</head>
+<body>
+    <canvas id="gl-canvas"></canvas>
+    <script type="module">
+        import {createCube} from "./lib/utils.js";
+        const FOCAL_LENGTH = 3;
+        const COLORS = {
+            frontX: new Float32Array([1, 0, 0]),
+            backX: new Float32Array([1, 0, 0]),
+            frontY: new Float32Array([0, 1, 0]),
+            backY: new Float32Array([0, 1, 0]),
+            frontZ: new Float32Array([0, 0, 1]),
+            backZ: new Float32Array([0, 0, 1]),
+            frontW: new Float32Array([1, 1, 0]),
+            backW: new Float32Array([1, 1, 0])
+        };
+
+
+        function extract3DCube(cube4D, axes) {
+            const x = axes[0];
+            const y = axes[1];
+            const z = axes[2];
+
+            const numVerts = cube4D.length / 4;
+
+            const cube3D = new Float32Array(numVerts * 3);
+
+            for (let i = 0; i < numVerts; ++i) {
+                const i3 = i * 3;
+                const i4 = i * 4;
+
+                cube3D[i3]     = cube4D[i4 + x];
+                cube3D[i3 + 1] = cube4D[i4 + y];
+                cube3D[i3 + 2] = cube4D[i4 + z];
+            }
+
+            return cube3D;
+        } 
+
+        function createTesseract() {
+            return {
+                frontX: createCube4D([1, 2, 3, 0], 1),
+                backX:  createCube4D([1, 2, 3, 0], -1),
+                frontY: createCube4D([2, 3, 0, 1], 1),
+                backY:  createCube4D([2, 3, 0, 1], -1),
+                frontZ: createCube4D([3, 0, 1, 2], 1),
+                backZ:  createCube4D([3, 0, 1, 2], -1),
+                frontW: createCube4D([0, 1, 2, 3], 1),
+                backW:  createCube4D([0, 1, 2, 3], -1)
+            };
+        }
+
+        function createTesseractProjections(tesseract) {
+            const projections = {};
+            for (const direction in tesseract) {
+                projections[direction] = new Float32Array(tesseract[direction].length * 3 / 4);
+            }
+
+            return projections;
+        }
+
+        function projectTesseract(tesseract, projections) {
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const projection = projections[direction];
+
+                const numVertex = cell.length / 4;
+                for (let i = 0; i < numVertex; ++i) {
+                    const ci = i * 4;
+                    const pi = i * 3;
+
+                    const w = cell[ci + 3];
+                    const perspective = FOCAL_LENGTH / (FOCAL_LENGTH - w);
+                    projection[pi]     = cell[ci]     * perspective;
+                    projection[pi + 1] = cell[ci + 1] * perspective;
+                    projection[pi + 2] = cell[ci + 2] * perspective;
+                }
+            }
+        }
+
+        function rotateXW(tesseract, out, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const transformedCell = out[direction];
+
+                for (let i = 0; i < cell.length; i += 4) {
+                    let x = cell[i];
+                    let w = cell[i + 3];
+                    transformedCell[i + 3] = c * w - s * x;
+                    transformedCell[i]     = s * w + c * x;
+                }
+            }
+        }
+
+        function createCube4D(axisOrder, wVal) {
+            const x = axisOrder[0];
+            const y = axisOrder[1];
+            const z = axisOrder[2];
+            const w = axisOrder[3];
+
+            const fbl = new Array(4);
+            fbl[x] = -1;
+            fbl[y] = -1;
+            fbl[z] = 1;
+            fbl[w] = wVal;
+
+            const fbr = new Array(4);
+            fbr[x] = 1;
+            fbr[y] = -1;
+            fbr[z] = 1;
+            fbr[w] = wVal;
+
+            const ftl = new Array(4);
+            ftl[x] = -1;
+            ftl[y] = 1;
+            ftl[z] = 1;
+            ftl[w] = wVal;
+
+            const ftr = new Array(4);
+            ftr[x] = 1;
+            ftr[y] = 1;
+            ftr[z] = 1;
+            ftr[w] = wVal;
+
+            const bbl = new Array(4);
+            bbl[x] = -1;
+            bbl[y] = -1;
+            bbl[z] = -1;
+            bbl[w] = wVal;
+
+            const bbr = new Array(4);
+            bbr[x] = 1;
+            bbr[y] = -1;
+            bbr[z] = -1;
+            bbr[w] = wVal;
+
+            const btl = new Array(4);
+            btl[x] = -1;
+            btl[y] = 1;
+            btl[z] = -1;
+            btl[w] = wVal;
+
+            const btr = new Array(4);
+            btr[x] = 1;
+            btr[y] = 1;
+            btr[z] = -1;
+            btr[w] = wVal;
+
+            return new Float32Array([
+                //front
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+
+                //right
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                btr[0], btr[1], btr[2], btr[3],
+
+                //back
+                fbr[0], bbr[1], bbr[2], bbr[3],
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                btr[0], btr[1], btr[2], btr[3],
+                btr[0], btr[1], btr[2], btr[3],
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                btl[0], btl[1], btl[2], btl[3],
+
+                //left
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+
+                //top
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                btl[0], btl[1], btl[2], btl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                btr[0], btr[1], btr[2], btr[3],
+
+                //bottom
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                fbr[0], fbr[1], fbr[2], fbr[3]
+            ]);
+        }
+
+        const vsSource = `
+            #version 300 es
+
+            layout(std140, column_major) uniform;
+
+            layout(location=0) in vec3 position;
+            
+            uniform mat4 view;
+            uniform mat4 proj;
+            
+            void main() {
+                gl_Position = proj * view * vec4(position, 1.0);
+            }
+        `;
+
+        const fsSource = `
+            #version 300 es
+            precision highp float;
+
+            layout(std140, column_major) uniform;
+
+            uniform vec3 color;
+
+            out vec4 fragColor;
+            void main() {
+                fragColor = vec4(color, 1.0) * 0.3;
+            }
+        `;
+               
+        let canvas = document.getElementById("gl-canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let app = PicoGL.createApp(canvas)
+        .clearColor(0.0, 0.0, 0.0, 1.0)
+        .enable(PicoGL.BLEND)
+        .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA);
+
+        // SET UP UNIFORM BUFFER
+        let projMatrix = mat4.create();
+        mat4.perspective(projMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0);
+
+        let eye = [2, 2, 2];
+        let look = [0, 0, 0];
+        let up = [0, 1, 0];
+
+        const viewMatrix = mat4.lookAt(mat4.create(), eye, look, up);
+
+        app.createPrograms([vsSource, fsSource]).then(([program]) => {
+            // SET UP GEOMETRY
+            let tesseract = createTesseract();
+            let transformedTesseract = createTesseract();
+            let tesseractProjecton = createTesseractProjections(transformedTesseract);
+            projectTesseract(transformedTesseract, tesseractProjecton);
+            let rotations = {
+                XW: 0,
+                YW: 0,
+                ZW: 0
+            };
+
+            const objects = new Array(8);
+            let oi = 0;
+            for (const direction in tesseract) {
+                let positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tesseractProjecton[direction]);
+                let boxArray = app.createVertexArray()
+                .vertexAttributeBuffer(0, positions);
+                const color = COLORS[direction];
+
+                let drawCall = app.createDrawCall(program, boxArray)
+                .uniform("proj", projMatrix)
+                .uniform("color", color);
+
+                objects[oi++] = {
+                    direction,
+                    positions,
+                    vao: boxArray,
+                    drawCall
+                }
+            }
+
+            const gui = new dat.GUI();
+            gui.add(rotations, "XW", 0, Math.PI * 2).step(0.01).onChange((angle) => {
+                rotateXW(tesseract, transformedTesseract, angle);
+                projectTesseract(transformedTesseract, tesseractProjecton);
+                for (let i = 0; i < objects.length; ++i) {
+                    let object = objects[i];
+                    let direction = object.direction;
+                    object.positions.data(tesseractProjecton[direction]);
+                }
+            });
+
+            function draw() {
+                mat4.lookAt(viewMatrix, eye, look, up);
+
+                app.clear();
+
+                for (let i = 0; i < objects.length; ++i) {
+                    objects[i].drawCall.uniform("view", viewMatrix);
+                    objects[i].drawCall.draw()
+                }
+
+                
+                requestAnimationFrame(draw);
+            }
+
+            requestAnimationFrame(draw);
+        });
+
+        const cameraRotation = mat4.create();
+        const axis = vec3.create();
+
+        function orbitCamera(eye, look, up, x, y) {
+            vec3.subtract(eye, eye, look);
+            vec3.cross(axis, up, eye);
+            vec3.normalize(axis, axis);
+
+            mat4.fromRotation(cameraRotation, x, up);
+            mat4.rotate(cameraRotation, cameraRotation, y, axis);
+
+            vec3.transformMat4(eye, eye, cameraRotation);
+            vec3.add(eye, eye, look);
+        }
+
+        function zoomCamera(eye, look, zoom) {
+            vec3.subtract(eye, eye, look);
+            vec3.normalize(eye, eye);
+            vec3.scale(eye, eye, zoom);
+            vec3.add(eye, eye, look);
+        }
+
+        let dragging = false;
+        let lastX = -1;
+        let lastY = -1;
+        const ORBIT_SCALE = 0.01;
+        document.addEventListener("mousedown", e => {
+            dragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+
+        document.addEventListener("mousemove", e => {
+            if (!dragging) {
+                return;
+            }
+            let dx = -(e.clientX - lastX) * ORBIT_SCALE;
+            let dy = -(e.clientY - lastY) * ORBIT_SCALE;
+
+            orbitCamera(eye, look, up, dx, dy)
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+
+        document.addEventListener("mouseup", e => {
+            dragging = false;
+            lastX = -1;
+            lastY = -1;
+        });
+
+        const ZOOM_SCALE = 0.1;
+        const MAX_ZOOM = 7;
+        const MIN_ZOOM = 0.1;
+        let zoom = vec3.length(vec3.subtract([], eye, look));
+        document.addEventListener("wheel", e => {
+            zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
+            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+            zoomCamera(eye, look, zoom);
+        });
+        
+    </script>
+</body>
+</html>
