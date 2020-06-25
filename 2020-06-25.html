@@ -519,9 +519,9 @@
 
         // SET UP UNIFORM BUFFER
         let projMatrix = mat4.create();
-        mat4.perspective(projMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0);
+        mat4.perspective(projMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 15.0);
 
-        let eye = [3, 3, 3];
+        let eye = [4.5, 4.5, 4.5];
         let look = [0, 0, 0];
         let up = [0, 1, 0];
 
