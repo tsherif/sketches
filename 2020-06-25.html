@@ -31,29 +31,33 @@
 
         const UNFOLD_TRANSFORMS = {
             frontX: {
-                wxRotation: -Math.PI * 0.5,
+                rotationPlane: "XW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [2, 0, 0, -1]
             },
             backX: {
-                wxRotation: -Math.PI * 0.5,
+                rotationPlane: "XW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [-2, 0, 0, 1]
             },
             frontY: {
-                yzRotation: Math.PI * 0.5,
-                zwRotation: Math.PI * 0.5,
+                rotationPlane: "YW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [0, 2, 0, -1]
             },
             backY: {
-                yzRotation: Math.PI * 0.5,
-                zwRotation: Math.PI * 0.5,
+                rotationPlane: "YW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [0, -2, 0, 1]
             },
             frontZ: {
-                zwRotation: Math.PI * 0.5,
+                rotationPlane: "ZW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [0, 0, 2, -1]
             },
             backZ: {
-                zwRotation: Math.PI * 0.5,
+                rotationPlane: "ZW",
+                rotationAngle: Math.PI * 0.5,
                 translation: [0, 0, -2, 1]
             },
             frontW: {
@@ -268,6 +272,45 @@
             }
         }
 
+        function rotateXZ(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellXZ(tesseract[direction],  out[direction], angle)
+            }
+        }
+
+        function rotateCellXZ(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let x = cellIn[i];
+                let z = cellIn[i + 2];
+                cellOut[i]     = c * x - s * z;
+                cellOut[i + 2] = s * x + c * z;
+                cellOut[i + 1] = cellIn[i + 1];
+                cellOut[i + 3] = cellIn[i + 3];
+            }
+        }
+
+        function rotateXW(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellXW(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellXW(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let x = cellIn[i];
+                let w = cellIn[i + 3];
+                cellOut[i]     = c * x - s * w;
+                cellOut[i + 3] = s * x + c * w;
+                cellOut[i + 1] = cellIn[i + 1];
+                cellOut[i + 2] = cellIn[i + 2];
+            }
+        }
+
         function rotateYZ(tesseract, out, angle) {
             for (const direction in tesseract) {
                 rotateCellYZ(tesseract[direction], out[direction], angle)
@@ -284,6 +327,25 @@
                 cellOut[i + 2] = s * y + c * z;
                 cellOut[i]     = cellIn[i];
                 cellOut[i + 3] = cellIn[i + 3];
+            }
+        }
+
+        function rotateYW(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellYW(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellYW(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let y = cellIn[i + 1];
+                let w = cellIn[i + 3];
+                cellOut[i + 1] = c * y - s * w;
+                cellOut[i + 3] = s * y + c * w;
+                cellOut[i]     = cellIn[i];
+                cellOut[i + 2] = cellIn[i + 2];
             }
         }
 
@@ -307,26 +369,6 @@
             }
         }
 
-        function rotateWX(tesseract, out, angle) {
-            for (const direction in tesseract) {
-                rotateCellWX(tesseract[direction], out[direction], angle)
-            }
-        }
-
-        function rotateCellWX(cellIn, cellOut, angle) {
-            const s = Math.sin(angle);
-            const c = Math.cos(angle);
-
-            for (let i = 0; i < cellIn.length; i += 4) {
-                let w = cellIn[i + 3];
-                let x = cellIn[i];
-                cellOut[i + 3] = c * w - s * x;
-                cellOut[i]     = s * w + c * x;
-                cellOut[i + 1] = cellIn[i + 1];
-                cellOut[i + 2] = cellIn[i + 2];
-            }
-        }
-
         function scale(tesseract, out, scales) {
             const x = scales.X;
             const y = scales.Y;
@@ -347,45 +389,33 @@
         }
 
         function unfold(tesseract, out, factor) {
-            const scratchCellA = new Float32Array(tesseract.frontX.length);
-            const scratchCellB = new Float32Array(tesseract.frontX.length);
-
             for (const direction in UNFOLD_TRANSFORMS) {
-                let cellIn = tesseract[direction];
-                let cellOut = scratchCellA;
-
-                const {xyRotation = 0, yzRotation = 0, zwRotation = 0, wxRotation = 0, translation = [0, 0, 0, 0]} = UNFOLD_TRANSFORMS[direction];
-
-                if (xyRotation !== 0) {
-                    rotateCellXY(cellIn, cellOut, factor * xyRotation);
-                    cellIn = cellOut;
-                    cellOut = cellIn === scratchCellA ? scratchCellB : scratchCellA;
-                }
-
-                if (yzRotation !== 0) {
-                    rotateCellYZ(cellIn, cellOut, factor * yzRotation);
-                    cellIn = cellOut;
-                    cellOut = cellIn === scratchCellA ? scratchCellB : scratchCellA;
-                }
-
-                if (zwRotation !== 0) {
-                    rotateCellZW(cellIn, cellOut, factor * zwRotation);
-                    cellIn = cellOut;
-                    cellOut = cellIn === scratchCellA ? scratchCellB : scratchCellA;
-                }
-
-                if (wxRotation !== 0) {
-                    rotateCellWX(cellIn, cellOut, factor * wxRotation);
-                    cellIn = cellOut;
-                    cellOut = cellIn === scratchCellA ? scratchCellB : scratchCellA;
-                }
-
+                const cellIn = tesseract[direction];
                 const cellResult = out[direction];
+                let cellOut = out[direction];
+
+                const {rotationPlane, rotationAngle = 0, translation = [0, 0, 0, 0]} = UNFOLD_TRANSFORMS[direction];
+
+                switch(rotationPlane) {
+                    case "XW": 
+                        rotateCellXW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    case "YW": 
+                        rotateCellYW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    case "ZW": 
+                        rotateCellZW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    default:
+                        cellOut = cellIn;
+                        break;
+                }
+
                 for (let i = 0; i < cellOut.length; i += 4) {
-                    cellResult[i]     = cellIn[i]     + translation[0] * factor;
-                    cellResult[i + 1] = cellIn[i + 1] + translation[1] * factor;
-                    cellResult[i + 2] = cellIn[i + 2] + translation[2] * factor;
-                    cellResult[i + 3] = cellIn[i + 3] + translation[3] * factor;
+                    cellResult[i]     = cellOut[i]     + translation[0] * factor;
+                    cellResult[i + 1] = cellOut[i + 1] + translation[1] * factor;
+                    cellResult[i + 2] = cellOut[i + 2] + translation[2] * factor;
+                    cellResult[i + 3] = cellOut[i + 3] + translation[3] * factor;
                 }
             }
         }
@@ -411,20 +441,32 @@
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
 
+            if (rotations.XZ !== 0) {
+                rotateXZ(inTesseract, outTesseract, rotations.XZ);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.XW !== 0) {
+                rotateXW(inTesseract, outTesseract, rotations.XW);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
             if (rotations.YZ !== 0) {
                 rotateYZ(inTesseract, outTesseract, rotations.YZ);
                 inTesseract = outTesseract;
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
 
-            if (rotations.ZW !== 0) {
-                rotateZW(inTesseract, outTesseract, rotations.ZW);
+            if (rotations.YW !== 0) {
+                rotateYW(inTesseract, outTesseract, rotations.YW);
                 inTesseract = outTesseract;
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
 
-            if (rotations.WX !== 0) {
-                rotateWX(inTesseract, outTesseract, rotations.WX);
+            if (rotations.ZW !== 0) {
+                rotateZW(inTesseract, outTesseract, rotations.ZW);
                 inTesseract = outTesseract;
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
@@ -502,9 +544,11 @@
             };
             let rotations = {
                 XY: 0,
+                XZ: 0,
+                XW: 0,
                 YZ: 0,
-                ZW: 0,
-                WX: 0
+                YW: 0,
+                ZW: 0
             };
             let scales = {
                 X: 1,
@@ -557,11 +601,15 @@
                 transformDirty = true; 
             };
 
+            gui.add(transforms, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
+
             const rotationFolder = gui.addFolder("Rotations")
             rotationFolder.add(rotations, "XY", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(rotations, "XZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(rotations, "XW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
             rotationFolder.add(rotations, "YZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(rotations, "YW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
             rotationFolder.add(rotations, "ZW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "WX", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
             rotationFolder.open();
 
             const scaleFolder = gui.addFolder("Scale")
@@ -570,8 +618,6 @@
             scaleFolder.add(scales, "Z", 0, 1).step(0.01).onChange(setTransformDirty);
             scaleFolder.add(scales, "W", 0, 1).step(0.01).onChange(setTransformDirty);
             scaleFolder.open();
-
-            gui.add(transforms, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
 
             const visibilityFolder = gui.addFolder("Cell Visibility");
             visibilityFolder.add(visibility, "frontX");
