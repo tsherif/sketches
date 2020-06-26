@@ -776,6 +776,8 @@
             vec3.subtract(eye, eye, look);
             vec3.cross(axis, up, eye);
             vec3.normalize(axis, axis);
+            vec3.cross(up, eye, axis);
+            vec3.normalize(up, up);
 
             mat4.fromRotation(cameraRotation, x, up);
             mat4.rotate(cameraRotation, cameraRotation, y, axis);
