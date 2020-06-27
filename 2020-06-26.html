@@ -69,6 +69,17 @@
 
         };
 
+        const CELL_AXES = {
+            frontX: [1, 2, 3],
+            backX:  [1, 2, 3],
+            frontY: [2, 3, 0],
+            backY:  [2, 3, 0],
+            frontZ: [3, 0, 1],
+            backZ:  [3, 0, 1],
+            frontW: [0, 1, 2],
+            backW:  [0, 1, 2]
+        };
+
         function createCube4D(axisOrder, wVal) {
             const x = axisOrder[0];
             const y = axisOrder[1];
@@ -491,15 +502,18 @@
             layout(std140, column_major) uniform;
 
             layout(location=0) in vec3 position;
+            layout(location=1) in vec4 position4D;
             
             uniform mat4 view;
             uniform mat4 proj;
 
             out vec3 vPosition;
+            out vec4 vPosition4D;
             
             void main() {
                 vec4 viewPosition = view * vec4(position, 1.0);
                 vPosition = viewPosition.xyz; 
+                vPosition4D = position4D;
                 gl_Position = proj * viewPosition;
             }
         `;
@@ -513,8 +527,10 @@
             uniform vec3 color;
             uniform vec3 eyePosition;
             uniform vec3 lightPosition;
+            uniform bool cutout;
 
             in vec3 vPosition;
+            in vec4 vPosition4D;
 
             layout(location=0) out vec4 accumColor;
             layout(location=1) out float accumAlpha;
@@ -524,6 +540,10 @@
             }
 
             void main() {
+                if (cutout && dot(vPosition4D, vPosition4D) < 2.6) {
+                    discard;
+                }
+
                 vec3 position = vPosition;
                 vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
 
@@ -553,12 +573,18 @@
             uniform vec3 color;
             uniform vec3 eyePosition;
             uniform vec3 lightPosition;
+            uniform bool cutout;
 
             in vec3 vPosition;
+            in vec4 vPosition4D;
 
             out vec4 fragColor;
 
             void main() {
+                if (cutout && dot(vPosition4D, vPosition4D) < 2.6) {
+                    discard;
+                }
+
                 vec3 position = vPosition;
                 vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
 
@@ -657,6 +683,7 @@
             const settings = {
                 Projection: "perspective",
                 Rendering: "transparent",
+                Cutout: false,
                 Unfold: 0,
                 rotations: {
                     XY: 0,
@@ -690,8 +717,10 @@
             let oi = 0;
             for (const direction in tesseract) {
                 let positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tesseractProjecton[direction]);
+                let positions4D = app.createVertexBuffer(PicoGL.FLOAT, 4,  tesseract[direction]);
                 let boxArray = app.createVertexArray()
-                .vertexAttributeBuffer(0, positions);
+                .vertexAttributeBuffer(0, positions)
+                .vertexAttributeBuffer(1, positions4D);
                 const color = COLORS[direction];
 
                 let drawCall = app.createDrawCall(program, boxArray)
@@ -737,6 +766,7 @@
 
             gui.add(settings, "Projection", ["perspective", "orthographic"]).onChange(setTransformDirty);
             gui.add(settings, "Rendering", ["transparent", "opaque"]);
+            gui.add(settings, "Cutout");
             gui.add(settings, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
 
             const rotationFolder = gui.addFolder("Rotations")
@@ -790,6 +820,7 @@
                             objects[i].drawCall
                             .uniform("view", viewMatrix)
                             .uniform("eyePosition", eye)
+                            .uniform("cutout", settings.Cutout)
                             .draw();
                         }
                     }
@@ -811,6 +842,7 @@
                             objects[i].opaqueDrawCall
                             .uniform("view", viewMatrix)
                             .uniform("eyePosition", eye)
+                            .uniform("cutout", settings.Cutout)
                             .draw();
                         }
                     }
