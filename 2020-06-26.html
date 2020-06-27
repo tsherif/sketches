@@ -217,17 +217,10 @@
             return projections;
         }
 
-        function projectTesseract(tesseract, projections, depthInfo) {
+        function perspectiveProjection(tesseract, projections) {
             for (const direction in tesseract) {
                 const cell = tesseract[direction];
                 const projection = projections[direction];
-
-                const cellDepthInfo = depthInfo[direction];
-
-                cellDepthInfo.centroid3[0] = 0;
-                cellDepthInfo.centroid3[1] = 0;
-                cellDepthInfo.centroid3[2] = 0;
-                cellDepthInfo.wDepth = 0;
 
                 const numVertex = cell.length / 4;
                 for (let i = 0; i < numVertex; ++i) {
@@ -239,17 +232,24 @@
                     projection[pi]     = cell[ci]     * perspective;
                     projection[pi + 1] = cell[ci + 1] * perspective;
                     projection[pi + 2] = cell[ci + 2] * perspective;
-
-                    cellDepthInfo.centroid3[0] += projection[pi]    ;
-                    cellDepthInfo.centroid3[1] += projection[pi + 1];
-                    cellDepthInfo.centroid3[2] += projection[pi + 2];
-                    cellDepthInfo.wDepth += w;
                 }
+            }
+        }
 
-                cellDepthInfo.centroid3[0] /= numVertex;
-                cellDepthInfo.centroid3[1] /= numVertex;
-                cellDepthInfo.centroid3[2] /= numVertex;
-                cellDepthInfo.wDepth /= numVertex;
+        function orthographicProjection(tesseract, projections) {
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const projection = projections[direction];
+
+                const numVertex = cell.length / 4;
+                for (let i = 0; i < numVertex; ++i) {
+                    const ci = i * 4;
+                    const pi = i * 3;
+
+                    projection[pi]     = cell[ci];
+                    projection[pi + 1] = cell[ci + 1];
+                    projection[pi + 2] = cell[ci + 2];
+                }
             }
         }
 
@@ -420,13 +420,15 @@
             }
         }
 
-        function updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, rotations, scales, transforms, depthInfo) {
+        function updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, settings) {
+
+            const {Unfold, rotations, scales} = settings;
 
             let inTesseract = tesseract;
             let outTesseract = transformedTesseractA;
 
-            if (transforms.Unfold > 0) {
-                unfold(inTesseract, outTesseract, transforms.Unfold);
+            if (Unfold > 0) {
+                unfold(inTesseract, outTesseract, Unfold);
                 inTesseract = outTesseract;
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
@@ -471,7 +473,11 @@
                 outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
             }
 
-            projectTesseract(inTesseract, tesseractProjecton, depthInfo);
+            if (settings.Projection === "perspective") {
+                perspectiveProjection(inTesseract, tesseractProjecton);
+            } else {
+                orthographicProjection(inTesseract, tesseractProjecton);
+            }
             for (let i = 0; i < objects.length; ++i) {
                 let object = objects[i];
                 let direction = object.direction;
@@ -615,35 +621,37 @@
                 frontW: { centroid3: new Float32Array(3), wDepth: 0 },
                 backW:  { centroid3: new Float32Array(3), wDepth: 0 },
             };
-            let rotations = {
-                XY: 0,
-                XZ: 0,
-                XW: 0,
-                YZ: 0,
-                YW: 0,
-                ZW: 0
-            };
-            let scales = {
-                X: 1,
-                Y: 1,
-                Z: 1,
-                W: 1
-            };
-            let transforms = {
-                Unfold: 0
-            };
-            let visibility = {
-                frontX: true,
-                backX: true,
-                frontY: true,
-                backY: true,
-                frontZ: true,
-                backZ: true,
-                frontW: true,
-                backW: true
+
+            const settings = {
+                Projection: "perspective",
+                Unfold: 0,
+                rotations: {
+                    XY: 0,
+                    XZ: 0,
+                    XW: 0,
+                    YZ: 0,
+                    YW: 0,
+                    ZW: 0
+                },
+                scales: {
+                    X: 1,
+                    Y: 1,
+                    Z: 1,
+                    W: 1
+                },
+                visibility: {
+                    frontX: true,
+                    backX: true,
+                    frontY: true,
+                    backY: true,
+                    frontZ: true,
+                    backZ: true,
+                    frontW: true,
+                    backW: true
+                }
             };
 
-            projectTesseract(transformedTesseractA, tesseractProjecton, depthInfo);
+            perspectiveProjection(transformedTesseractA, tesseractProjecton);
 
             const objects = new Array(8);
             let oi = 0;
@@ -688,33 +696,34 @@
                 transformDirty = true; 
             };
 
-            gui.add(transforms, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
+            gui.add(settings, "Projection", ["perspective", "orthographic"]).onChange(setTransformDirty);
+            gui.add(settings, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
 
             const rotationFolder = gui.addFolder("Rotations")
-            rotationFolder.add(rotations, "XY", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "XZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "XW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "YZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "YW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
-            rotationFolder.add(rotations, "ZW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "XY", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "XZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "XW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "YZ", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "YW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "ZW", 0, Math.PI * 2).step(0.01).onChange(setTransformDirty);
             rotationFolder.open();
 
             const scaleFolder = gui.addFolder("Scale")
-            scaleFolder.add(scales, "X", 0, 1).step(0.01).onChange(setTransformDirty);
-            scaleFolder.add(scales, "Y", 0, 1).step(0.01).onChange(setTransformDirty);
-            scaleFolder.add(scales, "Z", 0, 1).step(0.01).onChange(setTransformDirty);
-            scaleFolder.add(scales, "W", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "X", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "Y", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "Z", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "W", 0, 1).step(0.01).onChange(setTransformDirty);
             scaleFolder.open();
 
             const visibilityFolder = gui.addFolder("Cell Visibility");
-            visibilityFolder.add(visibility, "frontX");
-            visibilityFolder.add(visibility, "backX");
-            visibilityFolder.add(visibility, "frontY");
-            visibilityFolder.add(visibility, "backY");
-            visibilityFolder.add(visibility, "frontZ");
-            visibilityFolder.add(visibility, "backZ");
-            visibilityFolder.add(visibility, "frontW");
-            visibilityFolder.add(visibility, "backW");
+            visibilityFolder.add(settings.visibility, "frontX");
+            visibilityFolder.add(settings.visibility, "backX");
+            visibilityFolder.add(settings.visibility, "frontY");
+            visibilityFolder.add(settings.visibility, "backY");
+            visibilityFolder.add(settings.visibility, "frontZ");
+            visibilityFolder.add(settings.visibility, "backZ");
+            visibilityFolder.add(settings.visibility, "frontW");
+            visibilityFolder.add(settings.visibility, "backW");
             visibilityFolder.open();
 
             const viewCentroidA = new Float32Array(3);
@@ -724,7 +733,7 @@
                 mat4.lookAt(viewMatrix, eye, look, up);
 
                 if (transformDirty) {
-                    updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, rotations, scales, transforms, depthInfo);
+                    updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, settings);
                     transformDirty = false;
                 }
 
@@ -732,24 +741,9 @@
                 .blendFuncSeparate(PicoGL.ONE, PicoGL.ONE, PicoGL.ZERO, PicoGL.ONE_MINUS_SRC_ALPHA)
                 .clear();
 
-                objects.sort((a, b) => {
-                    const directionA = a.direction;
-                    const directionB = b.direction;
-                    const centroid3A = depthInfo[directionA].centroid3;
-                    const centroid3B = depthInfo[directionB].centroid3;
-                    vec3.transformMat4(viewCentroidA, centroid3A, viewMatrix);
-                    vec3.transformMat4(viewCentroidB, centroid3B, viewMatrix);
-
-                    if (Math.abs(viewCentroidA[2] - viewCentroidB[2]) > 0.01) {
-                        return viewCentroidA[2] - viewCentroidB[2];
-                    } else {
-                        return depthInfo[directionA].wDepth - depthInfo[directionB].wDepth
-                    }
-                });
-
                 for (let i = 0; i < objects.length; ++i) {
                     const object = objects[i];
-                    if (visibility[object.direction]) {
+                    if (settings.visibility[object.direction]) {
                         objects[i].drawCall
                         .uniform("view", viewMatrix)
                         .uniform("eyePosition", eye)
@@ -825,7 +819,7 @@
             lastY = -1;
         });
 
-        const ZOOM_SCALE = 0.1;
+        const ZOOM_SCALE = 0.11;
         const MAX_ZOOM = 7;
         const MIN_ZOOM = 0.1;
         let zoom = vec3.length(vec3.subtract([], eye, look));
