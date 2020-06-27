@@ -18,7 +18,8 @@
     <script type="module">
         import {createCube, createQuad} from "./lib/utils.js";
         const RADIANS = Math.PI / 180;
-        const FOCAL_LENGTH = 3;
+        const FOCAL_LENGTH = 2;
+        const CAMERA_W_OFFSET = 3;
         const COLORS_AXIS = {
             frontX: new Float32Array([1, 0.1, 0.1]),
             backX: new Float32Array([1, 0.1, 0.1]),
@@ -250,11 +251,10 @@
                     const ci = i * 4;
                     const pi = i * 3;
 
-                    const w = cell[ci + 3];
-                    const perspective = FOCAL_LENGTH / (FOCAL_LENGTH - w);
-                    projection[pi]     = cell[ci]     * perspective;
-                    projection[pi + 1] = cell[ci + 1] * perspective;
-                    projection[pi + 2] = cell[ci + 2] * perspective;
+                    const w = CAMERA_W_OFFSET - cell[ci + 3];
+                    projection[pi]     = (FOCAL_LENGTH * cell[ci]    ) / w;
+                    projection[pi + 1] = (FOCAL_LENGTH * cell[ci + 1]) / w;
+                    projection[pi + 2] = (FOCAL_LENGTH * cell[ci + 2]) / w;
                 }
             }
         }
@@ -650,7 +650,7 @@
         let projMatrix = mat4.create();
         mat4.perspective(projMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 15.0);
 
-        let eye = new Float32Array([-2.5, 2.5, 4.5]);
+        let eye = new Float32Array([-1.5, 1.5, 3]);
         let look = new Float32Array([0, 0, 0]);
         let up = new Float32Array([0, 1, 0]);
 
