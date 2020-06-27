@@ -544,6 +544,38 @@
             }
         `;
 
+        const fsSourceOpaque = `
+            #version 300 es
+            precision highp float;
+
+            layout(std140, column_major) uniform;
+
+            uniform vec3 color;
+            uniform vec3 eyePosition;
+            uniform vec3 lightPosition;
+
+            in vec3 vPosition;
+
+            out vec4 fragColor;
+
+            void main() {
+                vec3 position = vPosition;
+                vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
+
+                vec4 baseColor = vec4(color, 1.0);
+                vec3 eyeDirection = normalize(eyePosition - position);
+                vec3 lightVec = lightPosition - position;
+                vec3 lightDirection = normalize(lightVec);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+                float nDotL = max(dot(lightDirection, normal), 0.0);
+                float diffuse = nDotL;
+                float ambient = 0.4;
+                float specular = pow(max(dot(reflectionDirection, eyeDirection), 0.0), 20.0);
+
+                fragColor = vec4((ambient + diffuse + specular) * baseColor.rgb, 1.0);
+            }
+        `;
+
         const vsOITSource = `
             #version 300 es
 
@@ -576,7 +608,7 @@
         
         let app = PicoGL.createApp(canvas)
         .clearColor(0.0, 0.0, 0.0, 1.0)
-        .enable(PicoGL.BLEND);
+        .enable(PicoGL.POLYGON_OFFSET_FILL);
 
         // SET UP UNIFORM BUFFER
         let projMatrix = mat4.create();
@@ -590,7 +622,7 @@
 
         const lightPosition = new Float32Array([2, 2, 0])
 
-        app.createPrograms([vsSource, fsSource], [vsOITSource, fsOITSource]).then(([program, oitProgram]) => {
+        app.createPrograms([vsSource, fsSource], [vsSource, fsSourceOpaque], [vsOITSource, fsOITSource]).then(([program, opaqueProgram, oitProgram]) => {
             //////////////////////////
             // OIT FRAMEBUFFERS
             //////////////////////////
@@ -624,6 +656,7 @@
 
             const settings = {
                 Projection: "perspective",
+                Rendering: "transparent",
                 Unfold: 0,
                 rotations: {
                     XY: 0,
@@ -666,11 +699,17 @@
                 .uniform("color", color)
                 .uniform("lightPosition", lightPosition);
 
+                let opaqueDrawCall = app.createDrawCall(opaqueProgram, boxArray)
+                .uniform("proj", projMatrix)
+                .uniform("color", color)
+                .uniform("lightPosition", lightPosition);
+
                 objects[oi++] = {
                     direction,
                     positions,
                     vao: boxArray,
-                    drawCall
+                    drawCall,
+                    opaqueDrawCall
                 }
             }
 
@@ -697,6 +736,7 @@
             };
 
             gui.add(settings, "Projection", ["perspective", "orthographic"]).onChange(setTransformDirty);
+            gui.add(settings, "Rendering", ["transparent", "opaque"]);
             gui.add(settings, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
 
             const rotationFolder = gui.addFolder("Rotations")
@@ -737,25 +777,44 @@
                     transformDirty = false;
                 }
 
-                app.drawFramebuffer(oitFBO)
-                .blendFuncSeparate(PicoGL.ONE, PicoGL.ONE, PicoGL.ZERO, PicoGL.ONE_MINUS_SRC_ALPHA)
-                .clear();
+                if (settings.Rendering === "transparent") {
+                    app.drawFramebuffer(oitFBO)
+                    .disable(PicoGL.DEPTH_TEST)
+                    .enable(PicoGL.BLEND)
+                    .blendFuncSeparate(PicoGL.ONE, PicoGL.ONE, PicoGL.ZERO, PicoGL.ONE_MINUS_SRC_ALPHA)
+                    .clear();
 
-                for (let i = 0; i < objects.length; ++i) {
-                    const object = objects[i];
-                    if (settings.visibility[object.direction]) {
-                        objects[i].drawCall
-                        .uniform("view", viewMatrix)
-                        .uniform("eyePosition", eye)
-                        .draw();
+                    for (let i = 0; i < objects.length; ++i) {
+                        const object = objects[i];
+                        if (settings.visibility[object.direction]) {
+                            objects[i].drawCall
+                            .uniform("view", viewMatrix)
+                            .uniform("eyePosition", eye)
+                            .draw();
+                        }
+                    }
+
+                    app.defaultDrawFramebuffer()
+                    .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA)
+                    .clear();
+
+                    oitDrawcall.draw();
+                } else {
+                    app.enable(PicoGL.DEPTH_TEST)
+                    .disable(PicoGL.BLEND)
+                    .clear();
+
+                    for (let i = 0; i < objects.length; ++i) {
+                        const object = objects[i];
+                        if (settings.visibility[object.direction]) {
+                            app.gl.polygonOffset(i * 0.1, i);
+                            objects[i].opaqueDrawCall
+                            .uniform("view", viewMatrix)
+                            .uniform("eyePosition", eye)
+                            .draw();
+                        }
                     }
                 }
-
-                app.defaultDrawFramebuffer()
-                .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA)
-                .clear();
-
-                oitDrawcall.draw();
                 
                 requestAnimationFrame(draw);
             }
