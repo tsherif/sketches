@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="./lib/gl-matrix.js"></script>
+    <script src="./lib/picogl.min.js"></script>
+    <script src="lib/dat.gui.min.js"></script>
+</head>
+<body>
+    <canvas id="gl-canvas"></canvas>
+    <script type="module">
+        import {createCube, createQuad} from "./lib/utils.js";
+        const RADIANS = Math.PI / 180;
+        const FOCAL_LENGTH = 3;
+        const COLORS_AXIS = {
+            frontX: new Float32Array([1, 0.1, 0.1]),
+            backX: new Float32Array([1, 0.1, 0.1]),
+            frontY: new Float32Array([0.1, 1, 0.1]),
+            backY: new Float32Array([0.1, 1, 0.1]),
+            frontZ: new Float32Array([0.1, 0.1, 1]),
+            backZ: new Float32Array([0.1, 0.1, 1]),
+            frontW: new Float32Array([1, 1, 1]),
+            backW: new Float32Array([1, 1, 1])
+        };
+
+        const COLORS_CELL = {
+            frontX: new Float32Array([1, 0.1, 0.1]),
+            backX: new Float32Array([1, 0.65, 0.1]),
+            frontY: new Float32Array([0.1, 1, 0.1]),
+            backY: new Float32Array([0.1, 1, 1]),
+            frontZ: new Float32Array([0.1, 0.1, 1]),
+            backZ: new Float32Array([1, 0.1, 1]),
+            frontW: new Float32Array([1, 1, 1]),
+            backW: new Float32Array([1, 1, 0.1])
+        };
+
+        const UNFOLD_TRANSFORMS = {
+            frontX: {
+                rotationPlane: "XW",
+                rotationAngle: -Math.PI * 0.5,
+                translation: [2, 0, 0, 1]
+            },
+            backX: {
+                rotationPlane: "XW",
+                rotationAngle: Math.PI * 0.5,
+                translation: [-2, 0, 0, 1]
+            },
+            frontY: {
+                rotationPlane: "YW",
+                rotationAngle: -Math.PI * 0.5,
+                translation: [0, 2, 0, 1]
+            },
+            backY: {
+                rotationPlane: "YW",
+                rotationAngle: Math.PI * 0.5,
+                translation: [0, -2, 0, 1]
+            },
+            frontZ: {
+                rotationPlane: "ZW",
+                rotationAngle: -Math.PI * 0.5,
+                translation: [0, 0, 2, 1]
+            },
+            backZ: {
+                rotationPlane: "ZW",
+                rotationAngle: Math.PI * 0.5,
+                translation: [0, 0, -2, 1]
+            },
+            frontW: {
+                translation: [4, 0, 0, -1]
+            },
+            backW: {
+                translation: [0, 0, 0, 1]
+            },
+
+        };
+
+        const CELL_AXES = {
+            frontX: [1, 2, 3],
+            backX:  [1, 2, 3],
+            frontY: [2, 3, 0],
+            backY:  [2, 3, 0],
+            frontZ: [3, 0, 1],
+            backZ:  [3, 0, 1],
+            frontW: [0, 1, 2],
+            backW:  [0, 1, 2]
+        };
+
+        function createCube4D(axisOrder, wVal) {
+            const x = axisOrder[0];
+            const y = axisOrder[1];
+            const z = axisOrder[2];
+            const w = axisOrder[3];
+
+            const fbl = new Array(4);
+            fbl[x] = -1;
+            fbl[y] = -1;
+            fbl[z] = 1;
+            fbl[w] = wVal;
+
+            const fbr = new Array(4);
+            fbr[x] = 1;
+            fbr[y] = -1;
+            fbr[z] = 1;
+            fbr[w] = wVal;
+
+            const ftl = new Array(4);
+            ftl[x] = -1;
+            ftl[y] = 1;
+            ftl[z] = 1;
+            ftl[w] = wVal;
+
+            const ftr = new Array(4);
+            ftr[x] = 1;
+            ftr[y] = 1;
+            ftr[z] = 1;
+            ftr[w] = wVal;
+
+            const bbl = new Array(4);
+            bbl[x] = -1;
+            bbl[y] = -1;
+            bbl[z] = -1;
+            bbl[w] = wVal;
+
+            const bbr = new Array(4);
+            bbr[x] = 1;
+            bbr[y] = -1;
+            bbr[z] = -1;
+            bbr[w] = wVal;
+
+            const btl = new Array(4);
+            btl[x] = -1;
+            btl[y] = 1;
+            btl[z] = -1;
+            btl[w] = wVal;
+
+            const btr = new Array(4);
+            btr[x] = 1;
+            btr[y] = 1;
+            btr[z] = -1;
+            btr[w] = wVal;
+
+            return new Float32Array([
+                // //front
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+
+                //right
+                fbr[0], fbr[1], fbr[2], fbr[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                btr[0], btr[1], btr[2], btr[3],
+
+                //back
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                btr[0], btr[1], btr[2], btr[3],
+                btr[0], btr[1], btr[2], btr[3],
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                btl[0], btl[1], btl[2], btl[3],
+
+                //left
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                ftl[0], ftl[1], ftl[2], ftl[3],
+
+                // //top
+                ftl[0], ftl[1], ftl[2], ftl[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                btl[0], btl[1], btl[2], btl[3],
+                btl[0], btl[1], btl[2], btl[3],
+                ftr[0], ftr[1], ftr[2], ftr[3],
+                btr[0], btr[1], btr[2], btr[3],
+
+                // //bottom
+                bbl[0], bbl[1], bbl[2], bbl[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                fbl[0], fbl[1], fbl[2], fbl[3],
+                bbr[0], bbr[1], bbr[2], bbr[3],
+                fbr[0], fbr[1], fbr[2], fbr[3]
+            ]);
+        }
+
+        function extract3DCube(cube4D, axes) {
+            const x = axes[0];
+            const y = axes[1];
+            const z = axes[2];
+
+            const numVerts = cube4D.length / 4;
+
+            const cube3D = new Float32Array(numVerts * 3);
+
+            for (let i = 0; i < numVerts; ++i) {
+                const i3 = i * 3;
+                const i4 = i * 4;
+
+                cube3D[i3]     = cube4D[i4 + x];
+                cube3D[i3 + 1] = cube4D[i4 + y];
+                cube3D[i3 + 2] = cube4D[i4 + z];
+            }
+
+            return cube3D;
+        } 
+
+        function createTesseract() {
+            return {
+                frontX: createCube4D([1, 2, 3, 0], 1),
+                backX:  createCube4D([1, 2, 3, 0], -1),
+                frontY: createCube4D([2, 3, 0, 1], 1),
+                backY:  createCube4D([2, 3, 0, 1], -1),
+                frontZ: createCube4D([3, 0, 1, 2], 1),
+                backZ:  createCube4D([3, 0, 1, 2], -1),
+                frontW: createCube4D([0, 1, 2, 3], 1),
+                backW:  createCube4D([0, 1, 2, 3], -1)
+            };
+        }
+
+        function createTesseractProjections(tesseract) {
+            const projections = {};
+            for (const direction in tesseract) {
+                projections[direction] = new Float32Array(tesseract[direction].length * 3 / 4);
+            }
+
+            return projections;
+        }
+
+        function perspectiveProjection(tesseract, projections) {
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const projection = projections[direction];
+
+                const numVertex = cell.length / 4;
+                for (let i = 0; i < numVertex; ++i) {
+                    const ci = i * 4;
+                    const pi = i * 3;
+
+                    const w = cell[ci + 3];
+                    const perspective = FOCAL_LENGTH / (FOCAL_LENGTH - w);
+                    projection[pi]     = cell[ci]     * perspective;
+                    projection[pi + 1] = cell[ci + 1] * perspective;
+                    projection[pi + 2] = cell[ci + 2] * perspective;
+                }
+            }
+        }
+
+        function orthographicProjection(tesseract, projections) {
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const projection = projections[direction];
+
+                const numVertex = cell.length / 4;
+                for (let i = 0; i < numVertex; ++i) {
+                    const ci = i * 4;
+                    const pi = i * 3;
+
+                    projection[pi]     = cell[ci];
+                    projection[pi + 1] = cell[ci + 1];
+                    projection[pi + 2] = cell[ci + 2];
+                }
+            }
+        }
+
+        function rotateXY(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellXY(tesseract[direction],  out[direction], angle)
+            }
+        }
+
+        function rotateCellXY(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let x = cellIn[i];
+                let y = cellIn[i + 1];
+                cellOut[i]     = c * x - s * y;
+                cellOut[i + 1] = s * x + c * y;
+                cellOut[i + 2] = cellIn[i + 2];
+                cellOut[i + 3] = cellIn[i + 3];
+            }
+        }
+
+        function rotateXZ(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellXZ(tesseract[direction],  out[direction], angle)
+            }
+        }
+
+        function rotateCellXZ(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let x = cellIn[i];
+                let z = cellIn[i + 2];
+                cellOut[i]     = c * x - s * z;
+                cellOut[i + 2] = s * x + c * z;
+                cellOut[i + 1] = cellIn[i + 1];
+                cellOut[i + 3] = cellIn[i + 3];
+            }
+        }
+
+        function rotateXW(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellXW(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellXW(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let x = cellIn[i];
+                let w = cellIn[i + 3];
+                cellOut[i]     = c * x - s * w;
+                cellOut[i + 3] = s * x + c * w;
+                cellOut[i + 1] = cellIn[i + 1];
+                cellOut[i + 2] = cellIn[i + 2];
+            }
+        }
+
+        function rotateYZ(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellYZ(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellYZ(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let y = cellIn[i + 1];
+                let z = cellIn[i + 2];
+                cellOut[i + 1] = c * y - s * z;
+                cellOut[i + 2] = s * y + c * z;
+                cellOut[i]     = cellIn[i];
+                cellOut[i + 3] = cellIn[i + 3];
+            }
+        }
+
+        function rotateYW(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellYW(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellYW(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let y = cellIn[i + 1];
+                let w = cellIn[i + 3];
+                cellOut[i + 1] = c * y - s * w;
+                cellOut[i + 3] = s * y + c * w;
+                cellOut[i]     = cellIn[i];
+                cellOut[i + 2] = cellIn[i + 2];
+            }
+        }
+
+        function rotateZW(tesseract, out, angle) {
+            for (const direction in tesseract) {
+                rotateCellZW(tesseract[direction], out[direction], angle)
+            }
+        }
+
+        function rotateCellZW(cellIn, cellOut, angle) {
+            const s = Math.sin(angle);
+            const c = Math.cos(angle);
+
+            for (let i = 0; i < cellIn.length; i += 4) {
+                let z = cellIn[i + 2];
+                let w = cellIn[i + 3];
+                cellOut[i + 2] = c * z - s * w;
+                cellOut[i + 3] = s * z + c * w;
+                cellOut[i]     = cellIn[i];
+                cellOut[i + 1] = cellIn[i + 1];
+            }
+        }
+
+        function scale(tesseract, out, scales) {
+            const x = scales.X;
+            const y = scales.Y;
+            const z = scales.Z;
+            const w = scales.W;
+
+            for (const direction in tesseract) {
+                const cell = tesseract[direction];
+                const transformedCell = out[direction];
+
+                for (let i = 0; i < cell.length; i += 4) {
+                    transformedCell[i]     = cell[i]     * x;
+                    transformedCell[i + 1] = cell[i + 1] * y;
+                    transformedCell[i + 2] = cell[i + 2] * z;
+                    transformedCell[i + 3] = cell[i + 3] * w;
+                }
+            }
+        }
+
+        function unfold(tesseract, out, factor) {
+            for (const direction in UNFOLD_TRANSFORMS) {
+                const cellIn = tesseract[direction];
+                const cellResult = out[direction];
+                let cellOut = out[direction];
+
+                const {rotationPlane, rotationAngle = 0, translation = [0, 0, 0, 0]} = UNFOLD_TRANSFORMS[direction];
+
+                switch(rotationPlane) {
+                    case "XW": 
+                        rotateCellXW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    case "YW": 
+                        rotateCellYW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    case "ZW": 
+                        rotateCellZW(cellIn, cellOut, factor * rotationAngle);
+                        break;
+                    default:
+                        cellOut = cellIn;
+                        break;
+                }
+
+                for (let i = 0; i < cellOut.length; i += 4) {
+                    cellResult[i]     = cellOut[i]     + translation[0] * factor;
+                    cellResult[i + 1] = cellOut[i + 1] + translation[1] * factor;
+                    cellResult[i + 2] = cellOut[i + 2] + translation[2] * factor;
+                    cellResult[i + 3] = cellOut[i + 3] + translation[3] * factor;
+                }
+            }
+        }
+
+        function updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, settings) {
+
+            const {Unfold, rotations, scales} = settings;
+
+            let inTesseract = tesseract;
+            let outTesseract = transformedTesseractA;
+
+            if (Unfold > 0) {
+                unfold(inTesseract, outTesseract, Unfold);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            scale(inTesseract, outTesseract, scales);
+            inTesseract = outTesseract;
+            outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+
+            if (rotations.XY !== 0) {
+                rotateXY(inTesseract, outTesseract, rotations.XY * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.XZ !== 0) {
+                rotateXZ(inTesseract, outTesseract, rotations.XZ * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.XW !== 0) {
+                rotateXW(inTesseract, outTesseract, rotations.XW * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.YZ !== 0) {
+                rotateYZ(inTesseract, outTesseract, rotations.YZ * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.YW !== 0) {
+                rotateYW(inTesseract, outTesseract, rotations.YW * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (rotations.ZW !== 0) {
+                rotateZW(inTesseract, outTesseract, rotations.ZW * RADIANS);
+                inTesseract = outTesseract;
+                outTesseract = inTesseract === transformedTesseractA ? transformedTesseractB : transformedTesseractA;
+            }
+
+            if (settings.Projection === "perspective") {
+                perspectiveProjection(inTesseract, tesseractProjecton);
+            } else {
+                orthographicProjection(inTesseract, tesseractProjecton);
+            }
+            for (let i = 0; i < objects.length; ++i) {
+                let object = objects[i];
+                let direction = object.direction;
+                object.positions.data(tesseractProjecton[direction]);
+            }
+        }
+
+        const vsSource = `
+            #version 300 es
+
+            layout(std140, column_major) uniform;
+
+            layout(location=0) in vec3 position;
+            layout(location=1) in vec4 position4D;
+            
+            uniform mat4 view;
+            uniform mat4 proj;
+
+            out vec3 vPosition;
+            out vec4 vPosition4D;
+            
+            void main() {
+                vec4 viewPosition = view * vec4(position, 1.0);
+                vPosition = viewPosition.xyz; 
+                vPosition4D = position4D;
+                gl_Position = proj * viewPosition;
+            }
+        `;
+
+        const fsSource = `
+            #version 300 es
+            precision highp float;
+
+            layout(std140, column_major) uniform;
+
+            uniform vec3 color;
+            uniform vec3 eyePosition;
+            uniform vec3 lightPosition;
+            uniform bool cutout;
+
+            in vec3 vPosition;
+            in vec4 vPosition4D;
+
+            layout(location=0) out vec4 accumColor;
+            layout(location=1) out float accumAlpha;
+
+            float weight(float z, float a) {
+                return clamp(pow((1.0 - z * 0.9) * 10.0, 3.0), 1e-2, 3e3);
+            }
+
+            void main() {
+                vec3 position = vPosition;
+                vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
+
+                vec4 baseColor = vec4(color, 1.0);
+                float ambient = 0.4;
+
+                vec3 eyeDirection = normalize(eyePosition - position);
+                vec3 lightVec = lightPosition - position;
+                vec3 lightDirection = normalize(lightVec);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+                float nDotL = max(dot(lightDirection, normal), 0.0);
+                float diffuse = nDotL;
+                float specular = pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0);
+
+                vec4 color = vec4((ambient + diffuse + specular) * baseColor.rgb, 1.0) * 0.5;
+                float w = weight(gl_FragCoord.z, color.a);
+                accumColor = vec4(color.rgb * w, color.a);
+                accumAlpha = color.a * w;
+            }
+        `;
+
+        const fsSourceOpaque = `
+            #version 300 es
+            precision highp float;
+
+            layout(std140, column_major) uniform;
+
+            uniform vec3 color;
+            uniform vec3 eyePosition;
+            uniform vec3 lightPosition;
+            uniform bool cutout;
+
+            in vec3 vPosition;
+            in vec4 vPosition4D;
+
+            out vec4 fragColor;
+
+            void main() {
+                if (cutout && dot(vPosition4D, vPosition4D) < 2.6) {
+                    discard;
+                }
+
+                vec3 position = vPosition;
+                vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
+
+                vec4 baseColor = vec4(color, 1.0);
+                float ambient = 0.4;
+
+                vec3 eyeDirection = normalize(eyePosition - position);
+                vec3 lightVec = lightPosition - position;
+                vec3 lightDirection = normalize(lightVec);
+                vec3 reflectionDirection = reflect(-lightDirection, normal);
+                float nDotL = max(dot(lightDirection, normal), 0.0);
+                float diffuse = nDotL;
+                float specular = pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0);
+                
+                fragColor = vec4((ambient + diffuse + specular) * baseColor.rgb, 1.0);
+            }
+        `;
+
+        const vsOITSource = `
+            #version 300 es
+
+            layout(location=0) in vec4 aPosition;
+            
+            void main() {
+                gl_Position = aPosition;
+            }
+        `;
+
+        const fsOITSource = `
+            #version 300 es
+            precision highp float;
+
+            uniform sampler2D uAccumulate;
+            uniform sampler2D uAccumulateAlpha;
+            out vec4 fragColor;
+            void main() {
+                ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+                vec4 accum = texelFetch(uAccumulate, fragCoord, 0);
+                float a = 1.0 - accum.a;
+                accum.a = texelFetch(uAccumulateAlpha, fragCoord, 0).r;
+                fragColor = vec4(a * accum.rgb / clamp(accum.a, 0.001, 50000.0), a);
+            }
+        `;
+               
+        let canvas = document.getElementById("gl-canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let app = PicoGL.createApp(canvas)
+        .clearColor(0.0, 0.0, 0.0, 1.0)
+        .enable(PicoGL.POLYGON_OFFSET_FILL);
+
+        // SET UP UNIFORM BUFFER
+        let projMatrix = mat4.create();
+        mat4.perspective(projMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 15.0);
+
+        let eye = new Float32Array([-2.5, 2.5, 4.5]);
+        let look = new Float32Array([0, 0, 0]);
+        let up = new Float32Array([0, 1, 0]);
+
+        const viewMatrix = mat4.lookAt(mat4.create(), eye, look, up);
+
+        const lightPosition = new Float32Array([2, 2, 0])
+
+        app.createPrograms([vsSource, fsSource], [vsSource, fsSourceOpaque], [vsOITSource, fsOITSource]).then(([program, opaqueProgram, oitProgram]) => {
+            //////////////////////////
+            // OIT FRAMEBUFFERS
+            //////////////////////////
+            let oitTarget = app.createTexture2D(app.width, app.height, { 
+                internalFormat: PicoGL.RGBA16F 
+            });
+            let oitAlphaTarget = app.createTexture2D(app.width, app.height, { 
+                internalFormat: PicoGL.RGBA16F 
+            });
+            let oitFBO = app.createFramebuffer()
+            .colorTarget(0, oitTarget)
+            .colorTarget(1, oitAlphaTarget);
+
+            ///////////////////////
+            // GEOMETRY
+            ///////////////////////
+            let tesseract = createTesseract();
+            let transformedTesseractA = createTesseract();
+            let transformedTesseractB = createTesseract();
+            let tesseractProjecton = createTesseractProjections(transformedTesseractA);
+            let depthInfo = {
+                frontX: { centroid3: new Float32Array(3), wDepth: 0 },
+                backX:  { centroid3: new Float32Array(3), wDepth: 0 },
+                frontY: { centroid3: new Float32Array(3), wDepth: 0 },
+                backY:  { centroid3: new Float32Array(3), wDepth: 0 },
+                frontZ: { centroid3: new Float32Array(3), wDepth: 0 },
+                backZ:  { centroid3: new Float32Array(3), wDepth: 0 },
+                frontW: { centroid3: new Float32Array(3), wDepth: 0 },
+                backW:  { centroid3: new Float32Array(3), wDepth: 0 },
+            };
+
+            const settings = {
+                Projection: "perspective",
+                Rendering: "transparent",
+                Colorization: "axis",
+                Cutout: false,
+                Unfold: 0,
+                rotations: {
+                    XY: 0,
+                    XZ: 0,
+                    XW: 0,
+                    YZ: 0,
+                    YW: 0,
+                    ZW: 0
+                },
+                scales: {
+                    X: 1,
+                    Y: 1,
+                    Z: 1,
+                    W: 1
+                },
+                visibility: {
+                    frontX: true,
+                    backX: true,
+                    frontY: true,
+                    backY: true,
+                    frontZ: true,
+                    backZ: true,
+                    frontW: true,
+                    backW: true
+                }
+            };
+
+            perspectiveProjection(transformedTesseractA, tesseractProjecton);
+
+            const objects = new Array(8);
+            let oi = 0;
+            for (const direction in tesseract) {
+                let positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tesseractProjecton[direction]);
+                let positions4D = app.createVertexBuffer(PicoGL.FLOAT, 4,  tesseract[direction]);
+                let boxArray = app.createVertexArray()
+                .vertexAttributeBuffer(0, positions)
+                .vertexAttributeBuffer(1, positions4D);
+
+                let drawCall = app.createDrawCall(program, boxArray)
+                .uniform("proj", projMatrix)
+                .uniform("lightPosition", lightPosition);
+
+                let opaqueDrawCall = app.createDrawCall(opaqueProgram, boxArray)
+                .uniform("proj", projMatrix)
+                .uniform("lightPosition", lightPosition);
+
+                objects[oi++] = {
+                    direction,
+                    positions,
+                    vao: boxArray,
+                    drawCall,
+                    opaqueDrawCall
+                }
+            }
+
+            const quadData = createQuad().positions;
+            const quadPositions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData);
+            const quadVAO = app.createVertexArray()
+            .vertexAttributeBuffer(0, quadPositions);
+
+            const oitDrawcall = app.createDrawCall(oitProgram, quadVAO)
+            .primitive(PicoGL.TRIANGLE_STRIP)
+            .texture("uAccumulate", oitTarget)
+            .texture("uAccumulateAlpha", oitAlphaTarget);
+
+            ////////////////////////////////////////
+            //  4D CONTROLS
+            ////////////////////////////////////////
+
+            let transformDirty = false;
+
+            const gui = new dat.GUI();
+
+            const  setTransformDirty = () => { 
+                transformDirty = true; 
+            };
+
+            gui.add(settings, "Projection", ["perspective", "orthographic"]).onChange(setTransformDirty);
+            gui.add(settings, "Rendering", ["transparent", "cutout", "solid"]);
+            gui.add(settings, "Colorization", ["axis", "cell"]);
+            gui.add(settings, "Unfold", 0, 1).step(0.01).onChange(setTransformDirty);
+
+            const rotationFolder = gui.addFolder("Rotations")
+            rotationFolder.add(settings.rotations, "XY", 0, 360).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "XZ", 0, 360).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "XW", 0, 360).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "YZ", 0, 360).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "YW", 0, 360).onChange(setTransformDirty);
+            rotationFolder.add(settings.rotations, "ZW", 0, 360).onChange(setTransformDirty);
+            rotationFolder.open();
+
+            const scaleFolder = gui.addFolder("Scale")
+            scaleFolder.add(settings.scales, "X", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "Y", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "Z", 0, 1).step(0.01).onChange(setTransformDirty);
+            scaleFolder.add(settings.scales, "W", 0, 1).step(0.01).onChange(setTransformDirty);
+
+            const visibilityFolder = gui.addFolder("Cell Visibility");
+            visibilityFolder.add(settings.visibility, "frontX");
+            visibilityFolder.add(settings.visibility, "backX");
+            visibilityFolder.add(settings.visibility, "frontY");
+            visibilityFolder.add(settings.visibility, "backY");
+            visibilityFolder.add(settings.visibility, "frontZ");
+            visibilityFolder.add(settings.visibility, "backZ");
+            visibilityFolder.add(settings.visibility, "frontW");
+            visibilityFolder.add(settings.visibility, "backW");
+
+            const viewCentroidA = new Float32Array(3);
+            const viewCentroidB = new Float32Array(3);
+
+            function draw() {
+                const transparent = settings.Rendering === "transparent";
+                const cutout = settings.Rendering === "cutout";
+                const colors = settings.Colorization === "axis" ? COLORS_AXIS : COLORS_CELL;
+
+                mat4.lookAt(viewMatrix, eye, look, up);
+
+                if (transformDirty) {
+                    updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, objects, settings);
+                    transformDirty = false;
+                }
+
+                if (transparent) {
+                    app.drawFramebuffer(oitFBO)
+                    .disable(PicoGL.DEPTH_TEST)
+                    .enable(PicoGL.BLEND)
+                    .blendFuncSeparate(PicoGL.ONE, PicoGL.ONE, PicoGL.ZERO, PicoGL.ONE_MINUS_SRC_ALPHA)
+                    .clear();
+
+                    for (let i = 0; i < objects.length; ++i) {
+                        const object = objects[i];
+                        if (settings.visibility[object.direction]) {
+                            objects[i].drawCall
+                            .uniform("view", viewMatrix)
+                            .uniform("eyePosition", eye)
+                            .uniform("color", colors[objects[i].direction])
+                            .draw();
+                        }
+                    }
+
+                    app.defaultDrawFramebuffer()
+                    .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA)
+                    .clear();
+
+                    oitDrawcall.draw();
+                } else {
+                    app.enable(PicoGL.DEPTH_TEST)
+                    .disable(PicoGL.BLEND)
+                    .clear();
+
+                    for (let i = 0; i < objects.length; ++i) {
+                        const object = objects[i];
+                        if (settings.visibility[object.direction]) {
+                            app.gl.polygonOffset(i * 0.1, i);
+                            objects[i].opaqueDrawCall
+                            .uniform("view", viewMatrix)
+                            .uniform("eyePosition", eye)
+                            .uniform("color", colors[objects[i].direction])
+                            .uniform("cutout", cutout)
+                            .draw();
+                        }
+                    }
+                }
+                
+                requestAnimationFrame(draw);
+            }
+
+            requestAnimationFrame(draw);
+        });
+
+        const cameraRotation = mat4.create();
+        const axis = vec3.create();
+
+        function orbitCamera(eye, look, up, x, y) {
+            vec3.subtract(eye, eye, look);
+            vec3.cross(axis, up, eye);
+            vec3.normalize(axis, axis);
+            vec3.cross(up, eye, axis);
+            vec3.normalize(up, up);
+
+            mat4.fromRotation(cameraRotation, x, up);
+            mat4.rotate(cameraRotation, cameraRotation, y, axis);
+
+            vec3.transformMat4(eye, eye, cameraRotation);
+            vec3.add(eye, eye, look);
+        }
+
+        function zoomCamera(eye, look, zoom) {
+            vec3.subtract(eye, eye, look);
+            vec3.normalize(eye, eye);
+            vec3.scale(eye, eye, zoom);
+            vec3.add(eye, eye, look);
+        }
+
+        let dragging = false;
+        let lastX = -1;
+        let lastY = -1;
+        const ORBIT_SCALE = 0.01;
+        document.addEventListener("mousedown", e => {
+            if (event.target !== canvas) {
+                return;
+            }
+
+            dragging = true;
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+
+        document.addEventListener("mousemove", e => {
+            if (!dragging) {
+                return;
+            }
+            let dx = -(e.clientX - lastX) * ORBIT_SCALE;
+            let dy = -(e.clientY - lastY) * ORBIT_SCALE;
+
+            orbitCamera(eye, look, up, dx, dy)
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
+
+        document.addEventListener("mouseup", e => {
+            dragging = false;
+            lastX = -1;
+            lastY = -1;
+        });
+
+        const ZOOM_SCALE = 0.11;
+        const MAX_ZOOM = 7;
+        const MIN_ZOOM = 0.1;
+        let zoom = vec3.length(vec3.subtract([], eye, look));
+        document.addEventListener("wheel", e => {
+            if (event.target !== canvas) {
+                return;
+            }
+            zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
+            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+            zoomCamera(eye, look, zoom);
+        });
+        
+    </script>
+</body>
+</html>
