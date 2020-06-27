@@ -883,6 +883,9 @@
         const MIN_ZOOM = 0.1;
         let zoom = vec3.length(vec3.subtract([], eye, look));
         document.addEventListener("wheel", e => {
+            if (event.target !== canvas) {
+                return;
+            }
             zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
             zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
             zoomCamera(eye, look, zoom);
