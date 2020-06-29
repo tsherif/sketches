@@ -295,7 +295,15 @@
         }
 
         const intersectPoint = new Float32Array(3);
-        function perspectiveProjection(tesseract, projections, uvProjections) {
+        function perspectiveProjection(tesseract, projections, uvProjections, sceneBoundary) {
+            sceneBoundary.min[0] = Number.POSITIVE_INFINITY;
+            sceneBoundary.min[1] = Number.POSITIVE_INFINITY;
+            sceneBoundary.min[2] = Number.POSITIVE_INFINITY;
+
+            sceneBoundary.max[0] = Number.NEGATIVE_INFINITY;
+            sceneBoundary.max[1] = Number.NEGATIVE_INFINITY;
+            sceneBoundary.max[2] = Number.NEGATIVE_INFINITY;
+
             for (const direction in tesseract) {
                 const cell = tesseract[direction];
                 const projection = projections[direction];
@@ -310,6 +318,14 @@
                     projection[pi]     = (FOCAL_LENGTH * cell[ci]    ) / w;
                     projection[pi + 1] = (FOCAL_LENGTH * cell[ci + 1]) / w;
                     projection[pi + 2] = (FOCAL_LENGTH * cell[ci + 2]) / w;
+
+                    sceneBoundary.min[0] = Math.min(projection[pi]    , sceneBoundary.min[0]);
+                    sceneBoundary.min[1] = Math.min(projection[pi + 1], sceneBoundary.min[1]);
+                    sceneBoundary.min[2] = Math.min(projection[pi + 2], sceneBoundary.min[2]);
+
+                    sceneBoundary.max[0] = Math.max(projection[pi]    , sceneBoundary.max[0]);
+                    sceneBoundary.max[1] = Math.max(projection[pi + 1], sceneBoundary.max[1]);
+                    sceneBoundary.max[2] = Math.max(projection[pi + 2], sceneBoundary.max[2]);
                 }
 
                 for (let i = 0; i < numVertex; i += 6) {
@@ -348,7 +364,15 @@
             }
         }
 
-        function orthographicProjection(tesseract, projections, uvProjections) {
+        function orthographicProjection(tesseract, projections, uvProjections, sceneBoundary) {
+            sceneBoundary.min[0] = Number.POSITIVE_INFINITY;
+            sceneBoundary.min[1] = Number.POSITIVE_INFINITY;
+            sceneBoundary.min[2] = Number.POSITIVE_INFINITY;
+
+            sceneBoundary.max[0] = Number.NEGATIVE_INFINITY;
+            sceneBoundary.max[1] = Number.NEGATIVE_INFINITY;
+            sceneBoundary.max[2] = Number.NEGATIVE_INFINITY;
+
             for (const direction in tesseract) {
                 const cell = tesseract[direction];
                 const projection = projections[direction];
@@ -362,6 +386,14 @@
                     projection[pi]     = cell[ci];
                     projection[pi + 1] = cell[ci + 1];
                     projection[pi + 2] = cell[ci + 2];
+
+                    sceneBoundary.min[0] = Math.min(projection[pi]    , sceneBoundary.min[0]);
+                    sceneBoundary.min[1] = Math.min(projection[pi + 1], sceneBoundary.min[1]);
+                    sceneBoundary.min[2] = Math.min(projection[pi + 2], sceneBoundary.min[2]);
+
+                    sceneBoundary.max[0] = Math.max(projection[pi]    , sceneBoundary.max[0]);
+                    sceneBoundary.max[1] = Math.max(projection[pi + 1], sceneBoundary.max[1]);
+                    sceneBoundary.max[2] = Math.max(projection[pi + 2], sceneBoundary.max[2]);
 
                     uvProjection[i] = 1;
                 }
@@ -561,7 +593,7 @@
             }
         }
 
-        function updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, uvProjections, objects, settings) {
+        function updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, uvProjections, objects, settings, sceneBoundary) {
 
             const {Unfold, rotations, scales} = settings;
 
@@ -615,9 +647,9 @@
             }
 
             if (settings.Projection === "perspective") {
-                perspectiveProjection(inTesseract, tesseractProjecton, uvProjections);
+                perspectiveProjection(inTesseract, tesseractProjecton, uvProjections, sceneBoundary);
             } else {
-                orthographicProjection(inTesseract, tesseractProjecton, uvProjections);
+                orthographicProjection(inTesseract, tesseractProjecton, uvProjections, sceneBoundary);
             }
             for (let i = 0; i < objects.length; ++i) {
                 let object = objects[i];
@@ -625,6 +657,123 @@
                 object.positions.data(tesseractProjecton[direction]);
                 object.uvFactors.data(uvProjections[direction]);
             }
+        }
+
+        const boundaryVertex = new Float32Array(3);
+        const viewBoundaryVertex = new Float32Array(3);
+        function updatePerspective(perspectiveParameters, sceneBoundary, viewMatrix, shadowViewMatrix) {
+            perspectiveParameters.aspect = canvas.width / canvas.height;
+
+            let near = Number.POSITIVE_INFINITY;
+            let far = Number.NEGATIVE_INFINITY;
+
+            // Vertex 1
+            boundaryVertex[0] = sceneBoundary.min[0];
+            boundaryVertex[1] = sceneBoundary.min[1];
+            boundaryVertex[2] = sceneBoundary.min[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 2
+            boundaryVertex[0] = sceneBoundary.min[0];
+            boundaryVertex[1] = sceneBoundary.min[1];
+            boundaryVertex[2] = sceneBoundary.max[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 3
+            boundaryVertex[0] = sceneBoundary.min[0];
+            boundaryVertex[1] = sceneBoundary.max[1];
+            boundaryVertex[2] = sceneBoundary.min[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 4
+            boundaryVertex[0] = sceneBoundary.min[0];
+            boundaryVertex[1] = sceneBoundary.max[1];
+            boundaryVertex[2] = sceneBoundary.max[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 5
+            boundaryVertex[0] = sceneBoundary.max[0];
+            boundaryVertex[1] = sceneBoundary.min[1];
+            boundaryVertex[2] = sceneBoundary.min[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 6
+            boundaryVertex[0] = sceneBoundary.max[0];
+            boundaryVertex[1] = sceneBoundary.min[1];
+            boundaryVertex[2] = sceneBoundary.max[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 7
+            boundaryVertex[0] = sceneBoundary.max[0];
+            boundaryVertex[1] = sceneBoundary.max[1];
+            boundaryVertex[2] = sceneBoundary.min[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Vertex 8
+            boundaryVertex[0] = sceneBoundary.max[0];
+            boundaryVertex[1] = sceneBoundary.max[1];
+            boundaryVertex[2] = sceneBoundary.max[2];
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, viewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            vec3.transformMat4(viewBoundaryVertex, boundaryVertex, shadowViewMatrix);
+            near = Math.min(-viewBoundaryVertex[2], near);
+            far = Math.max(-viewBoundaryVertex[2], far);
+
+            // Done!
+            perspectiveParameters.near = Math.max(near, 0.1);
+            perspectiveParameters.far = far;
         }
 
         const vsSource = `
@@ -670,7 +819,7 @@
             layout(location=1) out float accumAlpha;
 
             float weight(float z, float a) {
-                return clamp(pow((1.0 - z * 0.9) * 10.0, 3.0), 1e-2, 3e3);
+                return 2.0 - z;
             }
 
             void main() {
@@ -814,7 +963,18 @@
         .clearColor(0.0, 0.0, 0.0, 1.0)
         .enable(PicoGL.POLYGON_OFFSET_FILL);
 
-        const projMatrix = mat4.perspective(mat4.create(), Math.PI / 3, canvas.width / canvas.height, 0.5, 15.0);
+        const perspectiveParameters = {
+            fov: Math.PI / 3,
+            aspect: canvas.width / canvas.height,
+            near: 1,
+            far: 10
+        };
+        const projMatrix = mat4.perspective(mat4.create(), 
+            perspectiveParameters.fov, 
+            perspectiveParameters.aspect, 
+            perspectiveParameters.near, 
+            perspectiveParameters.far
+        );
 
         const eye = new Float32Array([-3, 1.5, 5]);
         const look = new Float32Array([0, 0, 0]);
@@ -861,10 +1021,14 @@
             const transformedTesseractA = createTesseract();
             const transformedTesseractB = createTesseract();
             const tesseractProjecton = createTesseractProjections(transformedTesseractA);
+            const sceneBoundary = {
+                min: new Float32Array(3),
+                max: new Float32Array(3)
+            };
 
             const settings = {
                 Projection: "perspective",
-                Rendering: "cutout",
+                Rendering: "transparent",
                 Colorization: "axis",
                 Unfold: 0,
                 rotations: {
@@ -894,7 +1058,7 @@
             };
                 
 
-            perspectiveProjection(transformedTesseractA, tesseractProjecton, uvProjections);
+            perspectiveProjection(transformedTesseractA, tesseractProjecton, uvProjections, sceneBoundary);
 
             const objects = new Array(8);
             const uvs = app.createVertexBuffer(PicoGL.FLOAT, 2, BASE_UVS);
@@ -907,16 +1071,13 @@
                 .vertexAttributeBuffer(2, uvFactors);
 
                 const drawCall = app.createDrawCall(program, cellArray)
-                .uniform("proj", projMatrix)
                 .uniform("lightPosition", lightPosition);
 
                 const opaqueDrawCall = app.createDrawCall(opaqueProgram, cellArray)
-                .uniform("proj", projMatrix)
                 .uniform("lightPosition", lightPosition)
                 .texture("shadowMap", shadowDepthTarget);
 
-                const shadowDrawCall = app.createDrawCall(shadowProgram, cellArray)
-                .uniform("proj", projMatrix);
+                const shadowDrawCall = app.createDrawCall(shadowProgram, cellArray);
 
                 objects[i] = {
                     direction,
@@ -995,11 +1156,23 @@
                 const colors = settings.Colorization === "axis" ? COLORS_AXIS : COLORS_CELL;
 
                 mat4.lookAt(viewMatrix, eye, look, up);
+                mat4.invert(inverseViewMatrix, viewMatrix);
+                vec3.transformMat4(shadowEyePosition, lightPosition, inverseViewMatrix);
+                mat4.lookAt(shadowViewMatrix, shadowEyePosition, look, up);
 
                 if (transformDirty) {
-                    updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, uvProjections, objects, settings);
+                    updateTransform(tesseract, transformedTesseractA, transformedTesseractB, tesseractProjecton, uvProjections, objects, settings, sceneBoundary);
                     transformDirty = false;
                 }
+
+                updatePerspective(perspectiveParameters, sceneBoundary, viewMatrix, shadowViewMatrix);
+
+                mat4.perspective(projMatrix, 
+                    perspectiveParameters.fov, 
+                    perspectiveParameters.aspect, 
+                    perspectiveParameters.near, 
+                    perspectiveParameters.far
+                );
 
                 if (transparent) {
                     app.drawFramebuffer(oitFBO)
@@ -1012,6 +1185,7 @@
                         const object = objects[i];
                         if (settings.visibility[object.direction]) {
                             objects[i].drawCall
+                            .uniform("proj", projMatrix)
                             .uniform("view", viewMatrix)
                             .uniform("eyePosition", eye)
                             .uniform("color", colors[objects[i].direction])
@@ -1030,10 +1204,6 @@
                     .clear();
 
                     if (cutout) {
-                        mat4.invert(inverseViewMatrix, viewMatrix);
-                        vec3.transformMat4(shadowEyePosition, lightPosition, inverseViewMatrix);
-                        mat4.lookAt(shadowViewMatrix, shadowEyePosition, look, up);
-
                         app.drawFramebuffer(shadowBuffer)
                         .clear();
 
@@ -1042,8 +1212,9 @@
                             if (settings.visibility[object.direction]) {
                                 app.gl.polygonOffset(i * 0.1, i);
                                 objects[i].shadowDrawCall
-                                .uniform("cutout", cutout)
+                                .uniform("proj", projMatrix)
                                 .uniform("view", shadowViewMatrix)
+                                .uniform("cutout", cutout)
                                 .draw();
                             }
                         }
@@ -1056,6 +1227,7 @@
                         if (settings.visibility[object.direction]) {
                             app.gl.polygonOffset(i * 0.1, i);
                             objects[i].opaqueDrawCall
+                            .uniform("proj", projMatrix)
                             .uniform("view", viewMatrix)
                             .uniform("eyePosition", eye)
                             .uniform("color", colors[objects[i].direction])
