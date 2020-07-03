@@ -157,7 +157,8 @@
             (p1[2] + p2[2] + p3[2]) / 3
         ];
 
-        const polyHeight = height * Math.sin(Math.PI / 3);
+        const dEdgeCenter = height / 3;
+        const polyHeight = Math.sqrt(height * height - dEdgeCenter * dEdgeCenter);
         const facePerp = vec3.cross([], p1p3, p1p2);
         vec3.normalize(facePerp, facePerp);
         vec3.scale(facePerp, facePerp, polyHeight);
