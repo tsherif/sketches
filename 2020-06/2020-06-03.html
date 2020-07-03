@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        const p = {
+            x: 0,
+            y: canvas.height,
+            radius: 10,
+            vx: 10,
+            vy: -5
+        };
+
+        document.body.addEventListener("keyup", e => {
+            if (e.key !== " ") {
+                return;
+            }
+        });
+
+
+        let t = 0;
+
+        requestAnimationFrame(function loop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            t++;
+
+            let perp = [-p.vy, p.vx]
+            let mag = Math.sqrt(perp[0] * perp[0] + perp[1] * perp[1]);
+            perp[0] /= mag;
+            perp[1] /= mag;
+
+            let r = p.radius;
+
+            p.x += p.vx;
+            p.y += p.vy;
+
+            let offset = Math.sin(t * 0.1) * 50;
+
+            let x = p.x + perp[0] * offset;
+            let y = p.y + perp[1] * offset;
+
+            if (x - r < 0) {
+                x = r;
+                p.vx = Math.abs(p.vx);
+            }
+
+            if (x + r > canvas.width) {
+                x = canvas.width - r;
+                p.vx = -Math.abs(p.vx);
+            }
+
+            if (y - r < 0) {
+                y = r;
+                p.vy = Math.abs(p.vy);
+            }
+
+            if (y + r > canvas.height) {
+                y = canvas.height - r;
+                p.vy = -Math.abs(p.vy);
+            }
+
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI, false);
+            ctx.fill();
+
+            requestAnimationFrame(loop);  
+        });
+
+    </script>
+</body>
+</html>

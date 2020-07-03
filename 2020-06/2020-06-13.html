@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/dat.gui.min.js"></script>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        
+        function polygonCoordinates(edge, numSides) {
+            const [x1, y1] = edge[0]; 
+            const [x2, y2] = edge[1]; 
+            const turnAngle = (-2 * Math.PI) / numSides;
+            const s = Math.sin(turnAngle);
+            const c = Math.cos(turnAngle);
+            let vx = x2 - x1;
+            let vy = y2 - y1;
+
+            const coords = new Array(numSides);
+            coords[0] = [x1, y1];
+            coords[1] = [x2, y2];
+
+            let curX = x2;
+            let curY = y2;
+            for (let i = 2; i < coords.length; ++i) {
+                const newVx = c * vx - s * vy;
+                const newVy = s * vx + c * vy;
+            
+                vx = newVx;
+                vy = newVy;
+
+                curX += vx;
+                curY += vy;
+
+                coords[i] = [curX, curY];
+            }
+
+            return coords;
+        }
+
+        function drawPolygon(ctx, polygon) {
+            ctx.beginPath();
+            ctx.moveTo(...polygon[0]);
+            for (let i = 1; i < polygon.length; ++i) {
+                ctx.lineTo(...polygon[i]);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        for (let i = 0; i < 20; ++i) {
+            let x1 = Math.random() * (canvas.width - 200) + 100;
+            let y1 = Math.random() * (canvas.height - 200) + 100;
+            let x2 = x1 + Math.random() * 200 - 100;
+            let y2 = y1 + Math.random() * 200 - 100;
+            let sides = Math.floor(Math.random() * 12 + 3);
+
+            const coords = polygonCoordinates([[x1, y1], [x2, y2]], sides);
+            drawPolygon(ctx, coords);
+        }
+    </script>
+</body>
+</html>

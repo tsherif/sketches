@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/dat.gui.min.js"></script>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+
+        const PALETTES = [
+            [
+                "#d92027",
+                "#ff9234",
+                "#ffcd3c",
+                "#35d0ba"
+            ],
+            [
+                "#45046a",
+                "#5c2a9d",
+                "#b5076b",
+                "#f1ebbb"
+            ],
+            [
+                "#202040",
+                "#543864",
+                "#ff6363",
+                "#ffbd69"
+            ],
+            [
+                "#162447",
+                "#1f4068",
+                "#1b1b2f",
+                "#e43f5a"
+            ]
+        ];
+
+        const PALETTE = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        const COLOR1 = PALETTE[0];
+        const COLOR2 = PALETTE[2];
+        const COLOR3 = PALETTE[3];
+
+        const SIDE_LENGTH = 20;
+        const TRI_HEIGHT = SIDE_LENGTH * Math.sin(Math.PI / 3);
+        const HEX_WIDTH = 2 * TRI_HEIGHT;
+        const HEX_HEIGHT = 2 * SIDE_LENGTH;
+        const X_STRIDE = HEX_WIDTH + SIDE_LENGTH;
+        const Y_STRIDE = 2 * TRI_HEIGHT + HEX_HEIGHT + SIDE_LENGTH;
+
+        const BASE_OFFSET = -2 * Y_STRIDE;
+
+        import {polygonCoordinates, drawPolygon, outsideEdge, scaleEdge} from "../lib/polygon.js";
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        ctx.strokeStyle = "white";
+
+        function drawKey(base) {
+            const hex = polygonCoordinates(base, 6);
+            const square1 = polygonCoordinates(outsideEdge(hex, 3), 4);
+            const square2 = polygonCoordinates(outsideEdge(hex, 4), 4);
+            const square3 = polygonCoordinates(outsideEdge(hex, 5), 4);
+
+            const tri1 = polygonCoordinates(outsideEdge(square1, 3), 3);
+            const tri2 = polygonCoordinates(outsideEdge(square2, 3), 3);
+
+            ctx.fillStyle = COLOR1;
+            drawPolygon(ctx, hex);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = COLOR2;
+            drawPolygon(ctx, square1);
+            ctx.fill();
+            ctx.stroke();
+
+            drawPolygon(ctx, square2);
+            ctx.fill();
+            ctx.stroke();
+
+            drawPolygon(ctx, square3);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = COLOR3;
+            drawPolygon(ctx, tri1);
+            ctx.fill();
+            ctx.stroke();
+
+            drawPolygon(ctx, tri2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        let offsetX = BASE_OFFSET;
+        let offsetY = BASE_OFFSET;
+
+        let lastDragX = 0;
+        let lastDragY = 0;
+        let dragging = false;
+        document.addEventListener("mousedown", e => {
+            lastDragX = e.clientX;
+            lastDragY = e.clientY;
+            dragging = true;
+        });
+
+        document.addEventListener("mousemove", e => {
+            if (!dragging) {
+                return;
+            }
+
+            offsetX += e.clientX - lastDragX;
+            offsetY += e.clientY - lastDragY;
+
+            lastDragX = e.clientX;
+            lastDragY = e.clientY;
+        });
+
+        document.addEventListener("mouseup", e => {
+            dragging = false;
+            lastDragX = 0;
+            lastDragY = 0;
+        });
+
+        requestAnimationFrame(function draw() {
+            while (offsetX - BASE_OFFSET > X_STRIDE) {
+                offsetX -= X_STRIDE;
+            }
+
+            while (offsetY - BASE_OFFSET > Y_STRIDE) {
+                offsetY -= Y_STRIDE;
+            }
+
+            for (let y = offsetY + BASE_OFFSET; y - Y_STRIDE < canvas.height; y += Y_STRIDE) {
+                for (let x = offsetX + BASE_OFFSET; x - X_STRIDE < canvas.width; x += X_STRIDE) {
+                    drawKey([
+                        [x, y],
+                        [x, y + SIDE_LENGTH]
+                    ])
+                }
+            }
+
+            for (let y = offsetY + BASE_OFFSET - 0.5 * Y_STRIDE; y - Y_STRIDE < canvas.height; y += Y_STRIDE) {
+                for (let x = offsetX + BASE_OFFSET - 0.5 * X_STRIDE; x - X_STRIDE < canvas.width; x += X_STRIDE) {
+                    drawKey([
+                        [x, y],
+                        [x, y + SIDE_LENGTH]
+                    ])
+                }
+            }
+
+            requestAnimationFrame(draw)
+        })
+
+    </script>
+</body>
+</html>

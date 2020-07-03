@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/gl-matrix.js"></script>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="gl-canvas"></canvas>
+<script type="module">
+    import {createCube} from "../lib/utils.js";
+
+    const vsSource = `
+        #version 300 es
+
+        layout(std140, column_major) uniform;
+
+        layout(location=0) in vec3 position;
+        
+        uniform mat4 uModel;
+        uniform mat4 viewProj;
+        
+        out vec3 vPosition;
+        out vec2 vUV;
+        out vec3 vNormal;
+
+        void main() {
+            vec4 worldPosition = uModel * vec4(position, 1.0);
+            vPosition = worldPosition.xyz;
+            gl_Position = viewProj * worldPosition;
+        }
+    `;
+
+    const fsSource = `
+        #version 300 es
+        precision highp float;
+
+        layout(std140, column_major) uniform;
+
+        in vec3 vPosition;
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(abs(vPosition), 1.0);
+        }
+    `;
+           
+    const canvas = document.getElementById("gl-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    const app = PicoGL.createApp(canvas)
+    .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.DEPTH_TEST);
+
+    // SET UP GEOMETRY
+    const cubeData = createCube({dimensions: [2, 2, 2]});
+    const tetrahedronData = createTetrahedron([-1, -1, 0], [1, -1, 0], [1, 1, 0]);
+
+    const positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tetrahedronData.positions);
+
+    const boxArray = app.createVertexArray()
+    .vertexAttributeBuffer(0, positions);
+
+    // SET UP UNIFORM BUFFER
+    const projMatrix = mat4.create();
+    mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 0.1, 10.0);
+
+    const viewMatrix = mat4.create();
+    const eyePosition = vec3.fromValues(3, 3, 3);
+    mat4.lookAt(viewMatrix, eyePosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+
+    const viewProjMatrix = mat4.create();
+    mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
+
+    const modelMatrix = mat4.create();
+    const rotateXMatrix = mat4.create();
+    const rotateYMatrix = mat4.create();
+
+    let angleX = 0;
+    let angleY = 0;
+
+    app.createPrograms([vsSource, fsSource]).then(([program]) => {
+        // SET UP DRAW CALL
+        let drawCall = app.createDrawCall(program, boxArray)
+        .uniform("viewProj", viewProjMatrix);
+
+        function draw() {
+
+            angleX += 0.01;
+            angleY += 0.02;
+
+            mat4.fromXRotation(rotateXMatrix, angleX);
+            mat4.fromYRotation(rotateYMatrix, angleY);
+            mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+
+            drawCall.uniform("uModel", modelMatrix);
+
+            app.clear();
+            drawCall.draw()
+            
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    });
+
+    function createTetrahedron(p1, p2, p3Plane) {
+        const positions = new Float32Array(36);
+
+        const p1p2 = vec3.sub([], p2, p1);
+        const sideLength = vec3.length(p1p2);
+        const height = sideLength * Math.sin(Math.PI / 3);
+        const p1p3 = vec3.sub([], p3Plane, p1);
+        const p1p2norm = vec3.normalize([], p1p2);
+
+        const par = vec3.scale([], p1p2norm, vec3.dot(p1p3, p1p2norm));
+        const perp = vec3.sub([], p1p3, par);
+        const halfPar = vec3.scale([], par, 0.5);
+        const perpHeight = vec3.normalize([], perp);
+        vec3.scale(perpHeight, perpHeight, height);
+        const p3 = vec3.add([], p1, halfPar);
+        vec3.add(p3, p3, perpHeight);
+
+        const center = [
+            (p1[0] + p2[0] + p3[0]) / 3,
+            (p1[1] + p2[1] + p3[1]) / 3,
+            (p1[2] + p2[2] + p3[2]) / 3
+        ];
+
+        const polyHeight = height * Math.sin(Math.PI / 3);
+        const facePerp = vec3.cross([], p1p3, p1p2);
+        vec3.normalize(facePerp, facePerp);
+        vec3.scale(facePerp, facePerp, polyHeight);
+
+        const p4 = vec3.add([], center, facePerp);
+
+        positions.set(p1);
+        positions.set(p2, 3);
+        positions.set(p3, 6);
+
+        positions.set(p1, 9);
+        positions.set(p2, 12);
+        positions.set(p4, 15);
+
+        positions.set(p2, 18);
+        positions.set(p3, 21);
+        positions.set(p4, 24);
+
+        positions.set(p3, 27);
+        positions.set(p1, 30);
+        positions.set(p4, 33);
+
+        console.log(vec3.distance(p1, p2), vec3.distance(p1, p3), vec3.distance(p1, p4), vec3.distance(p2, p3), vec3.distance(p2, p4), vec3.distance(p3, p4))
+
+        return {
+            positions
+        };
+    }
+
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const context = canvas.getContext("2d");
+        let numRows = 5;
+
+        function draw() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            let dim = Math.ceil(canvas.height / numRows);
+            for (let y = 0; y < canvas.height; y += dim) {
+                for (let x = 0; x < canvas.width; x += dim) {
+                    let rand = Math.random();
+                    let tri;
+                    if (rand < 0.25) {
+                        tri = [
+                            [x, y],
+                            [x, y + dim],
+                            [x + dim, y + dim]
+                        ]
+                    } else if (rand < 0.5) {
+                        tri = [
+                            [x, y],
+                            [x + dim, y + dim],
+                            [x + dim, y]
+                        ]
+                    } else if (rand < 0.75) {
+                        tri = [
+                            [x, y],
+                            [x, y + dim],
+                            [x + dim, y]
+                        ]
+                    } else {
+                        tri = [
+                            [x, y + dim],
+                            [x + dim, y + dim],
+                            [x + dim, y]
+                        ]
+                    }
+
+                    context.beginPath();
+                    context.moveTo(...tri[0]);
+                    context.lineTo(...tri[1]);
+                    context.lineTo(...tri[2]);
+                    context.fill();
+                }
+            }
+        }
+
+        draw();
+
+        document.body.addEventListener("keyup", e => {
+            if (e.key !== " ") {
+                return;
+            }
+            numRows += 5;
+            draw();
+        });
+
+    </script>
+</body>
+</html>
