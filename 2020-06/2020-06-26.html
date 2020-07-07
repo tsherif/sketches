@@ -8,6 +8,14 @@
             margin: 0;
             overflow-y: hidden;
         }
+
+        #info {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          z-index: 999;
+          color: white;
+        }
     </style>
     <script src="../lib/gl-matrix.js"></script>
     <script src="../lib/picogl.min.js"></script>
@@ -36,9 +44,12 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <body>
+    <div id="info">Click and drag to move camera</div>
     <canvas id="gl-canvas"></canvas>
     <script type="module">
         import {createCube, createQuad} from "../lib/utils.js";
+        import {setupInteractions} from "../lib/interactions.js";
+
         const FOCAL_LENGTH = 3;
         const COLORS = {
             frontX: new Float32Array([1, 0, 0]),
@@ -900,49 +911,24 @@
             vec3.add(eye, eye, look);
         }
 
-        let dragging = false;
-        let lastX = -1;
-        let lastY = -1;
         const ORBIT_SCALE = 0.01;
-        document.addEventListener("mousedown", e => {
-            if (event.target !== canvas) {
-                return;
-            }
-
-            dragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-        });
-
-        document.addEventListener("mousemove", e => {
-            if (!dragging) {
-                return;
-            }
-            let dx = -(e.clientX - lastX) * ORBIT_SCALE;
-            let dy = -(e.clientY - lastY) * ORBIT_SCALE;
-
-            orbitCamera(eye, look, up, dx, dy)
-            lastX = e.clientX;
-            lastY = e.clientY;
-        });
-
-        document.addEventListener("mouseup", e => {
-            dragging = false;
-            lastX = -1;
-            lastY = -1;
-        });
-
-        const ZOOM_SCALE = 0.11;
+        const ZOOM_SCALE = 0.1;
         const MAX_ZOOM = 7;
         const MIN_ZOOM = 0.1;
+
         let zoom = vec3.length(vec3.subtract([], eye, look));
-        document.addEventListener("wheel", e => {
-            if (event.target !== canvas) {
-                return;
+        setupInteractions(canvas, {
+            onDrag: (x, y) => orbitCamera(eye, look, up, -x * ORBIT_SCALE, -y * ORBIT_SCALE),
+            onWheel: x => {
+                zoom += Math.sign(x) * ZOOM_SCALE;
+                zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+                zoomCamera(eye, look, zoom);   
+            },
+            onPinch: x => {
+                zoom += x * ZOOM_SCALE;
+                zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+                zoomCamera(eye, look, zoom); 
             }
-            zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
-            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
-            zoomCamera(eye, look, zoom);
         });
         
     </script>

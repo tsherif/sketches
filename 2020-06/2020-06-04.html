@@ -48,6 +48,7 @@
     <canvas id="canvas"></canvas>
     <script type="module">
         import {createSphere, xformMatrix, createQuad} from "../lib/utils.js";
+        import {setupInteractions} from "../lib/interactions.js";
 
         const NUM_PARTICLES = 30000;
         const VECTOR_FIELD_DIM = 32;
@@ -310,45 +311,25 @@
             vec3.add(eye, eye, look);
         }
 
-        let dragging = false;
-        let lastX = -1;
-        let lastY = -1;
         const ORBIT_SCALE = 0.01;
-        document.addEventListener("mousedown", e => {
-            dragging = true;
-            lastX = e.clientX;
-            lastY = e.clientY;
-        });
-
-        document.addEventListener("mousemove", e => {
-            if (!dragging) {
-                return;
-            }
-            let dx = -(e.clientX - lastX) * ORBIT_SCALE;
-            let dy = -(e.clientY - lastY) * ORBIT_SCALE;
-
-            orbitCamera(eye, look, up, dx, dy)
-            lastX = e.clientX;
-            lastY = e.clientY;
-        });
-
-        document.addEventListener("mouseup", e => {
-            dragging = false;
-            lastX = -1;
-            lastY = -1;
-        });
-
-
         const ZOOM_SCALE = 0.1;
         const MAX_ZOOM = 7;
         const MIN_ZOOM = 0.1;
-        let zoom = vec3.length(vec3.subtract([], eye, look));
-        document.addEventListener("wheel", e => {
-            zoom += Math.sign(e.deltaY) * ZOOM_SCALE;
-            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
-            zoomCamera(eye, look, zoom);
-        });
 
+        let zoom = vec3.length(vec3.subtract([], eye, look));
+        setupInteractions(canvas, {
+            onDrag: (x, y) => orbitCamera(eye, look, up, -x * ORBIT_SCALE, -y * ORBIT_SCALE),
+            onWheel: x => {
+                zoom += Math.sign(x) * ZOOM_SCALE;
+                zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+                zoomCamera(eye, look, zoom);   
+            },
+            onPinch: x => {
+                zoom += x * ZOOM_SCALE;
+                zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+                zoomCamera(eye, look, zoom); 
+            }
+        });
 
     </script>
 </body>
