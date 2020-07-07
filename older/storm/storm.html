@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Storm</title>
+    <link rel="icon" type="image/png" href="/img/tarek-icon.png">
+    <meta name="description" content="An HTML5 Canvas Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      
+      #canvas {
+        background-color: #000000;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="../../js/shims.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/oFactory.js"></script>
+    <script src="lightning.js"></script>
+    <script>
+      window.onload = function() {
+        if (!document.createElement("canvas")) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+          })();
+          return;
+        }
+        
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        var trees = [];
+        var num_trees = Math.floor(Math.random() * 10 + 5);
+        var bolts = [];
+        var total_segments = 0;
+        var cur_brightness = 0;
+        var prev_brightness = 0;
+        var timer = window.performance || window.Date;
+        var previous_time, current_time;
+                
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;   
+                            
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+          
+          scale = canvas.height / 1080;
+        };
+        
+        var scale = canvas.height / 1080;
+        
+        while(num_trees--) {
+          trees.push(
+            lightning({
+              x: Math.random() * canvas.width,
+              y: canvas.height,
+              alpha: Math.random() * 0.3 + 0.7,
+              min_length: 60,
+              length_range: 40,
+              starting_width: Math.random() * 15,
+              min_angle: Math.PI,
+              angle_range: Math.PI,
+              branching_prob: 0.4,
+              reduceWidth: function(width) {
+                return 0.6 * width;
+              }
+            })
+          );
+        }
+        
+        trees.forEach(function(t) {
+          while (t.hasNext()) {
+            t.next();
+          }
+        });
+      
+        previous_time = timer.now();
+        (function drawFrame() {  
+          window.requestAnimationFrame(drawFrame, canvas);
+          
+          current_time = timer.now();
+          if (current_time - previous_time < 20) return;
+          
+          previous_time = current_time;
+          
+          cur_brightness = total_segments / 150;
+          var brightness = cur_brightness > prev_brightness ? 
+                           cur_brightness : 
+                           Math.max(prev_brightness - 0.04, cur_brightness);
+          var foreground_color = "#000000";
+          var floor_width = 80 * scale;
+          
+          brightness = Math.min(brightness, 1.0)
+          prev_brightness = brightness;
+          
+          canvas.style.backgroundColor = utils.multiplyColor("#AAB3BD", brightness);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          
+          context.save()
+          context.fillStyle = foreground_color;
+          context.fillRect(0, canvas.height - floor_width, canvas.width, floor_width);
+          context.restore();
+          
+          trees.forEach(function(t) {
+            t.y = canvas.height - floor_width;
+            t.scale_x = t.scale_y = scale;
+            t.color = foreground_color;
+            t.draw(context);
+          });
+          
+                 
+          total_segments = 0;
+          
+          bolts = bolts.filter(function(b) { return b.hasNext(); });     
+          
+          (function() {
+            if (Math.random() < 0.05) {
+              bolts.push(
+                lightning({
+                  x: Math.random() * canvas.width,
+                  y: 0,
+                  alpha: Math.random() * 0.3 + 0.7,
+                  color: "#AAB3BD",
+                  min_length: 60,
+                  length_range: 40,
+                  starting_width: Math.random() * 15
+                })
+              );
+            }
+          })();
+          
+          
+          bolts.forEach(function(b) {
+            b.next();
+            b.scale_x = b.scale_y = scale;
+            total_segments += b.segments.length;
+            b.draw(context);
+          });
+          
+        })();
+      };
+    </script>
+  </body>
+</html>

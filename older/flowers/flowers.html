@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flowers</title>
+    <meta name="description" content="A WebGL Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+        font-size: 16px;
+      }
+      
+      #canvas {
+        background-color: #000000;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="webgl"></canvas>
+    <script src="../js/gl-utils.min.js"></script>
+    <script id="vertex-shader" type="x-vertex-shader">
+      attribute vec4 aPosition;
+  
+      void main() {
+        gl_Position = aPosition;
+      }
+    </script>
+    <script id="fragment-shader" type="x-fragment-shader">
+      precision mediump float;
+
+      uniform vec2 uResolution;
+      uniform float uTime;
+      uniform vec3 uColor;
+      uniform float uInnerRadius;
+      uniform float uMaxRadius;
+
+      void main() {
+        vec4 color = vec4(uColor, 1.0);
+        vec2 position = gl_FragCoord.xy / uResolution.xy;
+        float time = uTime;
+
+        position = position * 2.0 - 1.0;
+        position.x *= uResolution.x / uResolution.y;
+
+        float r = length(position);
+        float a = atan(position.y, position.x);
+        float pi = 3.14159;
+
+        a += pow(sin(time / 10.0), 3.0);
+        r += 0.1 * sin(10.0 * a);
+
+        if (r > uMaxRadius) {
+          discard;
+        } else {
+          float colorValue = sin(a * 10.0);
+
+          color *= vec4(colorValue, colorValue, colorValue, colorValue);
+
+          if (r > uInnerRadius) {
+            colorValue = sin(300.0 * r - time * 5.0);
+            color *= vec4(colorValue, colorValue, colorValue, colorValue);
+          }
+
+          gl_FragColor = color;
+        }
+      }
+    </script> 
+    <script>
+      window.onload = function() {
+        if (!(window.WebGLRenderingContext && document.createElement('canvas').getContext('experimental-webgl'))) {
+          (function() {
+            document.getElementById("compatibility-warning").style.display = "block";
+          })();
+          return;
+        }
+
+        var canvas = document.getElementById("webgl");
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+
+        var gl = glUtils.getGL(canvas);
+        gl.program = glUtils.getProgram(gl, "vertex-shader", "fragment-shader");
+        var gl_vars = glUtils.getGLVars(gl, gl.program, {
+          attributes: ["aPosition"],
+          uniforms: ["uResolution", "uTime", "uColor", "uMaxRadius", "uInnerRadius"]
+        });
+
+        var inner_radius = Math.random() * 0.7;
+        var max_radius = Math.random() * 0.2 + 0.6;
+
+        var timer = window.performance || window.Date;
+
+        glUtils.setBuffer(gl, gl_vars.aPosition, new Float32Array([
+          -1,  1,
+          -1, -1,
+           1, -1,
+           1, -1,
+           1,  1,
+          -1,  1,
+        ]), 2);
+
+        gl.uniform2f(gl_vars.uResolution, canvas.width, canvas.height);
+        gl.uniform3f(gl_vars.uColor, Math.random(), Math.random(), Math.random());
+        gl.uniform1f(gl_vars.uInnerRadius, inner_radius);
+        gl.uniform1f(gl_vars.uMaxRadius, max_radius);
+
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.uniform2f(gl_vars.uResolution, canvas.width, canvas.height);
+        }
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        
+        (function drawScene() {
+          requestAnimationFrame(drawScene);
+
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          
+          gl.uniform1f(gl_vars.uTime, (timer.now() / 600) % (1000 * Math.PI));
+          
+          gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        })();  
+      };
+    </script>
+  </body>
+</html>
+

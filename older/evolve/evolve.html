@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Evolve</title>
+    <meta name="description" content="An HTML5 Canvas Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      
+      #canvas {
+        background-color: #CCCCCC;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="../js/utils.js"></script>
+    <script src="../js/oFactory.js"></script>
+    <script src="../js/ball.js"></script>
+    <script src="organism.js"></script>
+    <script>
+      window.onload = function() {
+        if (!document.createElement("canvas")) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+          })();
+          return;
+        }
+        
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;   
+        
+        var organisms = [];     
+        var timer = window.performance || window.Date;
+        var previous_time, current_time;
+                
+        organisms.push(
+          organism(function() {
+            this.x = canvas.width / 2;
+            this.y = canvas.height / 2;
+            this.color = "#FF0000";
+            this.radius = 10;
+            this.vx = 0;
+            this.vy = 0;
+            this.range = 200;
+            this.newTarget();
+            this.easing = 0.02;
+            this.reproduction = 0.004;
+            this.death = 0.0001;
+            this.state = "born";
+            this.scale_x = this.scale_y = 0.1;
+          })
+        );
+       
+                
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+        };
+   
+        previous_time = timer.now();
+        (function drawFrame() {  
+          window.requestAnimationFrame(drawFrame, canvas);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          current_time = timer.now();
+          var delta = (current_time - previous_time) / 27; 
+          previous_time = current_time;
+          var vitality = 1 - organisms.length / 2000;
+          
+          organisms = organisms.filter(function(o) { return o.state !== "dead";} );
+          organisms.forEach(function(o) {
+            if (o.state === "alive" && Math.random() < o.reproduction * delta * vitality) {
+              organisms.push(o.reproduce());
+            }
+            if (o.state === "alive" && Math.random() < o.death * delta / vitality) {
+              o.state = "dying";
+            }
+            o.move(delta);
+            o.draw(context);
+          });
+
+        })();
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>You, In the Rain</title>
+    <meta name="description" content="A WebGL Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      #canvas {
+        background-color: #000000;
+        width: 100%;
+        height: 100%;
+      }
+
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <div id="camera-warning" class="warning" style="display:none">
+      Camera not found. Unable to start experiment.
+    </div>
+    <canvas id="webgl"></canvas>
+    <audio id="thunder">
+      <source type="audio/ogg codecs='vorbis'" src="audio/thunder.ogg">
+      <source type="audio/mpeg" src="audio/thunder.mp3">
+    </audio>
+    <audio id="rain" loop>
+      <source type="audio/ogg codecs='vorbis'" src="audio/rain.ogg">
+      <source type="audio/mpeg" src="audio/rain.mp3">
+    </audio>
+    <script src="../js/utils.js"></script>
+    <script src="../js/gl-utils.min.js"></script>
+    <script id="vertex-shader" type="x-vertex-shader">
+      attribute vec4 aPosition;
+
+      varying float vNearness;
+
+      void main() {
+        vNearness = aPosition.z * 0.5 + 0.5;
+
+        gl_PointSize = vNearness * 6.0;
+        gl_Position = aPosition;
+      }
+    </script>
+    <script id="fragment-shader" type="x-fragment-shader">
+      precision mediump float;
+
+      varying float vNearness;
+
+      uniform vec2 uResolution;
+      uniform sampler2D videoTexture;
+
+      void main() {
+
+        vec2 diff = gl_PointCoord - vec2(0.5, 0.5);
+        if (length(diff) > 0.5) {
+          discard;
+        }
+
+        vec2 position = gl_FragCoord.xy / uResolution.xy;
+
+        vec2 p = position * 2.0 - 1.0;
+        p.x *= uResolution.x / uResolution.y;
+
+        vec4 rainColor = vec4(0.6, 0.8, 1.0, vNearness * 0.9);
+        vec4 videoColor = vec4(1.0);
+
+        if (p.x >= -1.0 && p.y >= -1.0 && p.x <= 1.0 && p.y <= 1.0) {
+          p = p * 0.5 + 0.5;
+          p.x = 1.0 - p.x;
+          vec4 videoSample = texture2D(videoTexture, p);
+          float luminance = 0.2126 * videoSample.r + 0.7152 * videoSample.g + 0.0722 * videoSample.b;
+          videoColor = vec4(vec3(luminance * 1.8), 1.0);
+        }
+
+        gl_FragColor = rainColor * videoColor;
+      }
+    </script>
+    <script>
+      window.onload = function() {
+        "use strict";
+
+        if (!(window.WebGLRenderingContext && document.createElement('canvas').getContext('experimental-webgl')) || !navigator.getUserMedia) {
+          document.getElementById("compatibility-warning").style.display = "block";
+          return;
+        }
+
+        var canvas = document.getElementById("webgl");
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+
+        var mouse = utils.captureMouse(canvas);
+
+        var max_points = Math.floor(canvas.width * canvas.height / 50);
+        var num_points = 0;
+        var gravity = 0.0001;
+        var friction = 0.2;
+
+        var gl = glUtils.getGL(canvas);
+        var program = glUtils.getProgram(gl, "vertex-shader", "fragment-shader");
+        var gl_vars = glUtils.getGLVars(gl, program, {
+          attributes: ["aPosition"],
+          uniforms: ["uResolution", "videoTexture"]
+        });
+
+        gl.uniform2f(gl_vars.uResolution, canvas.width, canvas.height);
+
+        var points = new Float32Array(max_points * 3);
+        var velocities = new Float32Array(max_points * 3);
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        navigator.getUserMedia({
+            video: true
+          },
+          function(stream) {
+            var video = document.createElement("video");
+            video.autoplay = true;
+            video.width = window.innerWidth;
+            video.height = window.innerHeight;
+
+            video.addEventListener("canplaythrough", function() {
+              document.getElementById("thunder").play();
+              setTimeout(function() {
+                document.getElementById("rain").play();
+              }, 4000);
+
+              glUtils.loadTexture(gl, gl.TEXTURE0, video, {
+                min_filter: gl.LINEAR,
+                wrap_s: gl.CLAMP_TO_EDGE,
+                wrap_t: gl.CLAMP_TO_EDGE
+              });
+
+              setTimeout(drawScene, 1500);
+
+              function drawScene() {
+                requestAnimationFrame(drawScene);
+
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                var new_num_points = num_points;
+                var i;
+                var count;
+                var repulsion;
+
+                if (num_points < max_points) {
+                  new_num_points += Math.floor(Math.random() * 100);
+                  new_num_points = Math.min(new_num_points, max_points);
+                }
+
+                if (new_num_points > num_points) {
+
+                  while(num_points < new_num_points) {
+                    points[num_points * 3] = Math.random() * 2 - 1;
+                    points[num_points * 3 + 1] = 1,
+                    points[num_points * 3 + 2] = Math.random() * 2 - 1
+
+                    velocities[num_points * 3] = 0;
+                    velocities[num_points * 3 + 1] = Math.random() * 0.01,
+                    velocities[num_points * 3 + 2] = 0;
+
+                    num_points++;
+                  }
+
+                }
+
+                for (i = 0, count = num_points * 3; i < count; i += 3) {
+                  repulsion = getRepulsion(points[i], points[i + 1], points[i + 2]);
+
+                  velocities[i] += repulsion[0];
+                  velocities[i + 1] += gravity + repulsion[1];
+                  velocities[i + 2] += repulsion[2];
+
+                  velocities[i]     *= friction;
+                  velocities[i + 2] *= friction;
+
+                  points[i]     += velocities[i];
+                  points[i + 1] -= velocities[i + 1];
+                  points[i + 2] += velocities[i + 2];
+
+                  points[i + 2] = Math.max(-1, Math.min(points[i + 2], 1));
+
+                  if (points[i + 1] < -1) {
+                    points[i] = Math.random() * 2 - 1;
+                    points[i + 1] = 1;
+                    points[i + 2] = Math.random() * 2 - 1;
+
+                    velocities[i + 1] = Math.random() * 0.01;
+                  }
+                }
+
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                glUtils.setBuffer(gl, gl_vars.aPosition, points, 3);
+
+                gl.drawArrays(gl.POINTS, 0, num_points);
+
+              };
+            });
+
+            video.srcObject = stream;
+          },
+          function(err) {
+            document.getElementById("camera-warning").style.display = "block";
+            console.log("Error: ", err);
+          }
+        );
+
+        function getRepulsion(x, y, z) {
+          var mouse_x = (mouse.x / canvas.width) * 2 - 1;
+          var mouse_y = (1 - mouse.y / canvas.height) * 2 - 1;
+
+          var dx = x - mouse_x;
+          var dy = y - mouse_y;
+          var dz = z;
+          var force = 0.8;
+
+          var diff2 = dx * dx + dy * dy;
+
+          if (diff2 > 0.0013 || Math.abs(dz) > 0.99) {
+            return [0, 0, 0];
+          }
+
+          return [dx * force, 0, dz * force];
+        }
+
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+          max_points = Math.floor(canvas.width * canvas.height / 50);
+          if (max_points > points.length / 3) {
+            extendArrays();
+          }
+          gl.viewport(0, 0, canvas.width, canvas.height);
+          gl.uniform2f(gl_vars.uResolution, canvas.width, canvas.height);
+        }
+
+        function extendArrays() {
+          var old_points = points;
+          var old_velocities = velocities;
+
+          points = new Float32Array(max_points * 3);
+          velocities = new Float32Array(max_points * 3);
+
+          var i, count;
+
+          for (i = 0, count = old_points.length; i < count; i++) {
+            points[i] = old_points[i];
+            velocities[i] = old_velocities[i];
+          }
+        }
+
+      };
+    </script>
+  </body>
+</html>
+

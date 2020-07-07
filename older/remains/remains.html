@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Remains</title>
+    <meta name="description" content="An HTML5 Canvas Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      
+      #canvas {
+        background-color: #000000;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="../js/utils.js"></script>
+    <script>
+      window.onload = function() {
+        "use strict";
+
+        if (!document.createElement("canvas")) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+          })();
+          return;
+        }
+        
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        var timer = window.performance || window.Date;
+        var previous_time, current_time;
+        var animation_frame;
+        var stop = false;
+                
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+
+        var offscreen_canvas = document.createElement("canvas");
+        offscreen_canvas.width = canvas.width;
+        offscreen_canvas.height = canvas.height;
+        var offscreen_context = offscreen_canvas.getContext("2d");
+
+        offscreen_context.save();
+        offscreen_context.fillStyle = canvas.style.backgroundColor;
+        offscreen_context.fillRect(0, 0, offscreen_canvas.width, offscreen_canvas.height);
+        offscreen_context.restore();
+
+        var live_blocks = [];
+        var dead_blocks = [];
+        var gravity = 0.03;
+        var color = utils.randomColor();
+        var size_range = Math.random() * 10 + 15;
+        var i, num_blocks;
+
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+          offscreen_canvas.width = canvas.width;
+          offscreen_canvas.height = canvas.height;
+          offscreen_context.save();
+          offscreen_context.fillStyle = canvas.style.backgroundColor;
+          offscreen_context.fillRect(0, 0, offscreen_canvas.width, offscreen_canvas.height);
+
+          dead_blocks.forEach(function(b) {
+            drawBlock(b, offscreen_context);
+          });
+          offscreen_context.restore(); 
+          context.drawImage(offscreen_canvas, 0, 0, offscreen_canvas.width, offscreen_canvas.height);
+        };
+
+        function intersects(b, other) {
+          return !(b.x + b.width < other.x ||
+             other.x + other.width < b.x ||
+             b.y - b.height > other.y ||
+             other.y - other.height > b.y);
+        }
+
+        function drawBlock(b, context) {
+          var y = canvas.height - b.y;
+          context.save();
+          context.fillStyle = color;
+          context.beginPath();
+          context.moveTo(b.x, y);
+          context.globalAlpha = b.alpha || 1;
+          context.rect(b.x, y, b.width, b.height);
+          context.fill();
+          context.restore();
+        }
+
+        previous_time = timer.now();
+        (function drawFrame() {  
+          animation_frame = window.requestAnimationFrame(drawFrame, canvas);
+          context.drawImage(offscreen_canvas, 0, 0, offscreen_canvas.width, offscreen_canvas.height);
+          current_time = timer.now();
+          var delta = (current_time - previous_time) / 27;
+          previous_time = current_time;
+          var b, new_live;
+          
+          if (!stop) {
+            num_blocks = Math.floor(Math.random() * 3);
+
+            while (num_blocks--) {
+              live_blocks.push({
+                x: Math.random() * canvas.width,
+                y: canvas.height + size_range,
+                width: Math.random() * size_range + 1,
+                height: Math.random() * size_range + 1,
+                vx: 0,
+                vy: 0,
+                ax: 0,
+                ay: gravity,
+                alpha: Math.random() * 0.3 + 0.7
+              });
+            } 
+          }
+
+          new_live = [];
+          for (i = 0, num_blocks = live_blocks.length; i < num_blocks; i++) {
+            b = live_blocks[i];
+            if (b.ay > 0) {
+              new_live.push(b);
+            } else {
+              dead_blocks.push(b);
+              drawBlock(b, context);
+              drawBlock(b, offscreen_context);
+            }
+          }
+
+          live_blocks = new_live;
+
+          if (stop && live_blocks.length === 0) {
+            window.cancelAnimationFrame(animation_frame);
+          }
+
+          live_blocks.forEach(function(b, i) {
+            var j;
+            var dist;
+            var dx, dy;
+            var acc;
+            var other;
+            var angle;
+
+            b.vx += b.ax * delta;
+            b.vy += b.ay * delta;
+            b.x += b.vx * delta;
+            b.y -= b.vy * delta;
+
+            if (b.y - b.height < 0) {
+              b.y = b.height;
+              b.vy = 0;
+              b.ay = 0;
+            }
+
+            dead_blocks.forEach(function(other) {
+              if (intersects(b, other)) {
+                b.vy = 0;
+                b.ay = 0;
+                if (b.y > canvas.height) {
+                  stop = true;
+                }
+              }
+            });
+          
+
+            drawBlock(b, context);
+          });
+        })();
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spiral</title>
+    <meta name="description" content="An HTML5 Canvas Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      
+      #canvas {
+        background-color: #000000;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="../js/utils.js"></script>
+    <script>
+      window.onload = function() {
+        "use strict";
+
+        if (!document.createElement("canvas")) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+          })();
+          return;
+        }
+        
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+                
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+        canvas.style.backgroundColor = "#000000";   
+                
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+        };
+   
+        var spirals = [];
+        var num_spirals = Math.random() * 15 + 15;
+        var i;
+        
+        for (i = 0; i < num_spirals; i++) {
+          spirals.push({
+            angle: Math.random() * 2 * Math.PI,
+            orig_radius: Math.random() * 190 + 10,
+            center_x: Math.random() * canvas.width,
+            center_y: Math.random() * canvas.height,
+            color: utils.randomColor(),
+            angle_step: Math.random() / 50,
+            num_arms: Math.floor(Math.random() * 12 + 3),
+            angle_multiplier_x: Math.random() * 5,
+            angle_multiplier_y: Math.random() * 5
+          });
+        }
+
+        function drawLine(spiral, angle) {
+          var center_x = spiral.center_x;
+          var center_y = spiral.center_y;
+          var radius = spiral.radius;
+          var x, y;
+
+          x = center_x + radius * Math.cos(angle);
+          y = center_y + radius * Math.sin(angle);
+
+          
+          context.moveTo(x, y);
+          context.arc(x, y, 2, 0, 2 * Math.PI);
+          context.lineTo(center_x, center_y);
+        }
+
+        function drawSpiral(spiral) {
+          var angle_step = 2 * Math.PI / spiral.num_arms;
+          var arm_angle;
+
+          var angle = spiral.angle;
+          var color = spiral.color;
+
+          context.save();
+          context.fillStyle = context.strokeStyle = color;
+          context.beginPath();
+          for (arm_angle = 0; arm_angle < Math.PI * 2; arm_angle += angle_step){
+            drawLine(spiral, angle + arm_angle);
+          }
+          context.stroke();
+          context.fill();
+          context.restore();
+        }
+
+        (function drawFrame() {  
+          window.requestAnimationFrame(drawFrame, canvas);
+
+          context.save();
+          context.fillStyle = "rgba(0,0,0,0.05)";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.restore();
+
+          var spiral, angle;
+
+          for (i = 0; i < num_spirals; i++) {
+            spiral = spirals[i];
+            angle = spiral.angle;
+
+            spiral.radius = (Math.sin(angle) + 1) / 2 * spiral.orig_radius;
+            spiral.center_x += Math.cos(angle * spiral.angle_multiplier_x) + (Math.random() * 2 - 1) / 10;
+            spiral.center_y += Math.sin(angle * spiral.angle_multiplier_y)  + (Math.random() * 2 - 1) / 10;
+            spiral.center_x = Math.max(-50, Math.min(canvas.width + 50, spiral.center_x));
+            spiral.center_y = Math.max(-50, Math.min(canvas.height + 50, spiral.center_y));
+
+            drawSpiral(spiral);
+
+            spiral.angle += spiral.angle_step; 
+          }
+          
+        })();
+      };
+    </script>
+  </body>
+</html>

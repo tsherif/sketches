@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2014 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The Colour of Your Voice</title>
+    <meta name="description" content="An HTML5 Canvas and Web Audio Experiment by Tarek Sherif">
+    <style>
+      html {
+        font-size:
+        height: 100%;
+      }
+
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+
+      #canvas {
+        background-color: #FFFFFF;
+        width: 100%;
+        height: 100%;
+      }
+
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+
+      #input-select {
+        position: absolute;
+        top: 0;
+        left: 0;
+        margin: 1em;
+        font-weight: bold;
+        font-size: 24px;
+      }
+
+      .input-option {
+        margin: 0.2em 0 0.2em 1em;
+        padding: 0.5em 1em;
+        background-color: #00A4CF;
+        color: #F0F0F0;
+        cursor: pointer;
+        font-size: 18px;
+      }
+
+      .input-option:first-child {
+        margin-top: 0.8em;
+      }
+
+      .input-option.unavailable {
+        background-color: gray;
+        cursor: default;
+      }
+
+      .unavailable-text {
+        font-size: 12px;
+        display: none;
+      }
+
+      .unavailable-text a {
+        color: #F0F0F0;
+      }
+
+      .unavailable .unavailable-text {
+        display: inline;
+      }
+
+      #input-option:hover {
+        background-color: #20C4EF;
+      }
+
+      #input-option:active {
+        color: #00A4CF;
+        background-color: #F0F0F0;
+      }
+
+      #now-playing {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 0.5em 1em;
+        background-color: #00A4CF;
+        color: #F0F0F0;
+        font-weight: bold;
+      }
+
+      #now-playing a {
+        color: #F0F0F0;
+      }
+
+      #loading-icon {
+        position: absolute;
+        top: 22px;
+        left: 30px;
+        display: none;
+      }
+
+      @media screen and (max-width: 699px) {
+        #loading-icon {
+          top: auto;
+          left: auto;
+          bottom: 22px;
+          right: 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <!-- Loading icon created at http://www.ajaxload.info/ -->
+    <img id="loading-icon" src="../img/load.gif">
+    <div id="input-select">
+      Please select an input source:
+        <div id="mic-select" data-value="mic" class="input-option">
+          Microphone
+          <span class="unavailable-text">
+            (Unavailable on this device or browser. Try <a href="http://www.mozilla.org/en-US/firefox/new/" target="_blank">Mozilla Firefox</a> or <a href="https://www.google.com/intl/en/chrome/browser/" target="_blank">Google Chrome</a>)
+          </span>
+        </div>
+        <div data-value="nay" class="input-option">Nay by Nadir Bellahmer and Michael Frishkopf</div>
+        <div data-value="round1" class="input-option">Round 1 by Nadir Bellahmer</div>
+        <div data-value="duet" class="input-option">Duet for Abdelrazik by Stefan Christoff and Norman Nawrocki</div>
+    </div>
+    <div id="now-playing" style="display:none">
+      Now playing:
+      <span id="playing-nay" style="display:none">
+        <a href="http://youtu.be/yszPe83eRbE" target="_blank">Nay by Nadir Bellahmer and Michael Frishkopf</a>
+      </span>
+      <span id="playing-round1" style="display:none">
+        <a href="http://nadirbellahmer.bandcamp.com/" target="_blank">Round 1 by Nadir Bellahmer, from the album live@listen</a>
+      </span>
+      <span id="playing-duet" style="display:none">
+        <a href="http://howlarts.net/releases" target="_blank">Stefan Christoff and Norman Nawrocki, from the album Duets for Abdelrazik</a>
+      </span>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script>
+      (function() {
+        "use strict";
+
+        if (!document.createElement("canvas") || !window.AudioContext) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+             document.getElementById("input-select").style.display = "none";
+          })();
+          return;
+        }
+
+        if (!navigator.getUserMedia) {
+          document.getElementById("mic-select").classList.add("unavailable");
+        }
+
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        var audio_context = new AudioContext();
+        var analyser = audio_context.createAnalyser();
+        var bin_count = analyser.frequencyBinCount;
+        var frequency_data = new Uint8Array(analyser.frequencyBinCount);
+        var nodes = [];
+        var input_select = document.getElementById("input-select");
+        var now_playing = document.getElementById("now-playing");
+        var loading = document.getElementById("loading-icon");
+        var threshold = 60;
+
+        var audio_extension = (function() {
+          var audio = document.createElement("audio");
+          var can_play = audio.canPlayType("audio/ogg codecs='vorbis'");
+
+          if (audio.canPlayType("audio/ogg codecs='vorbis'")) {
+            return ".ogg";
+          }
+
+          can_play = audio.canPlayType("audio/mpeg");
+          if (can_play === "probably" || can_play === "maybe") {
+            return ".mp3";
+          }
+        })();
+
+        var audio_urls = {};
+        var audio_source, i;
+
+        ["nay", "round1", "duet"].forEach(function(title) {
+          audio_urls[title] = "../audio/" + title + audio_extension;
+        });
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        for (i = 0; i < bin_count; i++) {
+          nodes.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: Math.random() * 4 - 2,
+            vy: Math.random() * 4 - 2,
+            r: (bin_count - i) / bin_count * 30 + 10,
+            color: "hsl(" + (255 - Math.floor(255 * Math.min(i, 144) / 144)) + ", 100%, 50%)",
+            value: 0
+          })
+        }
+
+        input_select.addEventListener("click", function(event) {
+          var target = event.target;
+          if (!target.classList.contains("input-option") || target.classList.contains("unavailable")) {
+            return;
+          }
+          var value = target.dataset.value;
+
+          input_select.style.display = "none";
+
+          if (value === "mic") {
+            navigator.getUserMedia({audio: true }, function(stream) {
+              audio_source = audio_context.createMediaStreamSource(stream);
+              audio_source.connect(analyser);
+
+              setInterval(update, 1000 / 60);
+            }, function(err) {
+              if (window.location.href.indexOf("https://tsherif.github.io/tareksherif-works/") === -1) {
+                window.location = "https://tsherif.github.io/tareksherif-works/experiments/voicecolour/voicecolour.html";
+                return;
+              }
+              console.log("ERROR: ", err);
+            });
+          } else {
+            loading.style.display = "block";
+            audio_source = audio_context.createBufferSource();
+
+            var request = new XMLHttpRequest();
+            request.open('GET', audio_urls[value]);
+            request.responseType = 'arraybuffer';
+
+            request.onload = function() {
+              audio_context.decodeAudioData(request.response, function(buffer) {
+                loading.style.display = "none";
+                audio_source.buffer = buffer;
+                audio_source.start(0);
+                var gain = audio_context.createGain();
+                gain.gain.value = 0.1;
+
+                audio_source.connect(gain);
+                gain.connect(analyser);
+                audio_source.connect(audio_context.destination);
+
+                setInterval(update, 1000 / 60);
+              }, function(error) {
+                console.log("ERROR: ", err);
+              });
+            }
+            request.send();
+
+            input_select.style.display = "none";
+            now_playing.style.display = "block";
+            document.getElementById("playing-" + value).style.display = "inline";
+          }
+
+        });
+
+        window.onresize = function() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+
+          nodes.forEach(resetNode);
+        };
+
+        function update() {
+          analyser.getByteFrequencyData(frequency_data);
+          requestAnimationFrame(draw);
+        }
+
+        function draw() {
+          var centerx = canvas.width / 2;
+          var centery = canvas.height / 2;
+          var a, r, x, y, base_r, num_particles;
+          var node, i;
+
+          nodes.forEach(function(node, i) {
+            node.value = frequency_data[i];
+
+            if (!node.reset &&
+                (node.value < threshold ||
+                 node.x < 0 || node.y < 0 ||
+                 node.x > canvas.width || node.y > canvas.height)) {
+              resetNode(node);
+            }
+
+            if (node.value >= threshold) {
+              node.x += node.vx;
+              node.y += node.vy;
+              node.reset = false;
+              num_particles = Math.ceil(node.value / 4);
+              base_r = node.value / 5;
+              context.beginPath();
+              context.fillStyle = node.color;
+              while (num_particles--) {
+                r = Math.random() * base_r;
+                a = Math.random() * 2 * Math.PI;
+                x = r * Math.cos(a) - 0.5;
+                y = r * Math.sin(a) - 0.5;
+
+                context.fillRect(node.x + x, node.y + y, 1, 1);
+              }
+            }
+          });
+        }
+
+        function resetNode(node) {
+          node.x = canvas.width / 2;
+          node.y = canvas.height / 2;
+          node.vx = Math.random() * 4 - 2;
+          node.vy = Math.random() * 4 - 2;
+          node.reset = true;
+        }
+
+      })();
+    </script>
+  </body>
+</html>

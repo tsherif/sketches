@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2013 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gravity</title>
+    <meta name="description" content="An HTML5 Canvas Experiment by Tarek Sherif">
+    <style>
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+      
+      body {
+        background-color: white;
+        height: 100%;
+        margin: 0;
+      }
+      
+      #canvas {
+        background-color: #000;
+        width: 100%;
+        height: 100%;
+      }
+      
+      .warning {
+        color: red;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="compatibility-warning" class="warning" style="display:none">
+      Your browser does not seem to support functionality required for this experiment.<BR>
+      <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or
+      <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> are recommended for best viewing.
+    </div>
+    <canvas id="canvas"></canvas>
+    <script src="../js/utils.js"></script>
+    <script src="../js/oFactory.js"></script>
+    <script src="../js/ball.js"></script>
+    <script>
+      window.onload = function() {
+        if (!document.createElement("canvas")) {
+          (function() {
+             var warning = document.getElementById("compatibility-warning");
+             warning.style.display = "block";
+          })();
+          return;
+        }
+        
+        var canvas = document.getElementById("canvas");
+        var context = canvas.getContext("2d");
+        var mouse = utils.captureMouse(canvas);
+        var touch = utils.captureTouch(canvas);
+        var num_balls = 1000;
+        var explosion = 25;
+        var balls = [];
+        var i;
+        var mouse_gravity = 0.1;
+        var v_initial;
+        var angle;
+        var timer = window.performance || window.Date;
+        var previous_time, current_time;
+        
+        canvas.width = document.body.clientWidth;
+        canvas.height = document.body.clientHeight;
+        
+        window.onresize = function() {
+          canvas.width = document.body.clientWidth;
+          canvas.height = document.body.clientHeight;
+        };
+        
+        for (i = 0; i < num_balls; i++) {
+          v_initial = Math.random() * explosion;
+          angle = Math.random() * 2 * Math.PI;
+          balls[i] = ball({
+            color: utils.randomColor(),
+            radius: Math.floor(Math.random() * 20) + 5,
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            lineWidth: 0,
+            vx: Math.cos(angle) * v_initial,
+            vy: Math.sin(angle) * v_initial
+          });
+        }
+        
+        previous_time = timer.now();
+        (function drawFrame() {
+          window.requestAnimationFrame(drawFrame, canvas);
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          var cursor = touch.touching ? touch : mouse;
+          current_time = timer.now();
+          var delta = (current_time - previous_time) / 30; 
+          previous_time = current_time;
+          
+          balls.forEach(function(b) {
+            var dx = 0;
+            var dy = 0; 
+            var ax = 0; 
+            var ay = 0; 
+            var angle;
+            
+            dx = cursor.x - b.x;
+            dy = cursor.y - b.y;
+            angle = Math.atan2(dy, dx);
+            ax = Math.cos(angle) * mouse_gravity;
+            ay = Math.sin(angle) * mouse_gravity;
+            
+            b.vx += ax * delta;
+            b.vy += ay * delta;
+            b.x += b.vx * delta;
+            b.y += b.vy * delta;
+            if (b.x + b.radius >= 0 && b.x - b.radius <= canvas.width &&
+                b.y + b.radius >= 0 && b.y - b.radius <= canvas.height) {
+              b.draw(context);
+            }
+          }); 
+          
+        })();
+      };
+    </script>
+  </body>
+</html>
