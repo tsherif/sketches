@@ -46,7 +46,7 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         let stagger = false;
-        for (let y = HEIGHT; y < canvas.height; y += HEIGHT) {
+        for (let y = HEIGHT; y - HEIGHT < canvas.height; y += HEIGHT) {
             for (let x = stagger ? -0.5 * BASE : 0; x < canvas.width; x += BASE) {
                 ctx.beginPath();
                 ctx.moveTo(x, y);
