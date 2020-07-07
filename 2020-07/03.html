@@ -37,7 +37,6 @@
 <body>
 <canvas id="gl-canvas"></canvas>
 <script type="module">
-    import {createCube} from "../lib/utils.js";
 
     const vsSource = `
         #version 300 es
@@ -45,18 +44,16 @@
         layout(std140, column_major) uniform;
 
         layout(location=0) in vec3 position;
+        layout(location=1) in vec3 color;
         
         uniform mat4 uModel;
         uniform mat4 viewProj;
         
-        out vec3 vPosition;
-        out vec2 vUV;
-        out vec3 vNormal;
+        flat out vec3 vColor;
 
         void main() {
-            vec4 worldPosition = uModel * vec4(position, 1.0);
-            vPosition = worldPosition.xyz;
-            gl_Position = viewProj * worldPosition;
+            vColor = color;
+            gl_Position = viewProj * uModel * vec4(position, 1.0);
         }
     `;
 
@@ -66,11 +63,11 @@
 
         layout(std140, column_major) uniform;
 
-        in vec3 vPosition;
+        flat in vec3 vColor;
 
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(abs(vPosition), 1.0);
+            fragColor = vec4(vColor, 1.0);
         }
     `;
            
@@ -83,13 +80,14 @@
     .enable(PicoGL.DEPTH_TEST);
 
     // SET UP GEOMETRY
-    const cubeData = createCube({dimensions: [2, 2, 2]});
     const tetrahedronData = createTetrahedron([-1, -1, 0], [1, -1, 0], [1, 1, 0]);
 
     const positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tetrahedronData.positions);
+    const colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3,  tetrahedronData.colors);
 
     const boxArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, positions);
+    .vertexAttributeBuffer(0, positions)
+    .vertexAttributeBuffer(1, colors, {normalized: true});
 
     // SET UP UNIFORM BUFFER
     const projMatrix = mat4.create();
@@ -136,6 +134,7 @@
 
     function createTetrahedron(p1, p2, p3Plane) {
         const positions = new Float32Array(36);
+        const colors = new Uint8Array(36);
 
         const p1p2 = vec3.sub([], p2, p1);
         const sideLength = vec3.length(p1p2);
@@ -181,10 +180,32 @@
         positions.set(p1, 30);
         positions.set(p4, 33);
 
+        const red = [255, 0, 0];
+        const green = [0, 255, 0];
+        const blue = [0, 0, 255];
+        const yellow = [255, 255, 0];
+
+        colors.set(red);
+        colors.set(red, 3);
+        colors.set(red, 6);
+
+        colors.set(green, 9);
+        colors.set(green, 12);
+        colors.set(green, 15);
+
+        colors.set(blue, 18);
+        colors.set(blue, 21);
+        colors.set(blue, 24);
+
+        colors.set(yellow, 27);
+        colors.set(yellow, 30);
+        colors.set(yellow, 33);
+
         console.log(vec3.distance(p1, p2), vec3.distance(p1, p3), vec3.distance(p1, p4), vec3.distance(p2, p3), vec3.distance(p2, p4), vec3.distance(p3, p4))
 
         return {
-            positions
+            positions,
+            colors
         };
     }
 

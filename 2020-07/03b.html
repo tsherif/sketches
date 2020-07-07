@@ -45,18 +45,16 @@
         layout(std140, column_major) uniform;
 
         layout(location=0) in vec3 position;
+        layout(location=1) in vec3 color;
         
         uniform mat4 uModel;
         uniform mat4 viewProj;
         
-        out vec3 vPosition;
-        out vec2 vUV;
-        out vec3 vNormal;
+        flat out vec3 vColor;
 
         void main() {
-            vec4 worldPosition = uModel * vec4(position, 1.0);
-            vPosition = worldPosition.xyz;
-            gl_Position = viewProj * worldPosition;
+            vColor = color;
+            gl_Position = viewProj * uModel * vec4(position, 1.0);
         }
     `;
 
@@ -66,11 +64,11 @@
 
         layout(std140, column_major) uniform;
 
-        in vec3 vPosition;
+        flat in vec3 vColor;
 
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(abs(vPosition), 1.0);
+            fragColor = vec4(abs(vColor), 1.0);
         }
     `;
            
@@ -87,9 +85,11 @@
     const tetrahedronData = createOctahedron();
 
     const positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tetrahedronData.positions);
+    const colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3,  tetrahedronData.colors);
 
     const boxArray = app.createVertexArray()
-    .vertexAttributeBuffer(0, positions);
+    .vertexAttributeBuffer(0, positions)
+    .vertexAttributeBuffer(1, colors, {normalized: true});
 
     // SET UP UNIFORM BUFFER
     const projMatrix = mat4.create();
@@ -153,12 +153,33 @@
             ...p2, ...p3, ...p6,
             ...p3, ...p4, ...p6,
             ...p4, ...p1, ...p6,
+        ]);
+
+        const red = [255, 0, 0];
+        const green = [0, 255, 0];
+        const blue = [0, 0, 255];
+        const yellow = [255, 255, 0];
+        const cyan = [0, 255, 255];
+        const magenta = [255, 0, 255];
+        const orange = [255, 165,0];
+        const white = [255, 255, 255];
+
+        const colors = new Uint8Array([
+            ...red, ...red, ...red,
+            ...green, ...green, ...green,
+            ...blue, ...blue, ...blue,
+            ...yellow, ...yellow, ...yellow,
+            ...cyan, ...cyan, ...cyan,
+            ...magenta, ...magenta, ...magenta,
+            ...orange, ...orange, ...orange,
+            ...white, ...white, ...white,
         ])
 
         console.log(vec3.distance(p1, p5), vec3.distance(p1, p6), vec3.distance(p2, p5), vec3.distance(p2, p6), vec3.distance(p3, p5), vec3.distance(p3, p6))
 
         return {
-            positions
+            positions,
+            colors
         };
     }
 
