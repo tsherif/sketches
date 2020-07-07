@@ -81,7 +81,7 @@ header h3 {
     margin-left: 1em;
     font-size: 1.5em;
     font-weight: bold;
-    margin-bottom: 1em;
+    margin-bottom: 0.5em;
     margin-top: 2em;
 }
 
@@ -93,7 +93,7 @@ header h3 {
 .sketch {
   display: inline-block;
   text-align: center;
-  margin-right: 1.5em;
+  margin: 1em;
 }
 
 .sketch img {
@@ -102,4 +102,8 @@ header h3 {
 
 a {
   color: black;
+}
+
+.sketch a {
+  text-decoration: none;
 }

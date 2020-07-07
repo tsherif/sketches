@@ -7,8 +7,16 @@
             margin: 0;
             overflow-y: hidden;
         }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 999;
+            color: white;
+            font-weight: bold;
+        }
     </style>
-    <script src="../lib/dat.gui.min.js"></script>
 </head>
 <!--
   The MIT License (MIT)
@@ -33,6 +41,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <body>
+    <div id="info">Click and drag to explore</div>
     <canvas id="canvas"></canvas>
     <script type="module">
 

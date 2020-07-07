@@ -39,7 +39,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <body>
-    <div id="info">Press space to increase resolution</div>
+    <div id="info">Click to increase resolution</div>
     <canvas id="canvas"></canvas>
     <script>
         const canvas = document.getElementById("canvas");
@@ -92,10 +92,7 @@
 
         draw();
 
-        document.body.addEventListener("keyup", e => {
-            if (e.key !== " ") {
-                return;
-            }
+        document.body.addEventListener("click", e => {
             numRows += 5;
             draw();
         });

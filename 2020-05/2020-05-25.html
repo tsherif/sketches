@@ -7,6 +7,14 @@
             margin: 0;
             overflow-y: hidden;
         }
+
+        #info {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          z-index: 999;
+          background-color: white;
+        }
     </style>
 </head>
 <!--
@@ -32,6 +40,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <body>
+    <div id="info">Click to add a vertex</div>
     <canvas id="canvas"></canvas>
     <script>
         const canvas = document.getElementById("canvas");
@@ -46,10 +55,7 @@
         ctx.fillStyle = "skyblue";
         ctx.strokeStyle = "red";
 
-        document.body.addEventListener("keyup", e => {
-            if (e.key !== " ") {
-                return;
-            }
+        document.body.addEventListener("click", e => {
             rotation = 0;
             numPoints++;
         });
