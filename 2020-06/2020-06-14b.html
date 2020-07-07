@@ -83,6 +83,7 @@
         const BASE_OFFSET = -2 * STRIDE;
 
         import {polygonCoordinates, drawPolygon, outsideEdge, scaleEdge} from "../lib/polygon.js";
+        import {setupInteractions} from "../lib/interactions.js";
 
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;
@@ -109,31 +110,11 @@
         let offsetX = BASE_OFFSET;
         let offsetY = BASE_OFFSET;
 
-        let lastDragX = 0;
-        let lastDragY = 0;
-        let dragging = false;
-        document.addEventListener("mousedown", e => {
-            lastDragX = e.clientX;
-            lastDragY = e.clientY;
-            dragging = true;
-        });
-
-        document.addEventListener("mousemove", e => {
-            if (!dragging) {
-                return;
+        setupInteractions(canvas, {
+            onDrag(x, y) {
+                offsetX += x;
+                offsetY += y;
             }
-
-            offsetX += e.clientX - lastDragX;
-            offsetY += e.clientY - lastDragY;
-
-            lastDragX = e.clientX;
-            lastDragY = e.clientY;
-        });
-
-        document.addEventListener("mouseup", e => {
-            dragging = false;
-            lastDragX = 0;
-            lastDragY = 0;
         });
 
         requestAnimationFrame(function draw() {
