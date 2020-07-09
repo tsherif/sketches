@@ -39,7 +39,7 @@
 <body>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createSphere, xformMatrix, createQuad} from "../lib/utils.js";
+        import {createSphere, xformMatrix, createQuad, checkWebGL2} from "../lib/utils.js";
 
         const NUM_PARTICLES = 20000;
         const VECTOR_FIELD_DIM = 32;
@@ -48,6 +48,8 @@
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        checkWebGL2(canvas);
 
         const app = PicoGL.createApp(canvas)
         .clearColor(0, 0, 0, 1)

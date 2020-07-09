@@ -39,11 +39,13 @@
 <body>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createSphere} from "../lib/utils.js";
+        import {createSphere, checkWebGL2} from "../lib/utils.js";
 
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        checkWebGL2(canvas);
 
         const app = PicoGL.createApp(canvas)
         .clearColor(0, 0, 0, 1);

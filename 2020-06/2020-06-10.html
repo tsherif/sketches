@@ -40,9 +40,11 @@
     <div id="result"></div>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createQuad} from "../lib/utils.js";
+        import {createQuad, checkWebGL2} from "../lib/utils.js";
 
         const canvas = document.getElementById("canvas");
+
+        checkWebGL2(canvas);
 
         const TEXTURE_DIM = 8;
         const NUM_ITEMS = TEXTURE_DIM * TEXTURE_DIM;

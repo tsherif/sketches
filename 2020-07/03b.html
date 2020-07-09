@@ -38,7 +38,7 @@
 <body>
 <canvas id="gl-canvas"></canvas>
 <script type="module">
-    import {createCube} from "../lib/utils.js";
+    import {checkWebGL2} from "../lib/utils.js";
 
     const vsSource = `
         #version 300 es
@@ -76,13 +76,14 @@
     const canvas = document.getElementById("gl-canvas");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    
+
+    checkWebGL2(canvas);
+
     const app = PicoGL.createApp(canvas)
     .clearColor(0.0, 0.0, 0.0, 1.0)
     .enable(PicoGL.DEPTH_TEST);
 
     // SET UP GEOMETRY
-    const cubeData = createCube({dimensions: [2, 2, 2]});
     const tetrahedronData = createOctahedron();
 
     const positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  tetrahedronData.positions);

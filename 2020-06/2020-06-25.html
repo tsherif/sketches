@@ -48,7 +48,7 @@
     <div id="info">Click and drag to move camera</div>
     <canvas id="gl-canvas"></canvas>
     <script type="module">
-        import {createCube} from "../lib/utils.js";
+        import {createCube, checkWebGL2} from "../lib/utils.js";
         import {setupInteractions} from "../lib/interactions.js";
 
         const FOCAL_LENGTH = 3;
@@ -545,7 +545,9 @@
         let canvas = document.getElementById("gl-canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        
+
+        checkWebGL2(canvas);
+
         let app = PicoGL.createApp(canvas)
         .clearColor(0.0, 0.0, 0.0, 1.0)
         .enable(PicoGL.BLEND)

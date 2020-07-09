@@ -39,7 +39,7 @@
 <body>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createSphere, xformMatrix, createQuad, hexToRGB} from "../lib/utils.js";
+        import {createSphere, xformMatrix, createQuad, hexToRGB, checkWebGL2} from "../lib/utils.js";
 
         const NUM_PARTICLES = 500;
         const VECTOR_FIELD_DIM = 32;
@@ -73,11 +73,11 @@
 
         const PALETTE = PALETTES[Math.floor(Math.random() * PALETTES.length)].map(hexToRGB);
 
-
-
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        checkWebGL2(canvas, {preserveDrawingBuffer: true});
 
         const app = PicoGL.createApp(canvas, {preserveDrawingBuffer: true})
         .clearColor(0.9, 0.9, 0.9, 1)

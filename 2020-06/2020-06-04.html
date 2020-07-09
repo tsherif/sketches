@@ -48,7 +48,7 @@
     <div id="info">Click and drag to move camera</div>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createSphere, xformMatrix, createQuad} from "../lib/utils.js";
+        import {createSphere, xformMatrix, createQuad, checkWebGL2} from "../lib/utils.js";
         import {setupInteractions} from "../lib/interactions.js";
 
         const NUM_PARTICLES = 30000;
@@ -58,6 +58,8 @@
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        checkWebGL2(canvas);
 
         const app = PicoGL.createApp(canvas)
         .clearColor(0, 0, 0, 1)

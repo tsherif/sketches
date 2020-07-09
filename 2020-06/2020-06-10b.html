@@ -40,9 +40,11 @@
     <div id="result"></div>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createQuad} from "../lib/utils.js";
+        import {createQuad, checkWebGL2} from "../lib/utils.js";
 
         const canvas = document.getElementById("canvas");
+
+        checkWebGL2(canvas);
 
         const NUM_ITEMS = 64;
         const MAX_VALUE = 100;
