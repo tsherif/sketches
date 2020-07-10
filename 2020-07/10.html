@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/gl-matrix.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="gl-canvas"></canvas>
+<script type="module">
+    import {checkWebGL2} from "../lib/utils.js";
+
+    const vsSource = `
+        #version 300 es
+
+        layout(std140, column_major) uniform;
+
+        layout(location=0) in vec3 position;
+        layout(location=1) in vec3 color;
+        
+        uniform mat4 uModel;
+        uniform mat4 viewProj;
+        
+        flat out vec3 vColor;
+
+        void main() {
+            vColor = color;
+            gl_Position = viewProj * uModel * vec4(position, 1.0);
+        }
+    `;
+
+    const fsSource = `
+        #version 300 es
+        precision highp float;
+
+        layout(std140, column_major) uniform;
+
+        flat in vec3 vColor;
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(abs(vColor), 1.0);
+        }
+    `;
+           
+    const canvas = document.getElementById("gl-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    checkWebGL2(canvas);
+
+    const app = PicoGL.createApp(canvas)
+    .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.DEPTH_TEST);
+
+    // SET UP GEOMETRY
+    const icosahedronData = createIcosahedron();
+
+    const positions = app.createVertexBuffer(PicoGL.FLOAT, 3,  icosahedronData.positions);
+    const colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3,  icosahedronData.colors);
+
+    const boxArray = app.createVertexArray()
+    .vertexAttributeBuffer(0, positions)
+    .vertexAttributeBuffer(1, colors, {normalized: true});
+
+    // SET UP UNIFORM BUFFER
+    const projMatrix = mat4.create();
+    mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 0.1, 10.0);
+
+    const viewMatrix = mat4.create();
+    const eyePosition = vec3.fromValues(3, 3, 3);
+    mat4.lookAt(viewMatrix, eyePosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+
+    const viewProjMatrix = mat4.create();
+    mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
+
+    const modelMatrix = mat4.create();
+    const rotateXMatrix = mat4.create();
+    const rotateYMatrix = mat4.create();
+
+    let angleX = 0;
+    let angleY = 0;
+
+    app.createPrograms([vsSource, fsSource]).then(([program]) => {
+        // SET UP DRAW CALL
+        let drawCall = app.createDrawCall(program, boxArray)
+        .uniform("viewProj", viewProjMatrix);
+
+        function draw() {
+
+            angleX += 0.01;
+            angleY += 0.02;
+
+            mat4.fromXRotation(rotateXMatrix, angleX);
+            mat4.fromYRotation(rotateYMatrix, angleY);
+            mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+
+            drawCall.uniform("uModel", modelMatrix);
+
+            app.clear();
+            drawCall.draw()
+            
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    });
+
+    function createIcosahedron() {
+        const PENTAGON_ANGLE = 0.4 * Math.PI;
+        const PENTAGON_RADIUS = 0.5 / Math.cos(3 * Math.PI / 10);
+        const SIN60 = Math.sin(Math.PI / 3);
+        const PENTAGON_PERP = PENTAGON_RADIUS * Math.sin(3 * Math.PI / 10);
+
+        const CENTERY = Math.sqrt(SIN60 * SIN60 - PENTAGON_PERP * PENTAGON_PERP); 
+
+        const center = [0, CENTERY, 0];
+        const p1 = [0, 0, PENTAGON_RADIUS];
+        const p2 = [PENTAGON_RADIUS * Math.sin(PENTAGON_ANGLE),     0, PENTAGON_RADIUS * Math.cos(PENTAGON_ANGLE)];
+        const p3 = [PENTAGON_RADIUS * Math.sin(PENTAGON_ANGLE * 2), 0, PENTAGON_RADIUS * Math.cos(PENTAGON_ANGLE * 2)];
+        const p4 = [PENTAGON_RADIUS * Math.sin(PENTAGON_ANGLE * 3), 0, PENTAGON_RADIUS * Math.cos(PENTAGON_ANGLE * 3)];
+        const p5 = [PENTAGON_RADIUS * Math.sin(PENTAGON_ANGLE * 4), 0, PENTAGON_RADIUS * Math.cos(PENTAGON_ANGLE * 4)];
+
+        const positions = new Float32Array([
+            ...center, ...p1, ...p2,
+            ...center, ...p2, ...p3,
+            ...center, ...p3, ...p4,
+            ...center, ...p4, ...p5,
+            ...center, ...p5, ...p1,
+        ]);
+
+        const red = [255, 0, 0];
+        const green = [0, 255, 0];
+        const blue = [0, 0, 255];
+        const yellow = [255, 255, 0];
+        const cyan = [0, 255, 255];
+        const magenta = [255, 0, 255];
+        const orange = [255, 165,0];
+        const white = [255, 255, 255];
+
+        const colors = new Uint8Array([
+            ...red, ...red, ...red,
+            ...green, ...green, ...green,
+            ...blue, ...blue, ...blue,
+            ...yellow, ...yellow, ...yellow,
+            ...cyan, ...cyan, ...cyan,
+        ])
+
+        console.log(vec3.distance(center, p1), vec3.distance(p1, p2), vec3.distance(center, p2), vec3.distance(p2, p3))
+
+        return {
+            positions,
+            colors
+        };
+    }
+
+</script>
+</body>
+</html>
