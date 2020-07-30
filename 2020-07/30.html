@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+    
+           
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("2d");
+
+    context.fillStyle = "black";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    const TIME_SCALE = 0.3;
+    const MIN_D = 70;
+    const RADIUS_SCALE = 5;
+    const CENTER_MASS_FACTOR = 3;
+
+    const stars = [
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        },
+        {
+            x: (Math.random() * 0.5 + 0.25) * canvas.width,
+            y: (Math.random() * 0.5 + 0.25) * canvas.height,
+            vx: Math.random() * 0.4 - 0.2,
+            vy: Math.random() * 0.4 - 0.2,
+            mass: Math.random() * 4 + 1,
+        }
+    ];
+
+    const center = {
+        x: canvas.width * 0.5,
+        y: canvas.height * 0.5,
+        mass: stars.reduce((a, s) => a + s.mass, 0) * CENTER_MASS_FACTOR
+    };
+
+
+    function drawStar(star) {
+        context.save();
+        context.fillStyle = "white";
+        context.beginPath();
+        context.arc(star.x, star.y, 10, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+    }
+
+    let lastTime = performance.now();
+    function loop() {
+        requestAnimationFrame(loop);
+
+        const currentTime = performance.now();
+        const t = (currentTime - lastTime) * TIME_SCALE;
+        lastTime = currentTime;
+
+        context.fillStyle = "rgba(0, 0, 0, 0.02)";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < stars.length; ++i) {
+            const star = stars[i];
+
+            let dx = center.x - star.x;
+            let dy = center.y - star.y;
+            let d = Math.max(MIN_D, Math.sqrt(dx * dx + dy * dy));
+            let g = (star.mass * center.mass) / (d * d);
+
+            let ax = (dx / d) * (g / star.mass);
+            let ay = (dy / d) * (g / star.mass);
+
+            for (let j = 0; j < stars.length; ++j) {
+                if (i == j) {
+                    continue;
+                }
+
+                const other = stars[j];
+                dx = other.x - star.x;
+                dy = other.y - star.y;
+                d = Math.max(MIN_D, Math.sqrt(dx * dx + dy * dy));
+                g = (star.mass * other.mass) / (d * d);
+                
+                ax += (dx / d) * (g / star.mass);
+                ay += (dy / d) * (g / star.mass);
+            }
+
+            star.vx += ax * t;
+            star.vy += ay * t;
+            star.x += star.vx * t;
+            star.y += star.vy * t;
+
+            drawStar(star);
+        }
+    }
+
+    requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
