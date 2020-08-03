@@ -82,6 +82,7 @@
 
     const app = PicoGL.createApp(canvas)
     .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.CULL_FACE)
     .enable(PicoGL.DEPTH_TEST);
 
     // SET UP GEOMETRY
@@ -99,7 +100,7 @@
     mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 0.1, 10.0);
 
     const viewMatrix = mat4.create();
-    const eyePosition = vec3.fromValues(3, 0, 3);
+    const eyePosition = vec3.fromValues(3.5, 0, 3.5);
     mat4.lookAt(viewMatrix, eyePosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
 
     const viewProjMatrix = mat4.create();
@@ -115,12 +116,11 @@
     app.createPrograms([vsSource, fsSource]).then(([program]) => {
         // SET UP DRAW CALL
         let drawCall = app.createDrawCall(program, boxArray)
-        .primitive(PicoGL.POINTS)
         .uniform("viewProj", viewProjMatrix);
 
         function draw() {
 
-            // angleX += 0.01;
+            angleX += 0.01;
             angleY += 0.02;
 
             mat4.fromXRotation(rotateXMatrix, angleX);
@@ -263,33 +263,133 @@
 
 
         const positions = new Float32Array([
-            ...p1, ...p2, ...p3, ...p4, ...p5, 
-            ...p6, ...p7, ...p8, ...p9, ...p10,
-            ...p11, ...p12, ...p13, ...p14, ...p15, 
-            ...p16, ...p17, ...p18, ...p19, ...p20
+            // PENTAGON 1: p1, p2, p3, p4, p5
+            ...p1, ...p2, ...p3, 
+            ...p1, ...p3, ...p4, 
+            ...p1, ...p4, ...p5,
+
+
+            // PENTAGON 2: p1, p6, p11, p7, p2
+            ...p1, ...p6, ...p11,
+            ...p1, ...p11, ...p7,
+            ...p1, ...p7, ...p2,
+
+            // PENTAGON 3: p2, p7, p12, p8, p3
+            ...p2, ...p7, ...p12,
+            ...p2, ...p12, ...p8,
+            ...p2, ...p8, ...p3,
+
+            // PENTAGON 4: p3, p8, p13, p9, p4
+            ...p3, ...p8, ...p13,
+            ...p3, ...p13, ...p9,
+            ...p3, ...p9, ...p4,
+
+            // PENTAGON 5: p4, p9, p14, p10, p5
+            ...p4, ...p9, ...p14,
+            ...p4, ...p14, ...p10,
+            ...p4, ...p10, ...p5,
+
+            // PENTAGON 6: p5, p10, p15, p6, p1
+            ...p5, ...p10, ...p15,
+            ...p5, ...p15, ...p6,
+            ...p5, ...p6, ...p1,
+
+            // PENTAGON 7: p6, p15, p20, p16, p11
+            ...p6, ...p15, ...p20,
+            ...p6, ...p20, ...p16,
+            ...p6, ...p16, ...p11,
+
+            // PENTAGON 8: p7, p11, p16, p17, p12
+            ...p7, ...p11, ...p16,
+            ...p7, ...p16, ...p17,
+            ...p7, ...p17, ...p12,
+
+            // PENTAGON 9: p8, p12, p17, p18, p13
+            ...p8, ...p12, ...p17,
+            ...p8, ...p17, ...p18,
+            ...p8, ...p18, ...p13,
+
+            // PENTAGON 10: p9, p13, p18, p19, p14
+            ...p9, ...p13, ...p18,
+            ...p9, ...p18, ...p19,
+            ...p9, ...p19, ...p14,
+
+            // PENTAGON 11: p10, p14, p19, p20, p15
+            ...p10, ...p14, ...p19,
+            ...p10, ...p19, ...p20,
+            ...p10, ...p20, ...p15,
+
+            // PENTAGON 12: p16, p17, p18, p19, p20
+            ...p16, ...p20, ...p19,
+            ...p16, ...p19, ...p18,
+            ...p16, ...p18, ...p17
         ]);
 
         const red = [255, 0, 0];
-        const violet = [138, 43, 226];
-        const green = [0, 255, 0];
-        const maroon = [128, 0, 0];
         const blue = [0, 0, 255];
-        const indigo = [75, 0, 130];
-        const yellow = [255, 255, 0];
-        const brown = [210, 105, 30];
+        const green = [0, 255, 0];
         const cyan = [0, 255, 255];
-        const steel = [70, 130, 180];
+        const yellow = [255, 255, 0];
         const magenta = [255, 0, 255];
+        const maroon = [128, 0, 0];
+        const indigo = [75, 0, 130];
+        const brown = [210, 105, 30];
+        const steel = [70, 130, 180];
+        const violet = [138, 43, 226];
         const lemon = [255, 250, 205];
 
         const colors = new Uint8Array([
-            ...red, ...red, ...red, ...red, ...red,
-            ...red, ...red, ...red, ...red, ...red,
-            ...red, ...red, ...red, ...red, ...red,
-            ...red, ...red, ...red, ...red, ...red
+            ...red, ...red, ...red,
+            ...red, ...red, ...red,
+            ...red, ...red, ...red,
+
+            ...blue, ...blue, ...blue,
+            ...blue, ...blue, ...blue,
+            ...blue, ...blue, ...blue,
+
+            ...green, ...green, ...green,
+            ...green, ...green, ...green,
+            ...green, ...green, ...green,
+
+            ...yellow, ...yellow, ...yellow,
+            ...yellow, ...yellow, ...yellow,
+            ...yellow, ...yellow, ...yellow,
+
+            ...cyan, ...cyan, ...cyan,
+            ...cyan, ...cyan, ...cyan,
+            ...cyan, ...cyan, ...cyan,
+
+            ...magenta, ...magenta, ...magenta,
+            ...magenta, ...magenta, ...magenta,
+            ...magenta, ...magenta, ...magenta,
+
+            ...maroon, ...maroon, ...maroon,
+            ...maroon, ...maroon, ...maroon,
+            ...maroon, ...maroon, ...maroon,
+
+            ...indigo, ...indigo, ...indigo,
+            ...indigo, ...indigo, ...indigo,
+            ...indigo, ...indigo, ...indigo,
+
+            ...brown, ...brown, ...brown,
+            ...brown, ...brown, ...brown,
+            ...brown, ...brown, ...brown,
+
+            ...steel, ...steel, ...steel,
+            ...steel, ...steel, ...steel,
+            ...steel, ...steel, ...steel,
+
+            ...violet, ...violet, ...violet,
+            ...violet, ...violet, ...violet,
+            ...violet, ...violet, ...violet,
+
+            ...lemon, ...lemon, ...lemon,
+            ...lemon, ...lemon, ...lemon,
+            ...lemon, ...lemon, ...lemon
+
         ])
 
-        console.log(vec3.distance(p1, p2), vec3.distance(p2, p3), vec3.distance(p4, p5));
+        console.log(vec3.distance(p1, p2), vec3.distance(p10, p14), vec3.distance(p15, p20), vec3.distance(p10, p5));
 
         return {
             positions,
