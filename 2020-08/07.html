@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/gl-matrix.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="gl-canvas"></canvas>
+<script type="module">
+    import {
+        createTetrahedron,
+        createHexahedron,
+        createOctahedron,
+        createDodecahedron,
+        createIcosahedron
+    } from "../lib/polyhedra.js";
+    import {checkWebGL2} from "../lib/utils.js";
+
+    const vsSource = `
+        #version 300 es
+
+        layout(location=0) in vec3 position;
+        
+        uniform mat4 model;
+        uniform mat4 viewProj;
+        
+        void main() {
+            gl_PointSize = 10.0;
+            gl_Position = viewProj * model * vec4(position, 1.0);
+        }
+    `;
+
+    const fsSource = `
+        #version 300 es
+        precision highp float;
+
+        uniform vec3 color;
+
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(abs(color), 1.0);
+        }
+    `;
+           
+    const canvas = document.getElementById("gl-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    checkWebGL2(canvas);
+
+    const app = PicoGL.createApp(canvas)
+    .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.CULL_FACE)
+    .enable(PicoGL.DEPTH_TEST);
+
+    // SET UP GEOMETRY
+
+    const data = [
+        createTetrahedron(),
+        createHexahedron(),
+        createOctahedron(),
+        createDodecahedron(),
+        createIcosahedron()
+    ];
+
+    const colors = [
+        new Float32Array([1, 0, 0]),
+        new Float32Array([0, 1, 0]),
+        new Float32Array([0, 0, 1]),
+        new Float32Array([1, 1, 0]),
+        new Float32Array([0, 1, 1])    
+    ];
+
+    const translations = [
+        new Float32Array([-3, 1.5, 0]),
+        new Float32Array([0, 1.5, 0]),
+        new Float32Array([3, 1.5, 0]),
+        new Float32Array([-1.5, -1.5, 0]),
+        new Float32Array([1.5, -1.5, 0])    
+    ];
+
+    const polyhedra = data.map((d, i) => {
+        const color = colors[i];
+        const translation = translations[i];
+        const buffer = app.createVertexBuffer(PicoGL.FLOAT, 3,  d);
+        const array = app.createVertexArray()
+        .vertexAttributeBuffer(0, buffer);
+
+        return {
+            buffer,
+            array,
+            color,
+            translation,
+            rotation: new Float32Array([Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI]),
+            drawCall: null
+        };
+    });
+    
+
+    // SET UP UNIFORM BUFFER
+    const projMatrix = mat4.create();
+    mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 0.1, 10.0);
+
+    const viewMatrix = mat4.create();
+    const eyePosition = vec3.fromValues(0, 0, 7);
+    mat4.lookAt(viewMatrix, eyePosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+
+    const viewProjMatrix = mat4.create();
+    mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
+
+    const rotateXMatrix = mat4.create();
+    const rotateYMatrix = mat4.create();
+    const translateMatrix = mat4.create();
+    const modelMatrix = mat4.create();
+
+    app.createPrograms([vsSource, fsSource]).then(([program]) => {
+
+        polyhedra.forEach(p => {
+            p.drawCall = app.createDrawCall(program, p.array)
+            .uniform("color", p.color)
+            .uniform("viewProj", viewProjMatrix);   
+        });
+
+        function draw() {
+            app.clear();
+            
+            for (let i = 0, len = polyhedra.length; i < len; ++i) {
+                const p = polyhedra[i];
+                
+                // p.rotation[0] += 0.01;
+                p.rotation[1] += 0.02;
+
+                mat4.fromXRotation(rotateXMatrix, p.rotation[0]);
+                mat4.fromYRotation(rotateYMatrix, p.rotation[1]);
+                mat4.fromTranslation(translateMatrix, p.translation);
+
+                mat4.multiply(modelMatrix, rotateXMatrix, rotateYMatrix);
+                mat4.multiply(modelMatrix, translateMatrix, modelMatrix);
+
+                p.drawCall.uniform("model", modelMatrix)
+                .draw();      
+            }
+            
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    });
+
+</script>
+</body>
+</html>
