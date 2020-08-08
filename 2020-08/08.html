@@ -151,15 +151,15 @@
             color: d.color,
             translation: d.translation,
             rotation: new Float32Array([Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI]),
-            scale: d.scale,
-            volume: volume(d.positions, d.scale),
+            scale: d.scale,boundingVolume
+            boundingVolume: boundingVolume(d.positions, d.scale),
             drawCall: null
         };
     });
 
-    polyhedra.forEach(p => console.log(p.volume))
+    polyhedra.forEach(p => console.log(p.boundingVolume))
 
-    function volume(p, s) {
+    function boundingVolume(p, s) {
         const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
         const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
 
