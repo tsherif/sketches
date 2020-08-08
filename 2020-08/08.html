@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/gl-matrix.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="gl-canvas"></canvas>
+<script type="module">
+    import {
+        createTetrahedron,
+        createHexahedron,
+        createOctahedron,
+        createDodecahedron,
+        createIcosahedron
+    } from "../lib/polyhedra.js";
+    import {checkWebGL2, xformMatrix} from "../lib/utils.js";
+
+    const vsSource = `
+        #version 300 es
+
+        layout(location=0) in vec3 position;
+        
+        uniform mat4 model;
+        uniform mat4 viewProj;
+
+        out vec3 vPosition;
+        
+        void main() {
+            vec4 modelPosition = model * vec4(position, 1.0);
+            vPosition = modelPosition.xyz;
+            gl_Position = viewProj * modelPosition;
+        }
+    `;
+
+    const fsSource = `
+        #version 300 es
+        precision highp float;
+
+        in vec3 vPosition;
+
+        uniform vec3 color;
+        uniform vec3 eyePosition;
+        uniform vec3 lightPosition;
+
+        out vec4 fragColor;
+        void main() {
+            vec3 position = vPosition;
+            vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
+
+            vec4 baseColor = vec4(color, 1.0);
+            float ambient = 0.1;
+
+            vec3 eyeDirection = normalize(eyePosition - position);
+            vec3 lightVec = lightPosition - position;
+            vec3 lightDirection = normalize(lightVec);
+            vec3 reflectionDirection = reflect(-lightDirection, normal);
+            float nDotL = max(dot(lightDirection, normal), 0.0);
+            float diffuse = nDotL;
+            float specular = pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0);
+
+            fragColor = vec4((ambient + diffuse + specular) * baseColor.rgb, 1.0);
+        }
+    `;
+           
+    const canvas = document.getElementById("gl-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    checkWebGL2(canvas);
+
+    const app = PicoGL.createApp(canvas)
+    .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.CULL_FACE)
+    .enable(PicoGL.DEPTH_TEST);
+
+    // SET UP GEOMETRY
+
+    const data = [
+        {
+            positions: createTetrahedron(),
+            color: new Float32Array([1, 0, 0]),
+            translation: new Float32Array([-4, 1.5, 0]),
+            scale: new Float32Array([2.2, 2.2, 2.2])
+        },
+        {
+            positions: createHexahedron(),
+            color: new Float32Array([0, 1.5, 0]),
+            translation: new Float32Array([0, 1.5, 0]),
+            scale: new Float32Array([1.5, 1.5, 1.5])
+        },
+        {
+            positions: createOctahedron(),
+            color: new Float32Array([0, 0, 1]),
+            translation: new Float32Array([4, 1.5, 0]),
+            scale: new Float32Array([1, 1, 1])
+        },
+        {
+            positions: createDodecahedron(),
+            color: new Float32Array([1, 1, 0]),
+            translation: new Float32Array([-2, -1.5, 0]),
+            scale: new Float32Array([0.9, 0.9, 0.9])
+        },
+        {
+            positions: createIcosahedron(),
+            color: new Float32Array([0, 1, 1]),
+            translation: new Float32Array([2, -1.5, 0]),
+            scale: new Float32Array([1.2, 1.2, 1.2])
+        }
+    ];
+
+    const polyhedra = data.map(d => {
+        const buffer = app.createVertexBuffer(PicoGL.FLOAT, 3,  d.positions);
+        const array = app.createVertexArray()
+        .vertexAttributeBuffer(0, buffer);
+
+        return {
+            buffer,
+            array,
+            color: d.color,
+            translation: d.translation,
+            rotation: new Float32Array([Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI]),
+            scale: d.scale,
+            volume: volume(d.positions, d.scale),
+            drawCall: null
+        };
+    });
+
+    polyhedra.forEach(p => console.log(p.volume))
+
+    function volume(p, s) {
+        const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+        const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+
+        for (let i = 0; i < p.length; i += 3) {
+            min[0] = Math.min(min[0], p[i]);
+            min[1] = Math.min(min[1], p[i + 1]);
+            min[2] = Math.min(min[2], p[i + 2]);
+
+            max[0] = Math.max(max[0], p[i]);
+            max[1] = Math.max(max[1], p[i + 1]);
+            max[2] = Math.max(max[2], p[i + 2]);
+        }
+
+        return (max[0] - min[0]) * (max[1] - min[1]) * (max[2] - min[2]) * s[0] * s[1] * s[2];
+    }
+    
+
+    // SET UP UNIFORM BUFFER
+    const projMatrix = mat4.create();
+    mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 0.1, 10.0);
+
+    const viewMatrix = mat4.create();
+    const eyePosition = vec3.fromValues(0, 0, 7);
+    mat4.lookAt(viewMatrix, eyePosition, vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+
+    const viewProjMatrix = mat4.create();
+    mat4.multiply(viewProjMatrix, projMatrix, viewMatrix);
+
+    const lightPosition = new Float32Array([1, 1, 7]);
+
+    const rotateXMatrix = mat4.create();
+    const rotateYMatrix = mat4.create();
+    const translateMatrix = mat4.create();
+    const modelMatrix = mat4.create();
+
+    app.createPrograms([vsSource, fsSource]).then(([program]) => {
+
+        polyhedra.forEach(p => {
+            p.drawCall = app.createDrawCall(program, p.array)
+            .uniform("color", p.color)
+            .uniform("viewProj", viewProjMatrix)   
+            .uniform("eyePosition", eyePosition)   
+            .uniform("lightPosition", lightPosition);   
+        });
+
+        function draw() {
+            app.clear();
+            
+            for (let i = 0, len = polyhedra.length; i < len; ++i) {
+                const p = polyhedra[i];
+                
+                p.rotation[0] += 0.01;
+                p.rotation[1] += 0.02;
+
+                xformMatrix(modelMatrix, p.translation, p.rotation, p.scale);
+
+                p.drawCall.uniform("model", modelMatrix)
+                .draw();      
+            }
+            
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    });
+
+</script>
+</body>
+</html>
