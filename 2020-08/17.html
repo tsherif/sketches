@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        #symmetry {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+        }
+    </style>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+    <script src="../lib/dat.gui.min.js"></script>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="canvas"></canvas>
+<select id="symmetry">
+<script type="module">
+    
+    import {setupInteractions} from "../lib/interactions.js";
+           
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("2d");
+
+    const HALF_WIDTH = canvas.width * 0.5;
+    const HALF_HEIGHT = canvas.height * 0.5;
+    const MAX_BALLS = 100;
+
+    context.lineCap = "round";
+
+    const settings = {
+      symmetry: 12,
+      numBalls: 20,
+      backgroundColor: "#000"
+    };
+
+    let balls = new Array(MAX_BALLS);
+    let numBalls = settings.numBalls;
+
+    for (let i = 0; i < MAX_BALLS; ++i) {
+        balls[i] = {
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 25 + 5,
+            vx: Math.random() * 10 - 5,
+            vy: Math.random() * 10 - 5,
+            color: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`
+        }
+    }
+
+
+    function draw() {
+        requestAnimationFrame(draw);
+
+        context.fillStyle = settings.backgroundColor;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        const rotationAngle = (2 * Math.PI) / settings.symmetry
+
+        for (let i = 0; i < settings.numBalls; ++i) {
+            const ball = balls[i];
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            if (ball.x - ball.r < 0) {
+                ball.x = ball.r;
+                ball.vx *= -1;
+            }
+
+            if (ball.x + ball.r > canvas.width) {
+                ball.x = canvas.width - ball.r;
+                ball.vx *= -1;
+            }
+
+            if (ball.y - ball.r < 0) {
+                ball.y = ball.r;
+                ball.vy *= -1;
+            }
+
+            if (ball.y + ball.r > canvas.height) {
+                ball.y = canvas.height - ball.r;
+                ball.vy *= -1;
+            }
+
+            context.fillStyle = ball.color;
+
+            context.beginPath();
+            context.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2, false);
+            context.fill();
+
+            for (let a = rotationAngle; a < 2 * Math.PI; a += rotationAngle) {
+              rotateBall(ball, a);
+            }
+        }
+    }
+
+    requestAnimationFrame(draw);
+
+
+    function rotateBall(ball, angle) {
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+
+        let dx = ball.x - HALF_WIDTH; 
+        let dy = ball.y - HALF_HEIGHT; 
+        let x = c * dx - s * dy + HALF_WIDTH;
+        let y = s * dx + c * dy + HALF_HEIGHT;
+
+        context.beginPath();
+        context.arc(x, y, ball.r, 0, Math.PI * 2, false);
+        context.fill();
+    }
+
+    const gui = new dat.GUI();
+
+    const  clear = () => context.clearRect(0, 0, canvas.width, canvas.height);
+
+    gui.add(settings, "symmetry", 2, 36).step(1).name("Symmetry");
+    gui.add(settings, "numBalls", 1, MAX_BALLS).step(1).name("Balls");
+    gui.addColor(settings, "backgroundColor").name("Background color").onChange(settings.clear);
+    
+</script>
+</body>
+</html>
