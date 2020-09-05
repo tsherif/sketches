@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/gl-matrix.js"></script>
+    <script src="../lib/dat.gui.min.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+<canvas id="gl-canvas"></canvas>
+<script type="module">
+    import {checkWebGL2, createSphere} from "../lib/utils.js";
+    import {setupInteractions} from "../lib/interactions.js";
+
+    const vsSource = `
+        #version 300 es
+
+        layout(location=0) in vec3 position;
+        layout(location=1) in vec3 normal;
+        
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 proj;
+        uniform vec3 reflection;
+
+        out vec3 vPosition;
+        out vec3 vNormal;
+        
+        void main() {
+            vec4 modelPosition =  model * vec4(position, 1.0);
+            vPosition = modelPosition.xyz;
+            vNormal = mat3(model) * normal;
+            gl_Position = proj * view * modelPosition;
+        }
+    `;
+
+    const fsSource = `
+        #version 300 es
+        precision highp float;
+
+        in vec3 vPosition;
+        in vec3 vNormal;
+
+        uniform vec3 color;
+        uniform vec3 eyePosition;
+        uniform vec3 lightPosition;
+
+        out vec4 fragColor;
+        void main() {
+            vec3 position = vPosition;
+            vec3 normal = normalize(vNormal);
+
+            vec4 baseColor = vec4(color, 1.0);
+            float ambient = 0.1;
+
+            vec3 eyeDirection = normalize(eyePosition - position);
+            vec3 lightVec = lightPosition - position;
+            vec3 lightDirection = normalize(lightVec);
+            vec3 reflectionDirection = reflect(-lightDirection, normal);
+            float nDotL = max(dot(lightDirection, normal), 0.0);
+            float diffuse = nDotL;
+            float specular = pow(max(dot(reflectionDirection, eyeDirection), 0.0), 100.0);
+
+            fragColor = vec4((ambient + diffuse + specular) * baseColor.rgb, 1.0);
+        }
+    `;
+           
+    const canvas = document.getElementById("gl-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    checkWebGL2(canvas);
+
+    const app = PicoGL.createApp(canvas)
+    .clearColor(0.0, 0.0, 0.0, 1.0)
+    .enable(PicoGL.DEPTH_TEST);
+
+    const TIME_SCALE = 0.02;
+    const MAX_NUM_SPHERES = 80;
+    const BOX_DIM = 40;
+
+    const settings = {
+      numSpheres: 40
+    };
+
+    const sphereData = createSphere();
+
+    const positionBuffer = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.positions);
+    const normalBuffer = app.createVertexBuffer(PicoGL.FLOAT, 3, sphereData.normals);
+    const indexBuffer = app.createIndexBuffer(PicoGL.UNSIGNED_INT, sphereData.indices);
+    
+    const sphereArray = app.createVertexArray()
+    .vertexAttributeBuffer(0, positionBuffer)
+    .vertexAttributeBuffer(1, normalBuffer)
+    .indexBuffer(indexBuffer);
+
+    // SET UP UNIFORM BUFFER
+    const projMatrix = mat4.create();
+    mat4.perspective(projMatrix, Math.PI / 3, canvas.width / canvas.height, 1, 5 * BOX_DIM);
+
+    const viewMatrix = mat4.create();
+    const eye = vec3.fromValues(0, 0, 30);
+    const look = vec3.fromValues(0, 0, 0);
+    const up = vec3.fromValues(0, 1, 0);
+    mat4.lookAt(viewMatrix, eye, look, up);
+
+    const lightPosition = new Float32Array([0, 0, 0]);
+
+    const modelMatrix = mat4.create();
+    const normalMatrix = mat4.create();
+
+    const reflections = [
+        new Float32Array([1, 1, 1]),
+        new Float32Array([1, 1, -1]),
+        new Float32Array([1, -1, 1]),
+        new Float32Array([1, -1, -1]),
+        new Float32Array([-1, 1, 1]),
+        new Float32Array([-1, 1, -1]),
+        new Float32Array([-1, -1, 1]),
+        new Float32Array([-1, -1, -1])
+    ];
+
+    app.createPrograms([vsSource, fsSource]).then(([program]) => {
+
+        const drawCall = app.createDrawCall(program, sphereArray)
+        .uniform("proj", projMatrix)   
+        .uniform("eyePosition", eye)   
+        .uniform("lightPosition", lightPosition);
+
+        const spheres = new Array(MAX_NUM_SPHERES);
+
+        for (let i = 0; i < MAX_NUM_SPHERES; ++i) {
+            const radius = Math.random() * 2;
+            spheres[i] = {
+                position: [Math.random() * BOX_DIM, Math.random() * BOX_DIM, Math.random() * BOX_DIM],
+                radius,
+                scale: [radius, radius, radius],
+                velocity: [Math.random() * 0.4 - 0.2, Math.random() * 0.4 - 0.2, Math.random() * 0.4 - 0.2],
+                color: new Float32Array([Math.random(), Math.random(), Math.random()])
+            }
+        }
+
+        let lastTime = performance.now();
+        function draw() {
+            let currentTime = performance.now();
+            let t = Math.min(currentTime - lastTime, 30) * TIME_SCALE;
+            lastTime = currentTime;
+
+            app.clear();
+            mat4.lookAt(viewMatrix, eye, look, up);
+            drawCall.uniform("view", viewMatrix);
+            
+            for (let i = 0; i < settings.numSpheres; ++i) {
+                const sphere = spheres[i];
+
+                for (let i = 0; i < 3; ++i) {
+                    sphere.position[i] += sphere.velocity[i] * t;
+
+                    if (sphere.position[i] - sphere.radius < 0) {
+                        sphere.position[i] = sphere.radius;   
+                        sphere.velocity[i] *= -1;   
+                    }
+
+                    if (sphere.position[i] + sphere.radius > BOX_DIM) {
+                        sphere.position[i] = BOX_DIM - sphere.radius;   
+                        sphere.velocity[i] *= -1;   
+                    }
+                }
+
+                drawCall.uniform("color", sphere.color);
+
+                for (let i = 0; i < 8; ++i) {
+                    mat4.fromScaling(modelMatrix, reflections[i]);
+                    mat4.translate(modelMatrix, modelMatrix, sphere.position);
+                    mat4.scale(modelMatrix, modelMatrix, sphere.scale);
+
+                    mat4.invert(normalMatrix, modelMatrix);
+                    mat4.transpose(normalMatrix, normalMatrix);
+
+                    drawCall
+                    .uniform("model", modelMatrix)
+                    .draw();
+                }
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        requestAnimationFrame(draw);
+    });
+
+    const worldPos = new Float32Array([0, 0, 0, 1]);
+    const viewPos = new Float32Array([0, 0, 0, 1]);
+    function depthSort(p1, p2) {
+        worldPos.set(p1.translation)
+        vec4.transformMat4(viewPos, worldPos, viewMatrix);
+        const z1 = viewPos[2];
+
+        worldPos.set(p2.translation)
+        vec4.transformMat4(viewPos, worldPos, viewMatrix);
+        const z2 = viewPos[2];
+
+        return z1 - z2;
+    }
+
+    const cameraRotation = mat4.create();
+    const axis = vec3.create();
+
+    function orbitCamera(eye, look, up, x, y) {
+        vec3.subtract(eye, eye, look);
+        vec3.cross(axis, up, eye);
+        vec3.normalize(axis, axis);
+        vec3.cross(up, eye, axis);
+        vec3.normalize(up, up);
+
+        mat4.fromRotation(cameraRotation, x, up);
+        mat4.rotate(cameraRotation, cameraRotation, y, axis);
+
+        vec3.transformMat4(eye, eye, cameraRotation);
+        vec3.add(eye, eye, look);
+    }
+
+    function zoomCamera(eye, look, zoom) {
+        vec3.subtract(eye, eye, look);
+        vec3.normalize(eye, eye);
+        vec3.scale(eye, eye, zoom);
+        vec3.add(eye, eye, look);
+    }
+
+    const ORBIT_SCALE = 0.01;
+    const ZOOM_SCALE = 0.2;
+    const MAX_ZOOM = 50;
+    const MIN_ZOOM = 1;
+
+    let zoom = vec3.length(vec3.subtract([], eye, look));
+    setupInteractions(canvas, {
+        onDrag: (x, y) => orbitCamera(eye, look, up, -x * ORBIT_SCALE, -y * ORBIT_SCALE),
+        onWheel: x => {
+            zoom += Math.sign(x) * ZOOM_SCALE;
+            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+            zoomCamera(eye, look, zoom);   
+        },
+        onPinch: x => {
+            zoom += x * ZOOM_SCALE;
+            zoom = Math.max(MIN_ZOOM, Math.min(zoom, MAX_ZOOM));
+            zoomCamera(eye, look, zoom); 
+        }
+    });
+
+    const gui = new dat.GUI();
+
+    gui.add(settings, "numSpheres", 1, MAX_NUM_SPHERES).step(1).name("Spheres");
+    
+
+</script>
+</body>
+</html>
