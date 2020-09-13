@@ -5,14 +5,23 @@ import PicoGL from "picogl";
 const vs = `
     #version 300 es
 
-    layout(location=0) in vec4 position;
+    layout(location=0) in vec2 position;
     layout(location=1) in vec3 color;
+
+    uniform float angle;
 
     out vec3 vColor;
 
     void main() {
+        float c = cos(angle);
+        float s = sin(angle);
+        mat2 rot = mat2(
+            c, s,
+            -s, c
+        );
+
         vColor = color;
-        gl_Position = position;
+        gl_Position = vec4(rot * position, 0.0, 1.0);
     }
 `;
 
@@ -31,10 +40,15 @@ const fs = `
 
 function Demo() {
 
-    const [count, setCount] = useState(0);
+    const [angle, setAngle] = useState(0);
+    const [renderParameters] = useState({ angle })
     const canvasRef = React.createRef();
 
-    console.log(`Count: ${count}`);
+    console.log(`Angle: ${angle}`);
+
+    useEffect(() => {
+        renderParameters.angle = angle;
+    }, [angle]);
 
     useEffect(() => {
         console.log("SETUP");
@@ -66,21 +80,34 @@ function Demo() {
 
         resources.push(positions, colors, vertexArray);
 
+        let rafHandle = null;
         app.createPrograms([vs, fs]).then(([program]) => {
             resources.push(program);
 
-            app.createDrawCall(program, vertexArray)
-            .draw();
+            const drawCall = app.createDrawCall(program, vertexArray)
+
+            function loop() {
+                rafHandle = requestAnimationFrame(loop);
+
+                app.clear();
+
+                drawCall
+                .uniform("angle", renderParameters.angle)
+                .draw();
+            }
+
+            rafHandle = requestAnimationFrame(loop);
 
         });
 
         return () => {
             console.log("TEARDOWN");
             resources.forEach(r => r.delete());
+            cancelAnimationFrame(rafHandle);
         }
     }, [])
 
-    return <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight} onClick={() => setCount(count + 1)} />
+    return <canvas id={angle} ref={canvasRef} width={window.innerWidth} height={window.innerHeight} onClick={() => setAngle(angle + 0.1)} />
 }
 
 ReactDOM.render(
