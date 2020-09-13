@@ -46,9 +46,7 @@ function Demo() {
 
     console.log(`Angle: ${angle}`);
 
-    useEffect(() => {
-        renderParameters.angle = angle;
-    }, [angle]);
+    renderParameters.angle = angle;
 
     useEffect(() => {
         console.log("SETUP");
