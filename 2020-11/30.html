@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/picogl.min.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <h2>GPGPU Aggregation Sketch</h2>
+    <div id="result"></div>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {checkWebGL2} from "../lib/utils.js";
+
+        const NUM_ITEMS = 10000000;
+        const NUM_VALUES = 1000;
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = NUM_VALUES;
+        canvas.height = 1;
+
+        checkWebGL2(canvas);
+
+        const app = PicoGL.createApp(canvas)
+        .enable(PicoGL.BLEND)
+        .blendFunc(PicoGL.ONE, PicoGL.ONE);
+
+        const vs = `
+            #version 300 es
+
+            layout(location=0) in float value;
+            uniform float maxValue;
+
+            void main() {
+                float x = (value / maxValue) * 1.9998 - 0.9999;
+                gl_PointSize = 1.0;
+                gl_Position = vec4(x, 0.0, 0.0, 1.0);
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            out float count;
+            void main() {
+                count = 1.0;
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+
+        const valueData = new Float32Array(NUM_ITEMS);
+
+        for (let i = 0; i < NUM_ITEMS; ++i) {
+            valueData[i] = Math.floor(Math.random() * NUM_VALUES);
+        }
+
+        const value = app.createVertexBuffer(PicoGL.FLOAT, 1, valueData);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, value);
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .primitive(PicoGL.POINTS)
+        .uniform("maxValue", NUM_VALUES - 1);
+
+        requestAnimationFrame(function draw() {
+            const outputTexture = app.createTexture2D(null, NUM_VALUES, 1, {
+                internalFormat: PicoGL.R32F,
+                minFilter: PicoGL.NEAREST,
+                magFilter: PicoGL.NEAREST
+            });
+
+            const outputFramebuffer = app.createFramebuffer()
+            .colorTarget(0, outputTexture);
+
+            const gpuResult = new Float32Array(4 * NUM_VALUES);
+            const cpuResult = new Float32Array(NUM_VALUES);
+
+            const gpuStart = performance.now();
+
+            app.drawFramebuffer(outputFramebuffer);
+            drawCall.draw();
+
+            app.readFramebuffer(outputFramebuffer);
+
+            app.gl.readPixels(0, 0, NUM_VALUES, 1, PicoGL.RGBA, PicoGL.FLOAT, gpuResult);
+
+            const gpuTime = performance.now() - gpuStart;
+
+            const cpuStart = performance.now();
+
+
+            for (let i = 0; i < NUM_ITEMS; ++i) {
+                const index = valueData[i];
+                cpuResult[index] += 1;
+            }
+
+            const cpuTime = performance.now() - cpuStart;
+
+            let match = true;
+            for (let i = 0; i < NUM_ITEMS; ++i) {
+                if (gpuResult[i * 4] !== cpuResult[i]) {
+                    match = false;
+                    console.log(valueData)
+                    console.log(cpuResult)
+                    console.log(gpuResult)
+                    break;
+                }
+            }
+
+            document.getElementById("result").innerHTML = `
+                Total elements: ${NUM_ITEMS}<BR>
+                Match: ${match}<BR>
+                GPU time: ${gpuTime.toFixed(2)}<BR>
+                CPU time: ${cpuTime.toFixed(2)}<BR>                
+            `;
+
+            outputTexture.delete();
+            outputFramebuffer.delete();
+        });
+
+        function getArrayHTML(data, dim) {
+          let displayArray = new Array(dim);
+
+          for (let i = 0; i < dim; ++i) {
+              let row = new Array(dim);
+              for (let j = 0; j < dim; ++j) {
+                  row[j] = data[i * dim + j].toPrecision(6);
+              }
+              displayArray[i] = row.join(" | ");
+          }  
+
+          return displayArray.join("<BR>");
+        }
+
+        function printPixels(fb, dim) {
+            app.readFramebuffer(fb);
+            const pixels = new Float32Array(dim * dim * 4);
+            app.gl.readPixels(0, 0, dim, dim, PicoGL.RGBA, PicoGL.FLOAT, pixels);
+
+            console.log("-----------------")
+            for (let y = 0; y < dim; ++y) {
+                let row = new Array(dim);
+                for (let x = 0; x < dim; ++x) {
+                    row[x] = pixels[(y * dim + x) * 4].toPrecision(6);
+                }
+                console.log(`${y}: ${row.join(" | ")}`);
+            }
+            console.log("-----------------\n")
+        }
+
+    </script>
+</body>
+</html>
