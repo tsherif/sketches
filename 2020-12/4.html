@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #canvas {
+            width: 100px;
+            height: 100px;
+            border: 1px solid black;
+        }
+    </style>
+    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/picogl.min.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <canvas id="canvas"></canvas>
+    <script type="module">
+        import {checkWebGL2, createQuad} from "../lib/utils.js";
+
+        const canvas = document.getElementById("canvas");
+        const DIM = 6;
+        canvas.width = 210;
+        canvas.height = 210;
+
+        checkWebGL2(canvas, {antialias: false});
+
+        const app = PicoGL.createApp(canvas, {antialias: false});
+
+        const vs = `
+            #version 300 es
+
+            #define DIM ${DIM.toFixed(1)}
+
+            layout(location=0) in float value;
+
+            uniform vec2 coord;
+
+            float toClip(float val) {
+                return ((val + 0.5) / DIM) * 2.0 - 1.0;
+            }
+
+            void main() {
+                gl_PointSize = 1.0;
+                gl_Position = vec4(toClip(coord.x), toClip(coord.y), 0.0, 1.0);
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            out vec4 color;
+            void main() {
+                color = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `;
+
+        const vsBlit = `
+            #version 300 es
+
+            layout(location=0) in vec2 position;
+
+            out vec2 vUV;
+
+            void main() {
+                vUV = position * 0.5 + 0.5;
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+
+        const fsBlit = `
+            #version 300 es
+            precision highp float;
+
+            in vec2 vUV;
+
+            uniform sampler2D tex;
+
+            out vec4 color;
+            void main() {
+                color = texture(tex, vUV);
+            }
+        `;
+
+        const program = app.createProgram(vs, fs);
+        const blitProgram = app.createProgram(vsBlit, fsBlit);
+
+        const valueData = new Float32Array([0]);
+
+        const value = app.createVertexBuffer(PicoGL.FLOAT, 1, valueData);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, value);
+
+        const quadData = createQuad();
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+
+        const quadVertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions);
+
+        const outputTexture = app.createTexture2D(null, DIM, DIM, {
+            internalFormat: PicoGL.RGBA8
+        });
+
+        const outputFramebuffer = app.createFramebuffer()
+        .colorTarget(0, outputTexture);
+
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .primitive(PicoGL.POINTS);
+
+        const quadDrawCall = app.createDrawCall(blitProgram, quadVertexArray)
+        .texture("tex", outputTexture)
+        .primitive(PicoGL.TRIANGLE_STRIP);
+
+
+        let frameCount = 0;
+        let coord = new Float32Array(2);
+        requestAnimationFrame(function draw() {
+            requestAnimationFrame(draw);
+
+            frameCount++;
+
+            if (frameCount > 180) {
+                frameCount = 0;
+                coord[0]++;
+                if (coord[0] === DIM) {
+                    coord[0] = 0;
+                    coord[1]++;
+                }
+
+                if (coord[1] === DIM) {
+                    coord[1] = 0;
+                }
+            }
+
+            app.drawFramebuffer(outputFramebuffer)
+            .viewport(0, 0, DIM, DIM);
+
+            app.clear();
+            drawCall.uniform("coord", coord)
+            .draw();
+
+            app.defaultDrawFramebuffer()
+            .defaultViewport();
+            quadDrawCall.draw();
+        });
+
+    </script>
+</body>
+</html>
