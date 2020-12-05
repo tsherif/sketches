@@ -39,10 +39,13 @@
     <script type="module">
         import {checkWebGL2, createQuad} from "../lib/utils.js";
 
+        const DIMX = 7;
+        const DIMY = 3;
+        const SCALE = 50;
+
         const canvas = document.getElementById("canvas");
-        const DIM = 6;
-        canvas.width = 210;
-        canvas.height = 210;
+        canvas.width = DIMX * SCALE;
+        canvas.height = DIMY * SCALE;
 
         checkWebGL2(canvas);
 
@@ -52,19 +55,18 @@
         const vs = `
             #version 300 es
 
-            #define DIM ${DIM.toFixed(1)}
-
             layout(location=0) in float value;
 
             uniform vec2 coord;
+            uniform vec2 dim;
 
-            float toClip(float val) {
-                return ((val + 0.5) / DIM) * 2.0 - 1.0;
+            vec2 writeAddress(vec2 val) {
+                return ((val + 0.5) / dim) * 2.0 - 1.0;
             }
 
             void main() {
                 gl_PointSize = 1.0;
-                gl_Position = vec4(toClip(coord.x), toClip(coord.y), 0.0, 1.0);
+                gl_Position = vec4(writeAddress(coord), 0.0, 1.0);
             }
         `;
 
@@ -121,7 +123,7 @@
         const quadVertexArray = app.createVertexArray()
         .vertexAttributeBuffer(0, positions);
 
-        const outputTexture = app.createTexture2D(null, DIM, DIM, {
+        const outputTexture = app.createTexture2D(null, DIMX, DIMY, {
             internalFormat: PicoGL.RGBA8
         });
 
@@ -129,6 +131,7 @@
         .colorTarget(0, outputTexture);
 
         const drawCall = app.createDrawCall(program, vertexArray)
+        .uniform("dim", new Float32Array([DIMX, DIMY]))
         .primitive(PicoGL.POINTS);
 
         const quadDrawCall = app.createDrawCall(blitProgram, quadVertexArray)
@@ -143,21 +146,21 @@
 
             frameCount++;
 
-            if (frameCount > 180) {
+            if (frameCount > 120) {
                 frameCount = 0;
                 coord[0]++;
-                if (coord[0] === DIM) {
+                if (coord[0] === DIMX) {
                     coord[0] = 0;
                     coord[1]++;
                 }
 
-                if (coord[1] === DIM) {
+                if (coord[1] === DIMY) {
                     coord[1] = 0;
                 }
             }
 
             app.drawFramebuffer(outputFramebuffer)
-            .viewport(0, 0, DIM, DIM);
+            .viewport(0, 0, DIMX, DIMY);
 
             app.clear();
             drawCall.uniform("coord", coord)
