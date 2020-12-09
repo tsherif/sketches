@@ -45,6 +45,9 @@
 <body>
     <h2>GPGPU Aggregation Demo</h2>
     <div id="description"></div>
+    <div>
+        Renderer: <span id="renderer"></span>
+    </div>
     <canvas id="canvas"></canvas>
     <div>
         Aggregate on:
@@ -65,7 +68,7 @@
         const DIMX = 50;
         const DIMY = 50;
         const NUM_BINS = DIMX * DIMY;
-        const NUM_VALUES = 1000000;
+        const NUM_VALUES = 10000000;
         const MAX_COUNT = (NUM_VALUES / NUM_BINS) * 2;
 
         const canvas = document.getElementById("canvas");
@@ -76,6 +79,7 @@
 
         document.getElementById("description").innerText = `Aggregating counts for ${NUM_VALUES} values into ${NUM_BINS} bins and rendering a heatmap of the results.`;
 
+
         const runOnElem = document.getElementById("run-on");
         const cpuElem = document.getElementById("cpu");
         const gpuElem = document.getElementById("gpu");
@@ -85,6 +89,8 @@
         .clearColor(0, 0, 0, 0)
         .enable(PicoGL.BLEND)
         .blendFunc(PicoGL.ONE, PicoGL.ONE);
+
+        document.getElementById("renderer").innerText = PicoGL.WEBGL_INFO.RENDERER;
 
         const timer = app.createTimer();
 
