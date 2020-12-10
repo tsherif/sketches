@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Graphics Sketch by Tarek Sherif</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            padding-left: 10px;
+        }
+
+        #description {
+            margin-bottom: 10px;
+        }
+    </style>
+    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/picogl.min.js"></script>
+    <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2020 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<body>
+    <h2>GPGPU Aggregation Demo</h2>
+    <div id="description"></div>
+    <div>
+        Renderer: <span id="renderer"></span>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div>
+        Aggregate on:
+        <select id="run-on">
+            <option value="gpu">GPU</option>
+            <option value="cpu">CPU</option>
+        </select>
+    </div>
+    <div>
+        CPU Runtime: <span id="cpu"></span>
+    </div>
+    <div>
+        GPU Runtime: <span id="gpu"></span>
+    </div>
+    <script type="module">
+        import {checkWebGL2, createQuad} from "../lib/utils.js";
+
+        const DIMX = 60;
+        const DIMY = 60;
+        const NUM_BINS = DIMX * DIMY;
+        const NUM_VALUES = 1000000;
+        const MAX_COUNT = (NUM_VALUES / NUM_BINS) * 2;
+
+        const canvas = document.getElementById("canvas");
+        canvas.width = DIMX * 10;
+        canvas.height = DIMY * 10;
+
+        checkWebGL2(canvas, { powerPreference: "high-performance" });
+
+        document.getElementById("description").innerText = `Calculating averages for ${NUM_VALUES} values partitioned into ${NUM_BINS} bins and rendering a heatmap of the results.`;
+
+
+        const runOnElem = document.getElementById("run-on");
+        const cpuElem = document.getElementById("cpu");
+        const gpuElem = document.getElementById("gpu");
+        let gpu = runOnElem.value === "gpu";
+
+        const app = PicoGL.createApp(canvas, { powerPreference: "high-performance" })
+        .clearColor(0, 0, 0, 0)
+        .enable(PicoGL.BLEND)
+        .blendFunc(PicoGL.ONE, PicoGL.ONE);
+
+        document.getElementById("renderer").innerText = PicoGL.WEBGL_INFO.RENDERER;
+
+        const timer = app.createTimer();
+
+        const vsSum = `
+            #version 300 es
+
+            layout(location=0) in vec2 datum;
+
+            uniform vec2 dim;
+
+            out float value;
+
+            vec2 writeAddress(vec2 index) {
+                return ((index + 0.5) / dim) * 2.0 - 1.0;
+            }
+
+            void main() {
+                value = datum.x;
+                float index = datum.y;
+                float x = mod(index, dim.x);
+                float y = floor(index / dim.x);
+                gl_PointSize = 1.0;
+                gl_Position = vec4(writeAddress(vec2(x, y)), 0.0, 1.0);
+            }
+        `;
+
+        const fsSum = `
+            #version 300 es
+            precision highp float;
+
+            in float value;
+
+            out vec2 sums;
+            void main() {
+                sums = vec2(value, 1.0);
+            }
+        `;
+
+        const vsQuad = `
+            #version 300 es
+
+            layout(location=0) in vec2 position;
+
+            out vec2 vUV;
+
+            void main() {
+                vUV = position * 0.5 + 0.5;
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        `;
+
+        const fsAverage = `
+            #version 300 es
+            precision highp float;
+
+            uniform sampler2D sums;
+
+            out float average;
+            void main() {
+                ivec2 coord = ivec2(gl_FragCoord.xy);
+                vec2 results = texelFetch(sums, coord, 0).xy;
+                average = results.x / max(results.y, 1.0);
+            }
+        `;
+
+        const fsHeatmap = `
+            #version 300 es
+            precision highp float;
+
+            in vec2 vUV;
+
+            uniform sampler2D averages;
+
+            out vec4 color;
+            void main() {
+                float value = texture(averages, vUV).r; 
+                color = vec4(value, 0.0, 1.0 - value, 1.0);
+            }
+        `;
+
+        const sumProgram = app.createProgram(vsSum, fsSum);
+        const averageProgram = app.createProgram(vsQuad, fsAverage);
+        const heatmapProgram = app.createProgram(vsQuad, fsHeatmap);
+
+        const valueData = new Float32Array(NUM_VALUES * 2);
+
+        for (let i = 0; i < NUM_VALUES; ++i) {
+            const index = i * 2;
+            valueData[index] = Math.random();                               // Value
+            valueData[index + 1] = Math.floor(Math.random() * NUM_BINS);    // Bin
+        }
+
+        const value = app.createVertexBuffer(PicoGL.FLOAT, 2, valueData);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, value);
+
+        const quadData = createQuad();
+        const positions = app.createVertexBuffer(PicoGL.FLOAT, 2, quadData.positions);
+
+        const quadVertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positions);
+
+        const sumTexture = app.createTexture2D(null, DIMX, DIMY, {
+            internalFormat: PicoGL.RG32F,
+            minFilter: PicoGL.NEAREST,
+            magFilter: PicoGL.NEAREST
+        });
+
+        const sumFramebuffer = app.createFramebuffer()
+        .colorTarget(0, sumTexture);
+
+        const averageTexture = app.createTexture2D(null, DIMX, DIMY, {
+            internalFormat: PicoGL.R32F,
+            minFilter: PicoGL.NEAREST,
+            magFilter: PicoGL.NEAREST
+        });
+
+        const averageFramebuffer = app.createFramebuffer()
+        .colorTarget(0, averageTexture);
+
+        const sumDrawCall = app.createDrawCall(sumProgram, vertexArray)
+        .uniform("dim", new Float32Array([DIMX, DIMY]))
+        .primitive(PicoGL.POINTS);
+
+        const averageDrawCall = app.createDrawCall(averageProgram, quadVertexArray)
+        .texture("sums", sumTexture)
+        .primitive(PicoGL.TRIANGLE_STRIP);
+
+        const heatmapDrawCall = app.createDrawCall(heatmapProgram, quadVertexArray)
+        .texture("averages", averageTexture)
+        .primitive(PicoGL.TRIANGLE_STRIP);
+
+        const cpuSum = new Float32Array(NUM_BINS);
+        const cpuCount = new Float32Array(NUM_BINS);
+        const cpuAverage = new Float32Array(NUM_BINS);
+
+        function draw() {
+            timer.start();
+
+            if (gpu) {
+                app.drawFramebuffer(sumFramebuffer)
+                .viewport(0, 0, DIMX, DIMY)
+                .clearColor(0, 0, 0, 0)
+                .clear();
+
+                sumDrawCall.draw();
+
+                app.drawFramebuffer(averageFramebuffer)
+                .clear();
+
+                averageDrawCall.draw();
+            } else {
+                for (let i = 0; i < NUM_BINS; ++i) {
+                    cpuSum[i] = 0;
+                    cpuCount[i] = 0;
+                    cpuAverage[i] = 0;
+                }
+
+                for (let i = 0; i < NUM_VALUES; ++i) {
+                    const vi = i * 2;
+                    const value = valueData[vi];
+                    const index = valueData[vi + 1];
+                    cpuSum[index] += value;
+                    ++cpuCount[index];
+                }
+
+                for (let i = 0; i < NUM_BINS; ++i) {
+                    cpuAverage[i] = cpuSum[i] / cpuCount[i];
+                }
+
+                averageTexture.data(cpuAverage);
+            }
+
+            app.defaultDrawFramebuffer()
+            .defaultViewport()
+            .clearColor(0, 0, 0, 1)
+            .clear();
+
+            heatmapDrawCall.draw();
+            
+            timer.end();
+
+            requestAnimationFrame(getTiming);
+        }
+
+        function getTiming() {
+            if (timer.ready()) {
+                cpuElem.innerText = `${timer.cpuTime.toFixed(2)}ms`;
+                gpuElem.innerText = `${timer.gpuTime.toFixed(2)}ms`;   
+            } else {
+                requestAnimationFrame(getTiming);
+            }
+        }
+
+        requestAnimationFrame(draw);
+
+        runOnElem.addEventListener("change", () => {
+            gpu = runOnElem.value === "gpu";
+
+            requestAnimationFrame(draw);
+        });
+
+        function checkResult() {
+            app.drawFramebuffer(sumFramebuffer)
+            .viewport(0, 0, DIMX, DIMY);
+
+            drawCall.draw();
+
+            for (let i = 0; i < NUM_VALUES; ++i) {
+                const index = Math.floor(valueData[i]);
+                ++cpuResult[index * 4];
+            }
+        
+            app.readFramebuffer(sumFramebuffer);
+
+            const gpuResult = new Float32Array(4 * NUM_BINS);
+
+            app.gl.readPixels(0, 0, NUM_BINS, 1, PicoGL.RGBA, PicoGL.FLOAT, gpuResult);
+
+            let match = true;
+            for (let i = 0; i < NUM_BINS; ++i) {
+                if (gpuResult[i * 4] !== cpuResult[i * 4]) {
+                    match = false;
+                    break;
+                }
+            }
+
+            console.log("Match:", match);
+        }
+
+
+    </script>
+</body>
+</html>
