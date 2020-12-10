@@ -69,20 +69,24 @@
     <script type="module">
         import {checkWebGL2, createQuad} from "../lib/utils.js";
 
-        const DIMX = 50;
-        const DIMY = 50;
+        // Input is (value, bin) pairs.
+        // The values are first sorted into the appropriate bins and the averages
+        // for each bin are calculated. The resulting averages are then rendered as
+        // heatmap.
+
+        // Store bins in a square grid formation for texturesampling. 
+        const DIMX = 500;
+        const DIMY = 500;
         const NUM_BINS = DIMX * DIMY;
         const NUM_VALUES = 1000000;
-        const MAX_COUNT = (NUM_VALUES / NUM_BINS) * 2;
 
         const canvas = document.getElementById("canvas");
-        canvas.width = DIMX * 10;
-        canvas.height = DIMY * 10;
+        canvas.width = DIMX;
+        canvas.height = DIMY;
 
         checkWebGL2(canvas, { powerPreference: "high-performance" });
 
         document.getElementById("description").innerText = `Calculating averages for ${NUM_VALUES} values sorted into ${NUM_BINS} bins and rendering a heatmap of the results.`;
-
 
         const runOnElem = document.getElementById("run-on");
         const cpuElem = document.getElementById("cpu");
@@ -91,22 +95,26 @@
 
         const app = PicoGL.createApp(canvas, { powerPreference: "high-performance" })
         .clearColor(0, 0, 0, 0)
-        .enable(PicoGL.BLEND)
-        .blendFunc(PicoGL.ONE, PicoGL.ONE);
+        .blendFunc(PicoGL.ONE, PicoGL.ONE); // ONE/ONE cause rendered pixels to be added together.
 
         document.getElementById("renderer").innerText = PicoGL.WEBGL_INFO.RENDERER;
 
         const timer = app.createTimer();
 
+        // The sum vertex shader will convert the bin number (essentially an
+        // array index) into a pixel coordinate, which is then converted to
+        // NDC coordinates. This pass draws a point to that location
+        // with data for the aggregation.
         const vsSum = `
             #version 300 es
 
-            layout(location=0) in vec2 datum;
+            layout(location=0) in vec2 datum; // datum is (value, bin) pair
 
             uniform vec2 dim;
 
             out float value;
 
+            // Map from (x, y) pixel coordinates to NDC coordinates
             vec2 writeAddress(vec2 index) {
                 return ((index + 0.5) / dim) * 2.0 - 1.0;
             }
@@ -122,6 +130,9 @@
             }
         `;
 
+        // The sum fragment shader draws a point to the bin's pixel
+        // location, outputing the value and the constant 1.0, which
+        // will be added up by the blend to get the bin sum and count.
         const fsSum = `
             #version 300 es
             precision highp float;
@@ -130,6 +141,8 @@
 
             out vec2 sums;
             void main() {
+                // values summed in the red channel
+                // count accumulated in the green channel
                 sums = vec2(value, 1.0);
             }
         `;
@@ -147,6 +160,9 @@
             }
         `;
 
+        // Simply takes the value sum and count from 
+        // the sum pass and calculates the average for 
+        // each bin.
         const fsAverage = `
             #version 300 es
             precision highp float;
@@ -156,11 +172,16 @@
             out float average;
             void main() {
                 ivec2 coord = ivec2(gl_FragCoord.xy);
+
+                // result.x is sum of values in bin
+                // result.y is number of values
                 vec2 results = texelFetch(sums, coord, 0).xy;
+                
                 average = results.x / max(results.y, 1.0);
             }
         `;
 
+        // Render a heatmap based on the averages.
         const fsHeatmap = `
             #version 300 es
             precision highp float;
@@ -237,15 +258,25 @@
             timer.start();
 
             if (gpu) {
+                // Average calculated in 2 passes
+                // Pass 1 sorts values into bins and 
+                // renders to sumTexture with the
+                // sum of values in the red channel
+                // and the number of values in the 
+                // green channel. 
                 app.drawFramebuffer(sumFramebuffer)
+                .enable(PicoGL.BLEND)
                 .viewport(0, 0, DIMX, DIMY)
                 .clearColor(0, 0, 0, 0)
                 .clear();
 
                 sumDrawCall.draw();
 
+                // Second draw calls takes the sums
+                // and counts for each bin and calculates
+                // the average for each.
                 app.drawFramebuffer(averageFramebuffer)
-                .clear();
+                .disable(PicoGL.BLEND);
 
                 averageDrawCall.draw();
             } else {
@@ -264,7 +295,7 @@
                 }
 
                 for (let i = 0; i < NUM_BINS; ++i) {
-                    cpuAverage[i] = cpuSum[i] / cpuCount[i];
+                    cpuAverage[i] = cpuSum[i] / Math.max(cpuCount[i], 1.0);
                 }
 
                 averageTexture.data(cpuAverage);
@@ -299,26 +330,48 @@
             requestAnimationFrame(draw);
         });
 
+        // For debugging.
         function checkResult() {
             app.drawFramebuffer(sumFramebuffer)
-            .viewport(0, 0, DIMX, DIMY);
+            .enable(PicoGL.BLEND)
+            .viewport(0, 0, DIMX, DIMY)
+            .clearColor(0, 0, 0, 0)
+            .clear();
 
-            drawCall.draw();
+            sumDrawCall.draw();
+
+            app.drawFramebuffer(averageFramebuffer)
+            .disable(PicoGL.BLEND);
+
+            averageDrawCall.draw();
+
+            for (let i = 0; i < NUM_BINS; ++i) {
+                cpuSum[i] = 0;
+                cpuCount[i] = 0;
+                cpuAverage[i] = 0;
+            }
 
             for (let i = 0; i < NUM_VALUES; ++i) {
-                const index = Math.floor(valueData[i]);
-                ++cpuResult[index * 4];
+                const vi = i * 2;
+                const value = valueData[vi];
+                const index = valueData[vi + 1];
+                cpuSum[index] += value;
+                ++cpuCount[index];
+            }
+
+            for (let i = 0; i < NUM_BINS; ++i) {
+                cpuAverage[i] = cpuSum[i] / Math.max(cpuCount[i], 1.0);
             }
         
-            app.readFramebuffer(sumFramebuffer);
+            app.readFramebuffer(averageFramebuffer);
 
             const gpuResult = new Float32Array(4 * NUM_BINS);
 
-            app.gl.readPixels(0, 0, NUM_BINS, 1, PicoGL.RGBA, PicoGL.FLOAT, gpuResult);
+            app.gl.readPixels(0, 0, DIMX, DIMY, PicoGL.RGBA, PicoGL.FLOAT, gpuResult);
 
             let match = true;
             for (let i = 0; i < NUM_BINS; ++i) {
-                if (gpuResult[i * 4] !== cpuResult[i * 4]) {
+                if (gpuResult[i * 4] - cpuAverage[i] > 0.00001) {
                     match = false;
                     break;
                 }
