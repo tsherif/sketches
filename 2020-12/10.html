@@ -65,8 +65,8 @@
     <script type="module">
         import {checkWebGL2, createQuad} from "../lib/utils.js";
 
-        const DIMX = 60;
-        const DIMY = 60;
+        const DIMX = 50;
+        const DIMY = 50;
         const NUM_BINS = DIMX * DIMY;
         const NUM_VALUES = 1000000;
         const MAX_COUNT = (NUM_VALUES / NUM_BINS) * 2;
@@ -77,7 +77,7 @@
 
         checkWebGL2(canvas, { powerPreference: "high-performance" });
 
-        document.getElementById("description").innerText = `Calculating averages for ${NUM_VALUES} values partitioned into ${NUM_BINS} bins and rendering a heatmap of the results.`;
+        document.getElementById("description").innerText = `Calculating averages for ${NUM_VALUES} values sorted into ${NUM_BINS} bins and rendering a heatmap of the results.`;
 
 
         const runOnElem = document.getElementById("run-on");
@@ -109,9 +109,10 @@
 
             void main() {
                 value = datum.x;
-                float index = datum.y;
-                float x = mod(index, dim.x);
-                float y = floor(index / dim.x);
+                uint index = uint(datum.y);
+                uint width = uint(dim.x);
+                uint y = index / width;
+                uint x = index - width * y;
                 gl_PointSize = 1.0;
                 gl_Position = vec4(writeAddress(vec2(x, y)), 0.0, 1.0);
             }
