@@ -365,7 +365,7 @@
         function getTiming() {
             if (timer.ready()) {
                 cpuElem.innerText = `${timer.cpuTime.toFixed(2)}ms`;
-                gpuElem.innerText = `${timer.gpuTime.toFixed(2)}ms`;   
+                gpuElem.innerText = PicoGL.WEBGL_INFO.GPU_TIMER ? `${timer.gpuTime.toFixed(2)}ms` : "(Unavailable)" ;   
             } else {
                 requestAnimationFrame(getTiming);
             }
