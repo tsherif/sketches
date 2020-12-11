@@ -81,11 +81,11 @@
             <option selected value="1000000">1000000</option>
             <option value="10000000">10000000</option>
         </select>
-        Bin dimensions:
+        Bin grid dimensions:
         <select id="bin-dims">
-            <option value="100">100</option>
-            <option selected value="500">500</option>
-            <option value="1000">1000</option>
+            <option value="100">100x100</option>
+            <option selected value="500">500x500</option>
+            <option value="1000">1000x1000</option>
         </select>
     </div>
     <div id="runtimes">
@@ -332,18 +332,14 @@
         }
 
         function updateAndDraw() {
-            descriptionElem.innerText = `Calculating averages for ${numValues} values sorted into ${numBins} bins on the ${gpu ? "GPU" : "CPU"} and rendering a heatmap of the results.`;
+            descriptionElem.innerText = `Sorting ${numValues} values into into ${numBins} bins and calculating the average per bin on the ${gpu ? "GPU" : "CPU"}, and rendering a heatmap of the results.`;
 
-            if (valueData.length < numValues * 2) {
-                const oldData = valueData;
-                valueData = new Float32Array(numValues * 2);
-                valueData.set(oldData);
+            valueData = new Float32Array(numValues * 2);
 
-                for (let i = oldData.length / 2; i < numValues; ++i) {
-                    const index = i * 2;
-                    valueData[index] = Math.random();                              // Value
-                    valueData[index + 1] = Math.floor(Math.random() * numBins);    // Bin
-                }
+            for (let i = 0; i < numValues; ++i) {
+                const index = i * 2;
+                valueData[index] = Math.random();                              // Value
+                valueData[index + 1] = Math.floor(Math.random() * numBins);    // Bin
             }
 
             if (valueBuffer) {
@@ -379,7 +375,7 @@
         runOnElem.addEventListener("change", () => {
             gpu = runOnElem.value === "gpu";
 
-            descriptionElem.innerText = `Calculating averages for ${numValues} values sorted into ${numBins} bins on the ${gpu ? "GPU" : "CPU"} and rendering a heatmap of the results.`;
+            descriptionElem.innerText = `Sorting ${numValues} values into into ${numBins} bins and calculating the average per bin on the ${gpu ? "GPU" : "CPU"}, and rendering a heatmap of the results.`;
 
             requestAnimationFrame(draw);
         });
@@ -392,6 +388,7 @@
 
         binDimsElem.addEventListener("change", () => {
             binDim = parseInt(binDimsElem.value, 10);
+            numBins = binDim * binDim;
 
             requestAnimationFrame(updateAndDraw);
         });
