@@ -130,9 +130,8 @@
         const timer = app.createTimer();
 
         // The sum vertex shader will convert the bin number (essentially an
-        // array index) into a pixel coordinate, which is then converted to
-        // NDC coordinates. This pass draws a point to that location
-        // with data for the aggregation.
+        // array index) to NDC coordinates. This pass draws a point to that 
+        // location with data for the aggregation.
         const vsSum = `
             #version 300 es
 
@@ -142,19 +141,21 @@
 
             out float value;
 
-            // Map from (x, y) pixel coordinates to NDC coordinates
-            vec2 writeAddress(vec2 index) {
+            // Map from (x, y) 2D array index to NDC coordinates
+            vec2 indexToClip(vec2 index) {
                 return ((index + 0.5) / binDim) * 2.0 - 1.0;
             }
 
             void main() {
                 value = datum.x;
+
+                // Use ints to avoid precision issues. 
                 uint index = uint(datum.y);
                 uint width = uint(binDim);
                 uint y = index / width;
                 uint x = index - width * y;
                 gl_PointSize = 1.0;
-                gl_Position = vec4(writeAddress(vec2(x, y)), 0.0, 1.0);
+                gl_Position = vec4(indexToClip(vec2(x, y)), 0.0, 1.0);
             }
         `;
 
