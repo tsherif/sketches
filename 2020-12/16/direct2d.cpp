@@ -1,4 +1,4 @@
-// Compile with -- cl /D "WIN32" /D "_WINDOWS" /D "_UNICODE" /D "UNICODE" desktop.cpp user32.lib gdi32.lib
+// Compile with -- cl /D "WIN32" /D "_WINDOWS" /D "_UNICODE" /D "UNICODE" direct2d.cpp user32.lib d2d1.lib
 
 #include <windows.h>
 #include <tchar.h>
