@@ -1,4 +1,4 @@
-// Compile with -- cl /D "WIN32" /D "_WINDOWS" /D "_UNICODE" /D "UNICODE" com.cpp ole32.lib user32.lib
+// Compile with -- cl /Zi /D "WIN32" /D "_WINDOWS" /D "_UNICODE" /D "UNICODE" com.cpp ole32.lib user32.lib
 
 #include <windows.h>
 #include <shobjidl.h>
