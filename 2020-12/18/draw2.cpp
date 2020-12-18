@@ -294,6 +294,37 @@ LRESULT CALLBACK WndProc(
 
         break;
 
+    case WM_KEYDOWN:
+        switch (wParam) {
+        case VK_BACK:
+        case VK_DELETE:
+            if (mode == SelectMode && selection != ellipses.end()) {
+                ellipses.erase(selection);
+                selection = ellipses.end();
+                SetMode(SelectMode);
+                InvalidateRect(hWnd, NULL, FALSE);
+            }
+            break;
+        case VK_LEFT:
+            MoveSelection(-1, 0);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        case VK_RIGHT:
+            MoveSelection(1, 0);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        case VK_UP:
+            MoveSelection(0, -1);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        case VK_DOWN:
+            MoveSelection(0, 1);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        }
+
+        return 0;
+
     case WM_COMMAND:
         
         switch (LOWORD(wParam)) {
