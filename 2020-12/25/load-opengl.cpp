@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "glcorearb.h"
 #include "wglext.h"
+#include <cstdint>
 
 void *getGLFunc(const char *name) {
   	void *fn = (void *)wglGetProcAddress(name);
@@ -83,7 +84,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 
 	HWND window = CreateWindow(
 		WIN_CLASS_NAME,
-		L"OPENGL!!!",
+		L"WIN32 OPENGL!!!",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		500, 500,
@@ -198,16 +199,19 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 
 	const char* vsSource = R"GLSL(#version 450
     layout (location=0) in vec4 position;
+    layout (location=1) in vec3 color;
+    out vec3 vColor;
     void main() {
+    	vColor = color;
         gl_Position = position;
     }
     )GLSL";
 
     const char* fsSource = R"GLSL(#version 450
+    in vec3 vColor;
     out vec4 fragColor;
-
     void main() {
-        fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        fragColor = vec4(vColor, 1.0);
     }
     )GLSL";
 
@@ -238,17 +242,30 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     glBindVertexArray(triangleArray);
 
     float positions[] = {
-        -0.5, -0.5, 0.0,
-        0.5, -0.5, 0.0,
-        0.0, 0.5, 0.0
+        -0.5, -0.5,
+        0.5, -0.5,
+        0.0, 0.5
     };
 
     GLuint positionBuffer;
     glGenBuffers(1, &positionBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
+
+    uint8_t colors[] = {
+        255, 0, 0,
+        0, 255, 0,
+        0, 0, 255
+    };
+
+    GLuint colorBuffer;
+    glGenBuffers(1, &colorBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
+    glEnableVertexAttribArray(1);
 
 	MSG message;
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
