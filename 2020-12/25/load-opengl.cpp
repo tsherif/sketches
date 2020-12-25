@@ -1,6 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <GL\gl.h>
+#include "glcorearb.h"
 #include "wglext.h"
 
 void *getGLFunc(const char *name) {
@@ -17,8 +17,10 @@ void *getGLFunc(const char *name) {
   	return fn;
 }
 
-#define DECLARE_OPENGL_FUNC(returnType, name, ...) typedef returnType (WINAPI *name##FUNC)(__VA_ARGS__)
-#define LOAD_OPENGL_FUNC(name)	name##FUNC name = (name##FUNC) getGLFunc(#name)
+#define DECLARE_OPENGL_FUNC(returnType, name, ...) typedef returnType (WINAPI *name##FUNC)(__VA_ARGS__);\
+	name##FUNC name = (name##FUNC)0;
+
+#define LOAD_OPENGL_FUNC(name) name = (name##FUNC) getGLFunc(#name)
 
 DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB, 
 	HDC hdc,
@@ -31,6 +33,22 @@ DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB,
 DECLARE_OPENGL_FUNC(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int *attribList);
 DECLARE_OPENGL_FUNC(void, glClearColor, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 DECLARE_OPENGL_FUNC(void, glClear, GLbitfield mask);
+DECLARE_OPENGL_FUNC(GLuint, glCreateShader, GLenum shaderType);
+DECLARE_OPENGL_FUNC(void, glShaderSource, GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
+DECLARE_OPENGL_FUNC(void, glCompileShader, GLuint shader);
+DECLARE_OPENGL_FUNC(GLuint, glCreateProgram);
+DECLARE_OPENGL_FUNC(void, glAttachShader, GLuint program, GLuint shader);
+DECLARE_OPENGL_FUNC(void, glLinkProgram, GLuint program);
+DECLARE_OPENGL_FUNC(void, glUseProgram, GLuint program);
+DECLARE_OPENGL_FUNC(void, glGetProgramiv, GLuint program, GLenum pname, GLint *params);
+DECLARE_OPENGL_FUNC(void, glGenVertexArrays, GLsizei n, GLuint *arrays);
+DECLARE_OPENGL_FUNC(void, glBindVertexArray, GLuint array);
+DECLARE_OPENGL_FUNC(void, glGenBuffers, GLsizei n, GLuint *buffers);
+DECLARE_OPENGL_FUNC(void, glBindBuffer, GLenum target, GLuint buffer);
+DECLARE_OPENGL_FUNC(void, glBufferData, GLenum target, GLsizeiptr size, const void * data, GLenum usage);
+DECLARE_OPENGL_FUNC(void, glVertexAttribPointer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
+DECLARE_OPENGL_FUNC(void, glEnableVertexAttribArray, GLuint index);
+DECLARE_OPENGL_FUNC(void, glDrawArrays, GLenum mode, GLint first, GLsizei count);
 
 const WCHAR WIN_CLASS_NAME[] = L"OPENGL_WINDOW_CLASS"; 
 
@@ -153,21 +171,92 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 		return 1;
 	}
 
-
 	wglMakeCurrent(deviceContext, gl);
 
 	LOAD_OPENGL_FUNC(glClearColor);
 	LOAD_OPENGL_FUNC(glClear);
+	LOAD_OPENGL_FUNC(glCreateShader);
+	LOAD_OPENGL_FUNC(glShaderSource);
+	LOAD_OPENGL_FUNC(glCompileShader);
+	LOAD_OPENGL_FUNC(glCreateProgram);
+	LOAD_OPENGL_FUNC(glAttachShader);
+	LOAD_OPENGL_FUNC(glLinkProgram);
+	LOAD_OPENGL_FUNC(glGetProgramiv);
+	LOAD_OPENGL_FUNC(glUseProgram);
+	LOAD_OPENGL_FUNC(glGenVertexArrays);
+	LOAD_OPENGL_FUNC(glBindVertexArray);
+	LOAD_OPENGL_FUNC(glGenBuffers);
+	LOAD_OPENGL_FUNC(glBindBuffer);
+	LOAD_OPENGL_FUNC(glBufferData);
+	LOAD_OPENGL_FUNC(glVertexAttribPointer);
+	LOAD_OPENGL_FUNC(glEnableVertexAttribArray);
+	LOAD_OPENGL_FUNC(glDrawArrays);
 
 	ShowWindow(window, showWindow);
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	const char* vsSource = R"GLSL(#version 450
+    layout (location=0) in vec4 position;
+    void main() {
+        gl_Position = position;
+    }
+    )GLSL";
+
+    const char* fsSource = R"GLSL(#version 450
+    out vec4 fragColor;
+
+    void main() {
+        fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+    )GLSL";
+
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vsSource, NULL);
+    glCompileShader(vertexShader);
+
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fsSource, NULL);
+    glCompileShader(fragmentShader);
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, vertexShader);
+    glAttachShader(program, fragmentShader);
+    glLinkProgram(program);
+
+    GLint result;
+    glGetProgramiv(program, GL_LINK_STATUS, &result);
+
+    if (result != GL_TRUE) {
+    	MessageBox(NULL, L"Program failed to link!", L"FAILURE", MB_OK);
+    }
+
+    glUseProgram(program);
+
+    GLuint triangleArray;
+    glGenVertexArrays(1, &triangleArray);
+    glBindVertexArray(triangleArray);
+
+    float positions[] = {
+        -0.5, -0.5, 0.0,
+        0.5, -0.5, 0.0,
+        0.0, 0.5, 0.0
+    };
+
+    GLuint positionBuffer;
+    glGenBuffers(1, &positionBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
 
 	MSG message;
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
 		TranslateMessage(&message);
 		DispatchMessage(&message);
 
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
 		SwapBuffers(deviceContext);
 	}
 
