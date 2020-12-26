@@ -5,7 +5,7 @@
 #include <cstdint>
 
 /*
-    Resources:
+    References:
         https://www.khronos.org/opengl/wiki/Creating_an_OpenGL_Context_(WGL)
         https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions
         https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_pixel_format.txt
