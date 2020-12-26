@@ -36,19 +36,11 @@ void *getGLFunc(const char *name) {
 
 #define LOAD_OPENGL_FUNC(name) name = (name##FUNC) getGLFunc(#name)
 
-DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB, 
-    HDC hdc,
-    const int *piAttribIList,
-    const FLOAT *pfAttribFList,
-    UINT nMaxFormats,
-    int *piFormats,
-    UINT *nNumFormats
-);
-
 /////////////////////////////////////
 // Set up OpenGL function pointers
 /////////////////////////////////////
 
+DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB, HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 DECLARE_OPENGL_FUNC(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int *attribList);
 DECLARE_OPENGL_FUNC(void, glClearColor, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 DECLARE_OPENGL_FUNC(void, glClear, GLbitfield mask);

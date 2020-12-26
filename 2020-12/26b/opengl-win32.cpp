@@ -13,6 +13,7 @@
         https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_pixel_format.txt
         https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_multisample.txt
         https://mariuszbartosik.com/opengl-4-x-initialization-in-windows-without-a-framework/
+        https://www.khronos.org/registry/OpenGL/extensions/EXT/WGL_EXT_swap_control.txt
 */
 
 /////////////////////////////////////
@@ -38,20 +39,15 @@ void *getGLFunc(const char *name) {
 
 #define LOAD_OPENGL_FUNC(name) name = (name##FUNC) getGLFunc(#name)
 
-DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB, 
-    HDC hdc,
-    const int *piAttribIList,
-    const FLOAT *pfAttribFList,
-    UINT nMaxFormats,
-    int *piFormats,
-    UINT *nNumFormats
-);
+
 
 /////////////////////////////////////
 // Set up OpenGL function pointers
 /////////////////////////////////////
 
+DECLARE_OPENGL_FUNC(BOOL, wglChoosePixelFormatARB, HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 DECLARE_OPENGL_FUNC(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int *attribList);
+DECLARE_OPENGL_FUNC(BOOL, wglSwapIntervalEXT, int interval);
 DECLARE_OPENGL_FUNC(void, glClearColor, GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 DECLARE_OPENGL_FUNC(void, glClear, GLbitfield mask);
 DECLARE_OPENGL_FUNC(GLuint, glCreateShader, GLenum shaderType);
@@ -139,6 +135,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 
     LOAD_OPENGL_FUNC(wglChoosePixelFormatARB);
     LOAD_OPENGL_FUNC(wglCreateContextAttribsARB);
+    LOAD_OPENGL_FUNC(wglSwapIntervalEXT);
 
     if (!wglCreateContextAttribsARB || !wglCreateContextAttribsARB) {
         MessageBox(NULL, L"Didn't get wgl ARB functions!", L"FAILURE", MB_OK);
@@ -214,6 +211,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     }
 
     wglMakeCurrent(deviceContext, gl);
+    wglSwapIntervalEXT(1);
 
     ///////////////////////////
     // Load OpenGL Functions
@@ -354,7 +352,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
         }
 
         glUniform1f(angleLocation, angle);
-        angle += 0.001;
+        angle += 0.01;
 
         if (angle > 2 * M_PI) {
             angle -= 2 * M_PI;
