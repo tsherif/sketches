@@ -1,8 +1,10 @@
 #define WIN32_LEAN_AND_MEAN
+#define _USE_MATH_DEFINES
 #include <windows.h>
 #include "glcorearb.h"
 #include "wglext.h"
 #include <cstdint>
+#include <cmath>
 
 /*
     Resources:
@@ -21,7 +23,7 @@ void *getGLFunc(const char *name) {
     void *fn = (void *)wglGetProcAddress(name);
     if(fn == 0 || (fn == (void *) 0x1) || (fn == (void *) 0x2) || (fn == (void*) 0x3) || (fn == (void *) -1)) {
         HMODULE module = LoadLibraryA("opengl32.dll");
-        fn = (void *) GetProcAddress(module, name);
+        fn = (void *)GetProcAddress(module, name);
     }
 
     if (!fn) {
@@ -68,6 +70,8 @@ DECLARE_OPENGL_FUNC(void, glBufferData, GLenum target, GLsizeiptr size, const vo
 DECLARE_OPENGL_FUNC(void, glVertexAttribPointer, GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer);
 DECLARE_OPENGL_FUNC(void, glEnableVertexAttribArray, GLuint index);
 DECLARE_OPENGL_FUNC(void, glDrawArrays, GLenum mode, GLint first, GLsizei count);
+DECLARE_OPENGL_FUNC(GLint, glGetUniformLocation, GLuint program, const GLchar *name);
+DECLARE_OPENGL_FUNC(void, glUniform1f, GLint location, GLfloat v0);
 
 ////////////////
 // WIN32 setup
@@ -233,6 +237,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     LOAD_OPENGL_FUNC(glVertexAttribPointer);
     LOAD_OPENGL_FUNC(glEnableVertexAttribArray);
     LOAD_OPENGL_FUNC(glDrawArrays);
+    LOAD_OPENGL_FUNC(glGetUniformLocation);
+    LOAD_OPENGL_FUNC(glUniform1f);
 
     ///////////////////////////
     // Set up GL resources
@@ -241,12 +247,23 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     const char* vsSource = R"GLSL(#version 450
-    layout (location=0) in vec4 position;
+    layout (location=0) in vec2 position;
     layout (location=1) in vec3 color;
+    
+    uniform float angle;
+
     out vec3 vColor;
     void main() {
+        float s = sin(angle);
+        float c = cos(angle);
+
+        mat2 rot = mat2(
+            c, s,
+            -s, c
+        );
+
         vColor = color;
-        gl_Position = position;
+        gl_Position = vec4(rot * position, 0.0, 1.0);
     }
     )GLSL";
 
@@ -310,6 +327,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     glVertexAttribPointer(1, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
     glEnableVertexAttribArray(1);
 
+    GLint angleLocation = glGetUniformLocation(program, "angle");
+
     ///////////////////
     // Display window
     ///////////////////
@@ -321,9 +340,25 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     //////////////////////////////////
 
     MSG message;
-    while (GetMessage(&message, NULL, 0, 0) > 0) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
+    float angle = 0.0f;
+    bool running = true;
+    while (running) {
+        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&message);
+            DispatchMessage(&message);
+
+            if (message.message == WM_QUIT) {
+                running = false; 
+                break;
+            }
+        }
+
+        glUniform1f(angleLocation, angle);
+        angle += 0.001;
+
+        if (angle > 2 * M_PI) {
+            angle -= 2 * M_PI;
+        }
 
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 3);
