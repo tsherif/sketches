@@ -4,6 +4,15 @@
 #include "wglext.h"
 #include <cstdint>
 
+/*
+	Resources:
+		https://www.khronos.org/opengl/wiki/Creating_an_OpenGL_Context_(WGL)
+		https://www.khronos.org/opengl/wiki/Load_OpenGL_Functions
+		https://www.khronos.org/registry/OpenGL/extensions/ARB/WGL_ARB_pixel_format.txt
+		https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_multisample.txt
+		https://mariuszbartosik.com/opengl-4-x-initialization-in-windows-without-a-framework/
+*/
+
 void *getGLFunc(const char *name) {
   	void *fn = (void *)wglGetProcAddress(name);
   	if(fn == 0 || (fn == (void *) 0x1) || (fn == (void *) 0x2) || (fn == (void*) 0x3) || (fn == (void *) -1)) {
@@ -82,17 +91,11 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 		return 1;
 	}
 
-	HWND dummyWindow = CreateWindow(
-		WIN_CLASS_NAME,
-		L"WIN32 OPENGL!!!",
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		500, 500,
-		NULL, 
-		NULL,
-		instance,
-		NULL
-	);
+	////////////////////////////////////////////////////////////////////
+	// Create a dummy window so we can get WGL extension functions
+	////////////////////////////////////////////////////////////////////
+
+	HWND dummyWindow = CreateWindow(WIN_CLASS_NAME, L"DUMMY", WS_OVERLAPPEDWINDOW, 0, 0, 1, 1, NULL,  NULL, instance, NULL);
 
 	if (!dummyWindow) {
 		MessageBox(NULL, L"Failed to create window!", L"FAILURE", MB_OK);
@@ -102,44 +105,36 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 
 	HDC dummyContext = GetDC(dummyWindow);
 
-	PIXELFORMATDESCRIPTOR pfd = {
-		sizeof(PIXELFORMATDESCRIPTOR),
-		1,
-		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,    // Flags
-		PFD_TYPE_RGBA,        // The kind of framebuffer. RGBA or palette.
-		32,                   // Colordepth of the framebuffer.
-		0, 0, 0, 0, 0, 0,
-		0,
-		0,
-		0,
-		0, 0, 0, 0,
-		24,                   // Number of bits for the depthbuffer
-		8,                    // Number of bits for the stencilbuffer
-		0,                    // Number of Aux buffers in the framebuffer.
-		PFD_MAIN_PLANE,
-		0,
-		0, 0, 0
-	};
-
+	PIXELFORMATDESCRIPTOR pfd = {};
+	pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
+	pfd.nVersion = 1;
+	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+	pfd.iPixelType = PFD_TYPE_RGBA,        
+	pfd.cColorBits = 32;                   
+	pfd.cDepthBits = 24;           
+	pfd.cStencilBits = 8;                 
+	pfd.iLayerType = PFD_MAIN_PLANE;
+	
 	int pixelFormat = ChoosePixelFormat(dummyContext, &pfd);
-
 	SetPixelFormat(dummyContext, pixelFormat, &pfd);
-
 	HGLRC dummyGL = wglCreateContext(dummyContext);
-
 	wglMakeCurrent(dummyContext, dummyGL);
 
 	LOAD_OPENGL_FUNC(wglChoosePixelFormatARB);
 	LOAD_OPENGL_FUNC(wglCreateContextAttribsARB);
 
-	if (!wglCreateContextAttribsARB) {
-		MessageBox(NULL, L"Didn't get wglCreateContextAttribsARB!", L"FAILURE", MB_OK);
+	if (!wglCreateContextAttribsARB || !wglCreateContextAttribsARB) {
+		MessageBox(NULL, L"Didn't get wgl ARB functions!", L"FAILURE", MB_OK);
 		return 1;
 	}
 
 	wglMakeCurrent(NULL, NULL);
 	wglDeleteContext(dummyGL);
 	DestroyWindow(dummyWindow);
+
+	/////////////////////////////////////////////
+	// Create real window and rendering context
+	/////////////////////////////////////////////
 
 	HWND window = CreateWindow(
 		WIN_CLASS_NAME,
@@ -172,34 +167,40 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 	    WGL_ACCELERATION_ARB, WGL_FULL_ACCELERATION_ARB,
 	    WGL_SAMPLE_BUFFERS_ARB, GL_TRUE,
 	    WGL_SAMPLES_ARB, 4,
-	    0, // End
+	    0
 	};
 
 	UINT numFormats;
 	BOOL success;
 	success = wglChoosePixelFormatARB(deviceContext, pixelAttribList, NULL, 1, &pixelFormat, &numFormats);
 
-	if (!success) {
-		MessageBox(NULL, L"Didn't get wglChoosePixelFormatARB pixel format!", L"FAILURE", MB_OK);
+	if (!success || numFormats == 0) {
+		MessageBox(NULL, L"Didn't get ARB pixel format!", L"FAILURE", MB_OK);
 		return 1;
 	}
+	
+	DescribePixelFormat(deviceContext, pixelFormat, sizeof(pfd), &pfd);
+	SetPixelFormat(deviceContext, pixelFormat, &pfd);
 
 	const int contextAttribList[] = {
 	    WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
 	    WGL_CONTEXT_MINOR_VERSION_ARB, 5,
 	    WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
-	    0, // End
+	    0
 	};
 
-	SetPixelFormat(deviceContext, pixelFormat, &pfd);
 	HGLRC gl = wglCreateContextAttribsARB(deviceContext, NULL, contextAttribList);
 
 	if (!gl) {
-		MessageBox(NULL, L"Didn't get wglCreateContextAttribsARB context!", L"FAILURE", MB_OK);
+		MessageBox(NULL, L"Didn't get ARB GL context!", L"FAILURE", MB_OK);
 		return 1;
 	}
 
 	wglMakeCurrent(deviceContext, gl);
+
+	///////////////////////////
+	// Load OpenGL Functions
+	///////////////////////////
 
 	LOAD_OPENGL_FUNC(glClearColor);
 	LOAD_OPENGL_FUNC(glClear);
@@ -220,7 +221,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
 	LOAD_OPENGL_FUNC(glEnableVertexAttribArray);
 	LOAD_OPENGL_FUNC(glDrawArrays);
 
-	ShowWindow(window, showWindow);
+	///////////////////////////
+	// Set up GL resources
+	///////////////////////////
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -293,6 +296,16 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
     glEnableVertexAttribArray(1);
+
+    ///////////////////
+    // Display window
+    ///////////////////
+
+	ShowWindow(window, showWindow);
+
+	//////////////////////////////////
+    // Start render and message loop
+    //////////////////////////////////
 
 	MSG message;
 	while (GetMessage(&message, NULL, 0, 0) > 0) {
