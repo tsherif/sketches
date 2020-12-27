@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-extern value;
+extern void (*value)();
 
 int main() {
-	printf("Value is: %d\n", value);
+	printf("Value is: %p\n", value);
 
 	return 0;
 }

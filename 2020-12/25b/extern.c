@@ -1,1 +1,7 @@
-extern int value = 12;
+extern void (*value)();
+
+void loadValue() {
+	value = 12;
+}
+
+value = loadValue;
