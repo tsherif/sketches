@@ -1,10 +1,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define _USE_MATH_DEFINES
-#define SOGL_MAJOR_VERSION 4
-#define SOGL_MAJOR_VERSION 4
 #define SOGL_IMPLEMENTATION
 #include <windows.h>
-#include "simple-opengl-loader.h"
+#include "sogl.h"
 #include "wglext.h"
 #include <cstdint>
 #include <cmath>
@@ -18,11 +16,13 @@
         https://mariuszbartosik.com/opengl-4-x-initialization-in-windows-without-a-framework/
 */
 
+// Check that GL loads in separate file.
+void setUniform(GLuint location, float f);
+
 #define DECLARE_WGL_EXT_FUNC(returnType, name, ...) typedef returnType (WINAPI *name##FUNC)(__VA_ARGS__);\
     name##FUNC name = (name##FUNC)0;
 
 #define LOAD_WGL_EXT_FUNC(name) name = (name##FUNC) wglGetProcAddress(#name)
-
 
 /////////////////////////////////////
 // Set up OpenGL function pointers
@@ -290,7 +290,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
             }
         }
 
-        glUniform1f(angleLocation, angle);
+        setUniform(angleLocation, angle);
         angle += 0.01;
 
         if (angle > 2 * M_PI) {
