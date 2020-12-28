@@ -6,6 +6,7 @@
 #include "wglext.h"
 #include <cstdint>
 #include <cmath>
+#include <cstdio>
 
 /*
     References:
@@ -118,7 +119,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
         L"WIN32 OPENGL!!!",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT,
-        500, 500,
+        800, 800,
         NULL, 
         NULL,
         instance,
@@ -176,6 +177,19 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     wglMakeCurrent(deviceContext, gl);
     wglSwapIntervalEXT(1);
     sogl_loadOpenGL();
+
+    char rendererString[256] = {};
+    sprintf(rendererString, "Win32 OpenGL - %s",  glGetString(GL_RENDERER));
+    SetWindowTextA(window, rendererString);
+
+    if (glMaxShaderCompilerThreadsKHR) {
+        GLint maxThreads = 0;
+        glMaxShaderCompilerThreadsKHR(4);
+        glGetIntegerv(GL_MAX_SHADER_COMPILER_THREADS_KHR, &maxThreads);
+        char buffer[256] = {};
+        sprintf(buffer, "Max shader compiler threads = %d!", maxThreads);
+        MessageBoxA(NULL, buffer, "SUCCESS", MB_OK);
+    }
 
     ///////////////////////////
     // Set up GL resources
