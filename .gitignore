@@ -6,3 +6,8 @@ node_modules
 **/*.ilk
 **/*.res
 .vs
+**/*.o
+**/*.so
+**/core
+2020-12/31/test-dlfcn-now
+2020-12/31/test-dlfcn-lazy
