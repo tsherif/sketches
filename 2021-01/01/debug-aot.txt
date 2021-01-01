@@ -1,0 +1,6 @@
+gcc -g -shared -o libtest-lib.so test-lib.o
+gcc -g -o test-aot test-aot.c -ltest-lib -L.
+./libtest-lib.so: undefined reference to `undefinedFn'
+collect2: error: ld returned 1 exit status
+Makefile:26: recipe for target 'aot' failed
+make: *** [aot] Error 1

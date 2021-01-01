@@ -9,5 +9,6 @@ node_modules
 **/*.o
 **/*.so
 **/core
-2020-12/31/test-dlfcn-now
-2020-12/31/test-dlfcn-lazy
+**/test-dlfcn-now
+**/test-dlfcn-lazy
+**/test-dlfcn-aot
