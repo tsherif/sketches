@@ -1,13 +1,13 @@
 all: debug-lazy debug-now debug-aot
 
 debug-lazy: lazy
-	-LD_DEBUG=symbols ./test-dlfcn-lazy > debug-lazy.txt 2>&1
+	-LD_DEBUG=all ./test-dlfcn-lazy > debug-lazy.txt 2>&1
 
 debug-now: now
-	-LD_DEBUG=symbols ./test-dlfcn-now > debug-now.txt 2>&1
+	-LD_DEBUG=all ./test-dlfcn-now > debug-now.txt 2>&1
 
 debug-aot: aot
-	-LD_DEBUG=symbols LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):. ./test-aot > debug-aot.txt 2>&1
+	-LD_DEBUG=all LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):. ./test-aot > debug-aot.txt 2>&1
 
 test-lazy: lazy
 	-./test-dlfcn-lazy
