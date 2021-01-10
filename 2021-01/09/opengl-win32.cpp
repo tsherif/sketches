@@ -59,7 +59,7 @@ float randomRange(float min, float max) {
     return min + ((float) rand() / (RAND_MAX + 1)) * range;
 }
 
-int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindow) {
+int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     WNDCLASSEX winClass = {};
     winClass.cbSize = sizeof(winClass);
     winClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
@@ -188,10 +188,10 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR cmdLine, int showWindo
     sogl_loadOpenGL();
 
     char rendererString[256] = {};
-    sprintf(rendererString, "Win32 OpenGL - %s",  glGetString(GL_RENDERER));
+    snprintf(rendererString, 256, "Win32 OpenGL - %s",  glGetString(GL_RENDERER));
     SetWindowTextA(window, rendererString);
 
-    srand(time(NULL));
+    srand((unsigned int) time(NULL));
 
     ///////////////////////////
     // Set up GL resources
