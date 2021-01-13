@@ -207,27 +207,26 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     const char* csSource = R"GLSL(#version 450
     #define NUM_PARTICLES (64 * 64)
 
-    layout(std140, binding=0) buffer Position {
+    layout(std430, binding=0) buffer Position {
         vec4 position[];
     };
-    layout(std140, binding=1) buffer Velocity {
+    layout(std430, binding=1) buffer Velocity {
         vec4 velocity[];
     };
-    layout(std140, binding=2) buffer Mass {
-        // TODO: Why does this need to be a vec4?
-        vec4 mass[];
+    layout(std430, binding=2) buffer Mass {
+        float mass[];
     };
     layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
     void main() {
         uint index = gl_GlobalInvocationID.x;
         vec3 p = position[index].xyz;
         vec3 v = velocity[index].xyz;
-        float m = mass[index].x;
+        float m = mass[index];
         vec3 acceleration = vec3(0.0);
 
         for (uint i = 0; i < NUM_PARTICLES; ++i) {
             vec3 otherP = position[i].xyz;
-            float otherM = mass[i].x;
+            float otherM = mass[i];
 
             vec3 delta = otherP - p;
             float dist = max(0.1, length(delta));
@@ -330,7 +329,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         1.0f, 1.0f
     };
     float* positionData = new float[NUM_PARTICLES * 4];
-    float* massData = new float[NUM_PARTICLES * 4];
+    float* massData = new float[NUM_PARTICLES];
     float* colorData = new float[NUM_PARTICLES * 3];
 
     for (int i = 0; i < NUM_PARTICLES; ++i) {
@@ -342,7 +341,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         positionData[vec4i + 2] = randomRange(-1.0f, 1.0f);
         positionData[vec4i + 3] = 1.0f;
 
-        massData[vec4i] = randomRange(0.00001f, 0.0001f);
+        massData[i] = randomRange(0.00001f, 0.0001f);
 
         colorData[vec3i] = randomRange(0.0f, 1.0f);
         colorData[vec3i + 1] = randomRange(0.0f, 1.0f);
@@ -367,7 +366,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     GLuint massBuffer = 0;
     glGenBuffers(1, &massBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, massBuffer);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * 4 * sizeof(float), massData, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * sizeof(float), massData, GL_STATIC_DRAW);
 
     GLuint colorBuffer = 0;
     glGenBuffers(1, &colorBuffer);
