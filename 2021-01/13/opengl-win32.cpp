@@ -214,6 +214,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         vec4 velocity[];
     };
     layout(std140, binding=2) buffer Mass {
+        // TODO: Why does this need to be a vec4?
         vec4 mass[];
     };
     layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
