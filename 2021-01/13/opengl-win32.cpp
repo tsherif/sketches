@@ -224,7 +224,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         float m = mass[index];
         vec3 acceleration = vec3(0.0);
 
-        for (uint i = 0; i < NUM_PARTICLES; ++i) {
+        for (uint i = 0; i < position.length(); ++i) {
             vec3 otherP = position[i].xyz;
             float otherM = mass[i];
 
