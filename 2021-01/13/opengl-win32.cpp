@@ -205,8 +205,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     const char* csSource = R"GLSL(#version 450
-    #define NUM_PARTICLES (64 * 64)
-
     layout(std430, binding=0) buffer Position {
         vec4 position[];
     };
@@ -459,7 +457,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         glBindVertexArray(vertexArray);
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, NUM_PARTICLES);
-        // glDrawArraysInstancedBaseInstance(GL_TRIANGLE_STRIP, 0, 4, WORK_GROUP_SIZE, WORK_GROUP_SIZE * 7);
         glBindVertexArray(NULL);
 
         //////////////////
