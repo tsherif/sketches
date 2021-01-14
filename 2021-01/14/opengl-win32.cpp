@@ -270,20 +270,20 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
         float particleSize;
     };
 
-    out vec3 vColor;
+    layout(location=0) out vec3 particleColor;
     void main() {
-        vColor = color;
+        particleColor = color;
         gl_Position = vec4(vertexPosition * particleSize / screenDimensions + position.xy, position.z, 1.0);
     }
     )GLSL";
 
     const char* fsSource = R"GLSL(#version 450
-    in vec3 vColor;
+    layout(location=0) in vec3 diffuseColor;
 
     out vec4 fragColor;
     void main() {
         float alpha = 0.5;
-        fragColor = vec4(vColor * alpha, alpha);
+        fragColor = vec4(diffuseColor * alpha, alpha);
     }
     )GLSL";
 
