@@ -22,10 +22,6 @@
 
 #define WIDTH 800
 #define HEIGHT 800
-#define WORK_GROUP_SIZE 64
-#define WORK_GROUPS 64
-#define NUM_PARTICLES (WORK_GROUP_SIZE * WORK_GROUPS)
-#define PARTICLE_SIZE 4
 
 #define DECLARE_WGL_EXT_FUNC(returnType, name, ...) typedef returnType (WINAPI *name##FUNC)(__VA_ARGS__);\
     name##FUNC name = (name##FUNC)0;
@@ -201,58 +197,34 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     ///////////////////////////
 
     glClearColor(0.0, 0.0, 0.0, 1.0);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     const char* csSource = R"GLSL(#version 450
-    layout(std430, binding=0) restrict readonly buffer Position {
-        vec4 position[];
+    layout(std430, binding=0) restrict writeonly buffer Position {
+        vec2 positions[3];
     };
-    layout(std430, binding=1) restrict writeonly buffer OutPosition {
-        vec4 outPosition[];
+    layout(std430, binding=1) restrict writeonly buffer Color {
+        vec4 colors[3];
     };
-    layout(std430, binding=2) restrict buffer Velocity {
-        vec4 velocity[];
-    };
-    layout(std430, binding=3) restrict readonly buffer Mass {
-        float mass[];
-    };
-    layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+    layout(std430, binding=2) restrict writeonly buffer Command {
+        uint  count;
+        uint  instanceCount;
+        uint  first;
+        uint  baseInstance;
+    } command;
+    layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
     void main() {
-        uint index = gl_GlobalInvocationID.x;
-        vec3 p = position[index].xyz;
-        vec3 v = velocity[index].xyz;
-        float m = mass[index];
-        vec3 acceleration = vec3(0.0);
+        positions[0] = vec2(-0.5, -0.5);
+        positions[1] = vec2(0.5, -0.5);
+        positions[2] = vec2(0.0, 0.5);
 
-        for (uint i = 0; i < index; ++i) {
-            vec3 otherP = position[i].xyz;
-            float otherM = mass[i];
+        colors[0] = vec4(1.0, 0.0, 0.0, 1.0);
+        colors[1] = vec4(0.0, 1.0, 0.0, 1.0);
+        colors[2] = vec4(0.0, 0.0, 1.0, 1.0);
 
-            vec3 delta = otherP - p;
-            float dist = max(0.1, length(delta));
-            vec3 dir = normalize(delta);
-
-            float a = (m * otherM) / (dist * dist);
-            acceleration += dir * a;
-        }
-
-        for (uint i = index + 1; i < position.length(); ++i) {
-            vec3 otherP = position[i].xyz;
-            float otherM = mass[i];
-
-            vec3 delta = otherP - p;
-            float dist = max(0.1, length(delta));
-            vec3 dir = normalize(delta);
-
-            float a = (m * otherM) / (dist * dist);
-            acceleration += dir * a;
-        }
-
-        v += acceleration;
-        v *= 0.9999;
-        outPosition[index].xyz = p + v;
-        velocity[index].xyz = v;
+        command.count = 3;
+        command.instanceCount = 1;
+        command.first = 0;
+        command.baseInstance = 0;
     }
     )GLSL";
 
@@ -275,29 +247,22 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
     const char* vsSource = R"GLSL(#version 450
     layout(std140) uniform;
 
-    layout(location=0) in vec2 vertexPosition;
-    layout(location=1) in vec3 position;
-    layout(location=2) in vec3 color;
+    layout(location=0) in vec4 position;
+    layout(location=1) in vec4 color;
 
-    layout(binding=1) uniform VertexUniforms {
-        vec2 screenDimensions;
-        float particleSize;
-    };
-
-    layout(location=0) out vec3 particleColor;
+    layout(location=0) out vec4 vertexColor;
     void main() {
-        particleColor = color;
-        gl_Position = vec4(vertexPosition * particleSize / screenDimensions + position.xy, position.z, 1.0);
+        vertexColor = color;
+        gl_Position = position;
     }
     )GLSL";
 
     const char* fsSource = R"GLSL(#version 450
-    layout(location=0) in vec3 diffuseColor;
+    layout(location=0) in vec4 surfaceColor;
 
     out vec4 fragColor;
     void main() {
-        float alpha = 0.5;
-        fragColor = vec4(diffuseColor * alpha, alpha);
+        fragColor = surfaceColor;
     }
     )GLSL";
 
@@ -326,134 +291,50 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
 
     // BUFFERS
 
-    float vertexPositionData[] = {
-        -1.0f, -1.0f,
-        1.0f, -1.0f,
-        -1.0f, 1.0f,
-        1.0f, 1.0f
-    };
-    float* positionData = new float[NUM_PARTICLES * 4];
-    float* massData = new float[NUM_PARTICLES];
-    float* colorData = new float[NUM_PARTICLES * 3];
-
-    for (int i = 0; i < NUM_PARTICLES; ++i) {
-        int vec4i = i * 4;
-        int vec3i = i * 3;
-
-        positionData[vec4i] = randomRange(-1.0f, 1.0f);
-        positionData[vec4i + 1] = randomRange(-1.0f, 1.0f);
-        positionData[vec4i + 2] = randomRange(-1.0f, 1.0f);
-        positionData[vec4i + 3] = 1.0f;
-
-        massData[i] = randomRange(0.00001f, 0.0001f);
-
-        colorData[vec3i] = randomRange(0.0f, 1.0f);
-        colorData[vec3i + 1] = randomRange(0.0f, 1.0f);
-        colorData[vec3i + 2] = randomRange(0.0f, 1.0f);
-    }
-
-    GLuint vertexPositionBuffer = 0;
-    glGenBuffers(1, &vertexPositionBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexPositionBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertexPositionData), vertexPositionData, GL_STATIC_DRAW);
-
-    GLuint positionBufferA = 0;
-    glGenBuffers(1, &positionBufferA);
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferA);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * 4 * sizeof(float), positionData, GL_STREAM_COPY);
-
-    GLuint positionBufferB = 0;
-    glGenBuffers(1, &positionBufferB);
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferB);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * 4 * sizeof(float), NULL, GL_STREAM_COPY);
-
-    GLuint velocityBuffer = 0;
-    glGenBuffers(1, &velocityBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, velocityBuffer);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * 4 * sizeof(float), NULL, GL_STREAM_COPY);
-
-    GLuint massBuffer = 0;
-    glGenBuffers(1, &massBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, massBuffer);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * sizeof(float), massData, GL_STATIC_DRAW);
+    GLuint positionBuffer = 0;
+    glGenBuffers(1, &positionBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(GLfloat), NULL, GL_STATIC_DRAW);
 
     GLuint colorBuffer = 0;
     glGenBuffers(1, &colorBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    glBufferData(GL_ARRAY_BUFFER, NUM_PARTICLES * 3 * sizeof(float), colorData, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(GLfloat), NULL, GL_STATIC_DRAW);
+
+    GLuint commandBuffer = 0;
+    glGenBuffers(1, &commandBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, commandBuffer);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(GLuint), NULL, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, NULL);
 
     // COMPUTE BUFFER BINDINGS
 
-    GLuint positionBufferIn = positionBufferA;
-    GLuint positionBufferOut = positionBufferB;
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, velocityBuffer);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, massBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, positionBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, colorBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, commandBuffer);
 
     // DRAW BUFFER BINDINGS
 
-    GLuint vertexArrayA = 0;
-    glGenVertexArrays(1, &vertexArrayA);
-    glBindVertexArray(vertexArrayA);
+    GLuint vertexArray = 0;
+    glGenVertexArrays(1, &vertexArray);
+    glBindVertexArray(vertexArray);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vertexPositionBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferA);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, NULL);
-    glVertexAttribDivisor(1, 1);
-    glEnableVertexAttribArray(1);
-    
     glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2);
-
-    GLuint vertexArrayB = 0;
-    glGenVertexArrays(1, &vertexArrayB);
-    glBindVertexArray(vertexArrayB);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vertexPositionBuffer);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, positionBufferB);
     glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, NULL);
-    glVertexAttribDivisor(1, 1);
     glEnableVertexAttribArray(1);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glVertexAttribDivisor(2, 1);
-    glEnableVertexAttribArray(2);
+
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
 
     glBindBuffer(GL_ARRAY_BUFFER, NULL);
-    glBindVertexArray(NULL);
 
-    GLuint currentVertexArray = vertexArrayA;
 
     if (glGetError() != GL_NO_ERROR) {
         MessageBox(NULL, L"Error after buffer set up!", L"FAILURE", MB_OK);
-        return 1;
-    }
-
-    // UNIFORMS
-
-    float vertexUniformData[4] = {};
-
-    vertexUniformData[0] = WIDTH;
-    vertexUniformData[1] = HEIGHT;
-    vertexUniformData[2] = PARTICLE_SIZE;
-
-    GLuint vertexUniformBuffer = 0;
-    glGenBuffers(1, &vertexUniformBuffer);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 1, vertexUniformBuffer);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(vertexUniformData), vertexUniformData, GL_STATIC_DRAW);
-
-    if (glGetError() != GL_NO_ERROR) {
-        MessageBox(NULL, L"Error after uniform set up!", L"FAILURE", MB_OK);
         return 1;
     }
 
@@ -480,27 +361,14 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int showWindow) {
             }
         }
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, positionBufferIn);
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, positionBufferOut);
         glBindProgramPipeline(computePipeline);
-        glDispatchCompute(WORK_GROUPS, 1, 1);
+        glDispatchCompute(1, 1, 1);
 
-        glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+        glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_COMMAND_BARRIER_BIT);
 
-        glBindVertexArray(currentVertexArray);
         glBindProgramPipeline(drawPipeline);
         glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, NUM_PARTICLES);
-
-        if (positionBufferIn == positionBufferA) {
-            positionBufferIn = positionBufferB;
-            positionBufferOut = positionBufferA;
-            currentVertexArray = vertexArrayB;
-        } else {
-            positionBufferIn = positionBufferA;
-            positionBufferOut = positionBufferB;
-            currentVertexArray = vertexArrayA;
-        }
+        glDrawArraysIndirect(GL_TRIANGLES, NULL);
 
         //////////////////
         // SWAP BUFFERS
