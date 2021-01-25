@@ -2,7 +2,7 @@
 #define _USE_MATH_DEFINES
 #define SOGL_MAJOR_VERSION 4
 #define SOGL_MINOR_VERSION 5
-#define SOGL_IMPLEMENTATION
+#define SOGL_IMPLEMENTATION_WIN32
 #define STB_IMAGE_IMPLEMENTATION
 #include "../../lib/simple-opengl-loader.h"
 #include <windows.h>
