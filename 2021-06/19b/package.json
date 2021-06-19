@@ -1,0 +1,11 @@
+{
+  "name": "19b",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc ./index.ts"
+  },
+  "author": "",
+  "license": "ISC"
+}
