@@ -17,9 +17,6 @@
 #include "../../lib/glm/ext.hpp"
 #include "../../lib/stb_image.h"
 
-
-
-
 #define WIDTH 800
 #define HEIGHT 800
 #define WORK_GROUP_SIZE 64
