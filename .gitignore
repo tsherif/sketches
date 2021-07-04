@@ -12,3 +12,4 @@ node_modules
 **/test-dlfcn-now
 **/test-dlfcn-lazy
 **/test-dlfcn-aot
+**/wordcount
