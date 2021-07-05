@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <ctype.h>
 
-#define WC_INITIAL_SIZE 32
-
 typedef struct String {
 	char* s;
 	size_t len;
@@ -65,14 +63,38 @@ bool string_append_cstr(String* s, const char * cstr) {
 	return true;
 }
 
-void string_destroy(String s) {
-	if (s.s) {
-		free(s.s);
+bool string_readline(String* s) {
+	const size_t CHUNK_SIZE = 8;
+	char buf[CHUNK_SIZE];
+
+	bool done = false;
+	while (!done) {
+		fgets(buf, CHUNK_SIZE, stdin);
+		for (size_t i = 0; i < CHUNK_SIZE; ++i) {
+			if (buf[i] == '\n') {
+				buf[i] = '\0';
+				done = true;
+				break;
+			}
+		}
+
+		if (!string_append_cstr(s, buf)) {
+			return false;
+		}
 	}
 
-	s.s = NULL;
-	s.len = 0;
-	s.size = 0;
+	return true;
+}
+
+void string_destroy(String* s) {
+	if (!s->s) {
+		return;
+	}
+
+	free(s->s);
+	s->s = NULL;
+	s->len = 0;
+	s->size = 0;
 }
 
 bool string_equal_cstr(const String* s, const char* cstr) {
@@ -98,20 +120,29 @@ typedef struct WordCounts {
 
 WordCounts wc_create() {
 	return (WordCounts) {
-		.words = malloc(WC_INITIAL_SIZE * sizeof(String)),
-		.counts = malloc(WC_INITIAL_SIZE * sizeof(size_t)),
+		.words = malloc(sizeof(String)),
+		.counts = malloc(sizeof(size_t)),
 		.len = 0,
-		.size = WC_INITIAL_SIZE
+		.size = 1
 	}; 
 }
 
-void wc_destroy(WordCounts wc) {
-	for (size_t i = 0; i < wc.len; ++i) {
-		string_destroy(wc.words[i]);
+void wc_destroy(WordCounts* wc) {
+	if (!wc->words) {
+		return;
 	}
 
-	free(wc.words);
-	free(wc.counts);
+	for (size_t i = 0; i < wc->len; ++i) {
+		string_destroy(&wc->words[i]);
+	}
+
+	free(wc->words);
+	free(wc->counts);
+
+	wc->words = NULL;
+	wc->counts = NULL;
+	wc->len = 0;
+	wc->size = 0;
 }
 
 bool wc_addWord(WordCounts* wc, char* word) {
@@ -130,8 +161,6 @@ bool wc_addWord(WordCounts* wc, char* word) {
 
 	return true;
 }
-
-
 
 int nextWord(char* str, char* buf, int index) {
 	int i = 0;
@@ -176,34 +205,14 @@ void countWords(char* str, WordCounts* wc) {
 	}
 }
 
-String string_readline() {
-	String s = string_create("");
-	const size_t CHUNK_SIZE = 8;
-	char buf[CHUNK_SIZE];
-
-	bool done = false;
-	while (!done) {
-		fgets(buf, CHUNK_SIZE, stdin);
-		for (size_t i = 0; i < CHUNK_SIZE; ++i) {
-			if (buf[i] == '\n') {
-				buf[i] = '\0';
-				done = true;
-				break;
-			}
-		}
-		string_append_cstr(&s, buf);
-	}
-
-	return s;
-}
-
 int main() {
 	WordCounts wc = wc_create();
+	String input = string_create("");
 
 	printf("Enter a phrase: ");
-	String s = string_readline();
+	string_readline(&input);
 
-	countWords(s.s, &wc);
+	countWords(input.s, &wc);
 
 	printf("\n");
 	for (int i = 0; i < wc.len; ++i) {
@@ -211,7 +220,8 @@ int main() {
 	}
 	printf("\n");
 
-	wc_destroy(wc);
+	wc_destroy(&wc);
+	string_destroy(&input);
 
 	return 0;
 }
