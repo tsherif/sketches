@@ -32,7 +32,6 @@ String string_create_substring(String* other, size_t start, size_t end) {
 		size <<= 1;
 	}
 
-
 	String s = {
 		.s = malloc(size),
 		.len = len,
