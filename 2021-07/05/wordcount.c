@@ -12,28 +12,43 @@ typedef struct String {
 	size_t size;
 } String;
 
-bool string_init(String* s, char* str) {
-	s->len = 0;
-	while (str[s->len]) {
-		++s->len;
-	}
-	s->size = 1;
+String string_create(char* str) {
+	String s = {
+		.s = NULL,
+		.len = 0,
+		.size = 1
+	};
 
-	while (s->size <= s->len) {
-		s->size <<= 1;
-	}
-
-	s->s = malloc(s->size);
-
-	if (!s->s) {
-		return false;
+	while (str[s.len]) {
+		++s.len;
 	}
 
-	for (size_t i = 0; i < s->len + 1; ++i) {
-		s->s[i] = str[i];
+	while (s.size <= s.len) {
+		s.size <<= 1;
 	}
 
-	return true;
+	s.s = malloc(s.size);
+
+	if (s.s) {
+		for (size_t i = 0; i < s.len + 1; ++i) {
+			s.s[i] = str[i];
+		}
+	} else {
+		s.len = 0;
+		s.size = 0;
+	}
+
+	return s;
+}
+
+void string_destroy(String s) {
+	if (s.s) {
+		free(s.s);
+	}
+
+	s.s = NULL;
+	s.len = 0;
+	s.size = 0;
 }
 
 bool string_equal_cstr(const String* s, const char* cstr) {
@@ -57,6 +72,24 @@ typedef struct WordCounts {
 	size_t size;
 } WordCounts;
 
+WordCounts wc_create() {
+	return (WordCounts) {
+		.words = malloc(WC_INITIAL_SIZE * sizeof(String)),
+		.counts = malloc(WC_INITIAL_SIZE * sizeof(size_t)),
+		.len = 0,
+		.size = WC_INITIAL_SIZE
+	}; 
+}
+
+void wc_destroy(WordCounts wc) {
+	for (size_t i = 0; i < wc.len; ++i) {
+		string_destroy(wc.words[i]);
+	}
+
+	free(wc.words);
+	free(wc.counts);
+}
+
 bool wc_addWord(WordCounts* wc, char* word) {
 	if (wc->len == wc->size) {
 		wc->words = realloc(wc->words, 2 * wc->size * sizeof(String));
@@ -67,12 +100,14 @@ bool wc_addWord(WordCounts* wc, char* word) {
 		}
 	}
 
-	string_init(&wc->words[wc->len], word);
+	wc->words[wc->len] = string_create(word);
 	wc->counts[wc->len] = 1;
 	wc->len++;
 
 	return true;
 }
+
+
 
 int nextWord(char* str, char* buf, int index) {
 	int i = 0;
@@ -121,12 +156,7 @@ int main() {
 	size_t n = 8192;
 	char buf[n];
 
-	WordCounts wc = {
-		.words = malloc(WC_INITIAL_SIZE * sizeof(String)),
-		.counts = malloc(WC_INITIAL_SIZE * sizeof(size_t)),
-		.len = 0,
-		.size = WC_INITIAL_SIZE
-	};
+	WordCounts wc = wc_create();
 
 	printf("Enter a phrase: ");
 	fgets(buf, n, stdin);
@@ -142,8 +172,7 @@ int main() {
 	}
 	printf("\n");
 
-	free(wc.words);
-	free(wc.counts);
+	wc_destroy(wc);
 
 	return 0;
 }
