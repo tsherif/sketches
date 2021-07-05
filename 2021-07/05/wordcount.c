@@ -41,6 +41,30 @@ String string_create(char* str) {
 	return s;
 }
 
+bool string_append_cstr(String* s, const char * cstr) {
+	size_t len = 0;
+	while (cstr[len]) {
+		++len;
+	}
+
+	while (s->len + len + 1 > s->size) {
+		s->size <<= 1;
+	}
+
+	s->s = realloc(s->s, s->size);
+
+	if (!s->s) {
+		return false;
+	}
+
+	for (size_t i = 0; i < len + 1; ++i) {
+		s->s[s->len + i] = cstr[i];
+	}
+	s->len += len;
+
+	return true;
+}
+
 void string_destroy(String s) {
 	if (s.s) {
 		free(s.s);
@@ -152,19 +176,34 @@ void countWords(char* str, WordCounts* wc) {
 	}
 }
 
-int main() {
-	size_t n = 8192;
-	char buf[n];
+String string_readline() {
+	String s = string_create("");
+	const size_t CHUNK_SIZE = 8;
+	char buf[CHUNK_SIZE];
 
+	bool done = false;
+	while (!done) {
+		fgets(buf, CHUNK_SIZE, stdin);
+		for (size_t i = 0; i < CHUNK_SIZE; ++i) {
+			if (buf[i] == '\n') {
+				buf[i] = '\0';
+				done = true;
+				break;
+			}
+		}
+		string_append_cstr(&s, buf);
+	}
+
+	return s;
+}
+
+int main() {
 	WordCounts wc = wc_create();
 
 	printf("Enter a phrase: ");
-	fgets(buf, n, stdin);
-	size_t len = strlen(buf);
-	buf[len - 1] = '\0';
-	--len;
+	String s = string_readline();
 
-	countWords(buf, &wc);
+	countWords(s.s, &wc);
 
 	printf("\n");
 	for (int i = 0; i < wc.len; ++i) {
