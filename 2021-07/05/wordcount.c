@@ -10,27 +10,40 @@ typedef struct String {
 	size_t size;
 } String;
 
-String string_create(char* str) {
+String string_create(void) {
 	String s = {
-		.s = NULL,
+		.s = calloc(1, 1),
 		.len = 0,
 		.size = 1
 	};
 
-	while (str[s.len]) {
-		++s.len;
+	if (!s.s) {
+		s.size = 0;
 	}
 
-	while (s.size <= s.len) {
-		s.size <<= 1;
+	return s;
+}
+
+String string_create_substring(String* other, size_t start, size_t end) {
+	size_t len = end - start;
+	size_t size = 1;
+
+	while (size <= len) {
+		size <<= 1;
 	}
 
-	s.s = malloc(s.size);
+
+	String s = {
+		.s = malloc(size),
+		.len = len,
+		.size = size
+	};
 
 	if (s.s) {
-		for (size_t i = 0; i < s.len + 1; ++i) {
-			s.s[i] = str[i];
+		for (size_t i = 0; i < s.len; ++i) {
+			s.s[i] = other->s[start + i];
 		}
+		s.s[s.len] = '\0';
 	} else {
 		s.len = 0;
 		s.size = 0;
@@ -97,15 +110,15 @@ void string_destroy(String* s) {
 	s->size = 0;
 }
 
-bool string_equal_cstr(const String* s, const char* cstr) {
-	for (size_t i = 0; i < s->len; ++i) {
-		if (s->s[i] != cstr[i]) {
-			return false;
-		}
+bool string_equal_substring(const String* s, const String* other, size_t start, size_t end) {
+	if (s->len != end - start) {
+		return false;
 	}
 
-	if (cstr[s->len] != '\0') {
-		return false;
+	for (size_t i = 0; i < s->len; ++i) {
+		if (s->s[i] != other->s[start + i]) {
+			return false;
+		}
 	}
 
 	return true;
@@ -118,7 +131,7 @@ typedef struct WordCounts {
 	size_t size;
 } WordCounts;
 
-WordCounts wc_create() {
+WordCounts wc_create(void) {
 	return (WordCounts) {
 		.words = malloc(sizeof(String)),
 		.counts = malloc(sizeof(size_t)),
@@ -145,7 +158,7 @@ void wc_destroy(WordCounts* wc) {
 	wc->size = 0;
 }
 
-bool wc_addWord(WordCounts* wc, char* word) {
+bool wc_addWord(WordCounts* wc, String word) {
 	if (wc->len == wc->size) {
 		wc->words = realloc(wc->words, 2 * wc->size * sizeof(String));
 		wc->counts = realloc(wc->counts, 2 * wc->size * sizeof(size_t));
@@ -155,51 +168,51 @@ bool wc_addWord(WordCounts* wc, char* word) {
 		}
 	}
 
-	wc->words[wc->len] = string_create(word);
+	wc->words[wc->len] = word;
 	wc->counts[wc->len] = 1;
 	wc->len++;
 
 	return true;
 }
 
-int nextWord(char* str, char* buf, int index) {
-	int i = 0;
+typedef struct Range {
+	size_t start;
+	size_t end;
+	bool finished;
+} Range;
 
-	while (!isspace(str[index + i]) && str[index + i] != '\0') {
-		buf[i] = str[index + i];
-		++i;
+void nextWord(String* s, Range* r) {
+	while(isspace(s->s[r->end])) {
+		++r->end;
 	}
 
-	buf[i] = '\0';
+	r->start = r->end;
 
-	if (str[index + i] == '\0') {
-		return -1;
+	while (!isspace(s->s[r->end]) && s->s[r->end] != '\0') {
+		++r->end;
 	}
 
-	while(isspace(str[index + i])) {
-		++i;
+	if (s->s[r->end] == '\0') {
+		r->finished = true;
 	}
-
-	return index + i;
 }
 
-void countWords(char* str, WordCounts* wc) {
-	char buf[256];
-	int index = 0;
+void countWords(String* s, WordCounts* wc) {
+	Range r = { 0 };
 	while(true) {
-		index = nextWord(str, buf, index);
+		nextWord(s, &r);
 		bool found = false;
 		for (size_t i = 0; i < wc->len; ++i) {
-			if (string_equal_cstr(&wc->words[i], buf)) {
+			if (string_equal_substring(&wc->words[i], s, r.start, r.end)) {
 				++wc->counts[i];
 				found = true;
 				break;
 			}
 		}
 		if (!found) {
-			wc_addWord(wc, buf);
+			wc_addWord(wc, string_create_substring(s, r.start, r.end));
 		}
-		if (index < 0) {
+		if (r.finished) {
 			break;
 		}
 	}
@@ -207,12 +220,12 @@ void countWords(char* str, WordCounts* wc) {
 
 int main() {
 	WordCounts wc = wc_create();
-	String input = string_create("");
+	String input = string_create();
 
 	printf("Enter a phrase: ");
 	string_readline(&input);
 
-	countWords(input.s, &wc);
+	countWords(&input, &wc);
 
 	printf("\n");
 	for (int i = 0; i < wc.len; ++i) {
