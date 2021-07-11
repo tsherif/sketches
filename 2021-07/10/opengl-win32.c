@@ -314,29 +314,33 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         }
     }
 
-    struct {
-        float x;
-        float y;
-        float vx;
-        float vy;
+    typedef struct circle {
+        float position[2];
+        float velocity[2];
+        float color[3];
         float radius;
-    } circle = {
-        .x = randomRange(0.0f, (float) programState.window.width),
-        .y = randomRange(0.0f, (float) programState.window.height),
-        .vx = randomRange(-5.0f, 5.0f),
-        .vy = randomRange(-5.0f, 5.0f),
-        .radius = randomRange(2.0f, 40.0f)
-    };
+    } circle;
+
+    circle circles[256] = { 0 };
+
+    for (int i = 0; i < 256; ++i) {
+        circles[i].position[0] = randomRange(0.0f, (float) programState.window.width);
+        circles[i].position[1] = randomRange(0.0f, (float) programState.window.height);
+        circles[i].velocity[0] = randomRange(-3.0f, 3.0f);
+        circles[i].velocity[1] = randomRange(-3.0f, 3.0f);
+        circles[i].radius = randomRange(2.0f, 20.0f);
+        circles[i].color[0] = randomRange(0.0f, 1.0f);
+        circles[i].color[1] = randomRange(0.0f, 1.0f);
+        circles[i].color[2] = randomRange(0.0f, 1.0f);
+    }
 
     glUseProgram(program);
     GLuint colorLocation = glGetUniformLocation(program, "color");
     GLuint pixelSizeLocation = glGetUniformLocation(program, "pixelSize");
     GLuint radiusLocation = glGetUniformLocation(program, "radius");
     GLuint pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
-    glUniform3f(colorLocation, 1.0f, 0.0f, 0.0f);
     glUniform2f(pixelSizeLocation, 2.0f / programState.window.width, 2.0f / programState.window.height);
-    glUniform1f(radiusLocation, circle.radius);
-
+    
 
     GLuint circleArray;
     glGenVertexArrays(1, &circleArray);
@@ -379,32 +383,37 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             }
         }
 
-        circle.x += circle.vx;
-        circle.y += circle.vy;
-
-        if (circle.x - circle.radius < 0) {
-            circle.x = circle.radius;
-            circle.vx *= -1;
-        }
-
-        if (circle.x + circle.radius > programState.window.width) {
-            circle.x = programState.window.width - circle.radius;
-            circle.vx *= -1;
-        }
-
-        if (circle.y - circle.radius < 0) {
-            circle.y = circle.radius;
-            circle.vy *= -1;
-        }
-
-        if (circle.y + circle.radius > programState.window.height) {
-            circle.y = programState.window.height - circle.radius;
-            circle.vy *= -1;
-        }
-
         glClear(GL_COLOR_BUFFER_BIT);
-        glUniform2f(pixelOffsetLocation, circle.x, circle.y);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        for (int i = 0; i < 256; i++) {
+            circles[i].position[0] += circles[i].velocity[0];
+            circles[i].position[1] += circles[i].velocity[1];
+
+            if (circles[i].position[0] - circles[i].radius < 0) {
+                circles[i].position[0] = circles[i].radius;
+                circles[i].velocity[0] *= -1;
+            }
+
+            if (circles[i].position[0] + circles[i].radius > programState.window.width) {
+                circles[i].position[0] = programState.window.width - circles[i].radius;
+                circles[i].velocity[0] *= -1;
+            }
+
+            if (circles[i].position[1] - circles[i].radius < 0) {
+                circles[i].position[1] = circles[i].radius;
+                circles[i].velocity[1] *= -1;
+            }
+
+            if (circles[i].position[1] + circles[i].radius > programState.window.height) {
+                circles[i].position[1] = programState.window.height - circles[i].radius;
+                circles[i].velocity[1] *= -1;
+            }
+
+            glUniform2fv(pixelOffsetLocation, 1, circles[i].position);
+            glUniform3fv(colorLocation, 1, circles[i].color);
+            glUniform1f(radiusLocation, circles[i].radius);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        }
 
         //////////////////
         // SWAP BUFFERS
