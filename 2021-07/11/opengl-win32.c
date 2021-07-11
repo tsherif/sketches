@@ -41,17 +41,64 @@
 #include <time.h>
 #include <profileapi.h>
 
+#define NUM_CIRCLES 256
+
+typedef struct circle {
+    float x;
+    float y;
+    float vx;
+    float vy;
+    float color[3];
+    float radius;
+} circle;
+
 struct {
     struct {
         uint32_t width;
         uint32_t height;
     } window;
+    struct {
+        struct {
+            float offset[2 * NUM_CIRCLES];
+            float velocity[2 * NUM_CIRCLES];
+            float color[3 * NUM_CIRCLES];
+            float radius[NUM_CIRCLES];
+        } circles;
+    } gl;
 } programState = {
     .window = {
         .width = 800,
         .height = 600
     }
 };
+
+void getCircle(size_t i, circle* c) {
+    size_t pi = 2 * i;
+    size_t ci = 3 * i;
+
+    c->x        = programState.gl.circles.offset[pi]; 
+    c->y        = programState.gl.circles.offset[pi + 1]; 
+    c->vx       = programState.gl.circles.velocity[pi]; 
+    c->vy       = programState.gl.circles.velocity[pi + 1];
+    c->color[0] = programState.gl.circles.color[ci];
+    c->color[1] = programState.gl.circles.color[ci + 1];
+    c->color[2] = programState.gl.circles.color[ci + 2];
+    c->radius   = programState.gl.circles.radius[i];
+}
+
+void setCircle(size_t i, circle* c) {
+    size_t pi = 2 * i;
+    size_t ci = 3 * i;
+
+    programState.gl.circles.offset[pi]       = c->x; 
+    programState.gl.circles.offset[pi + 1]   = c->y; 
+    programState.gl.circles.velocity[pi]     = c->vx;   
+    programState.gl.circles.velocity[pi + 1] = c->vy;
+    programState.gl.circles.color[ci]        = c->color[0];
+    programState.gl.circles.color[ci + 1]    = c->color[1];
+    programState.gl.circles.color[ci + 2]    = c->color[2];
+    programState.gl.circles.radius[i]        = c->radius;
+}
 
 float randomRange(float min, float max) {
     float range = max - min;
@@ -264,27 +311,32 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     const char* vsSource = "#version 450\n"
     "layout (location=0) in vec2 position;\n"
-    "uniform vec2 pixelOffset;\n"
+    "layout (location=1) in vec2 pixelOffset;\n"
+    "layout (location=2) in vec3 color;\n"
+    "layout (location=3) in float radius;\n"
     "uniform vec2 pixelSize;\n"
-    "uniform float radius;\n"
     "out vec2 vPosition;\n"
+    "out vec3 vColor;\n"
+    "out float vRadius;\n"
     "void main() {\n"
     "    vec2 clipOffset = (pixelOffset * pixelSize - 1.0) * vec2(1.0, -1.0);\n"
     "    vPosition = position * radius;\n"
+    "    vColor = color;\n"
+    "    vRadius = radius;\n"
     "    gl_Position = vec4(vPosition * pixelSize + clipOffset, 0.0, 1.0);\n"
     "}\n";
 
     const char* fsSource = "#version 450\n"
     "in vec2 vPosition;\n"
-    "uniform vec3 color;\n"
+    "in vec3 vColor;\n"
+    "in float vRadius;\n"
     "uniform vec2 pixelSize;\n"
-    "uniform float radius;\n"
     "out vec4 fragColor;\n"
     "void main() {\n"
-    "    if (length(vPosition) > radius) {\n"
+    "    if (length(vPosition) > vRadius) {\n"
     "       discard;\n"
     "    }\n"
-    "    fragColor = vec4(color, 1.0);\n"
+    "    fragColor = vec4(vColor, 1.0);\n"
     "}\n";
 
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -315,24 +367,18 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         }
     }
 
-    typedef struct circle {
-        float position[2];
-        float velocity[2];
-        float color[3];
-        float radius;
-    } circle;
 
-    circle circles[256] = { 0 };
-
-    for (int i = 0; i < 256; ++i) {
-        circles[i].position[0] = randomRange(0.0f, (float) programState.window.width);
-        circles[i].position[1] = randomRange(0.0f, (float) programState.window.height);
-        circles[i].velocity[0] = randomRange(-3.0f, 3.0f);
-        circles[i].velocity[1] = randomRange(-3.0f, 3.0f);
-        circles[i].radius = randomRange(2.0f, 20.0f);
-        circles[i].color[0] = randomRange(0.0f, 1.0f);
-        circles[i].color[1] = randomRange(0.0f, 1.0f);
-        circles[i].color[2] = randomRange(0.0f, 1.0f);
+    for (size_t i = 0; i < 256; ++i) {
+        circle c;
+        c.x = randomRange(0.0f, (float) programState.window.width);
+        c.y = randomRange(0.0f, (float) programState.window.height);
+        c.vx = randomRange(-3.0f, 3.0f);
+        c.vy = randomRange(-3.0f, 3.0f);
+        c.radius = randomRange(2.0f, 20.0f);
+        c.color[0] = randomRange(0.0f, 1.0f);
+        c.color[1] = randomRange(0.0f, 1.0f);
+        c.color[2] = randomRange(0.0f, 1.0f);
+        setCircle(i, &c);
     }
 
     glUseProgram(program);
@@ -360,6 +406,30 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
+
+    GLuint offsetBuffer;
+    glGenBuffers(1, &offsetBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, offsetBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(programState.gl.circles.offset), programState.gl.circles.offset, GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribDivisor(1, 1);
+    glEnableVertexAttribArray(1);
+
+    GLuint colorBuffer;
+    glGenBuffers(1, &colorBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(programState.gl.circles.color), programState.gl.circles.color, GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribDivisor(2, 1);
+    glEnableVertexAttribArray(2);
+
+    GLuint radiusBuffer;
+    glGenBuffers(1, &radiusBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, radiusBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(programState.gl.circles.radius), programState.gl.circles.radius, GL_STATIC_DRAW);
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribDivisor(3, 1);
+    glEnableVertexAttribArray(3);
 
     ///////////////////
     // Display window
@@ -396,34 +466,36 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         glClear(GL_COLOR_BUFFER_BIT);
 
         for (int i = 0; i < 256; i++) {
-            circles[i].position[0] += circles[i].velocity[0];
-            circles[i].position[1] += circles[i].velocity[1];
+            circle c;
+            getCircle(i, &c);
+            c.x += c.vx;
+            c.y += c.vy;
 
-            if (circles[i].position[0] - circles[i].radius < 0) {
-                circles[i].position[0] = circles[i].radius;
-                circles[i].velocity[0] *= -1;
+            if (c.x - c.radius < 0) {
+                c.x = c.radius;
+                c.vx *= -1;
             }
 
-            if (circles[i].position[0] + circles[i].radius > programState.window.width) {
-                circles[i].position[0] = programState.window.width - circles[i].radius;
-                circles[i].velocity[0] *= -1;
+            if (c.x + c.radius > programState.window.width) {
+                c.x = programState.window.width - c.radius;
+                c.vx *= -1;
             }
 
-            if (circles[i].position[1] - circles[i].radius < 0) {
-                circles[i].position[1] = circles[i].radius;
-                circles[i].velocity[1] *= -1;
+            if (c.y - c.radius < 0) {
+                c.y = c.radius;
+                c.vy *= -1;
             }
 
-            if (circles[i].position[1] + circles[i].radius > programState.window.height) {
-                circles[i].position[1] = programState.window.height - circles[i].radius;
-                circles[i].velocity[1] *= -1;
+            if (c.y + c.radius > programState.window.height) {
+                c.y = programState.window.height - c.radius;
+                c.vy *= -1;
             }
-
-            glUniform2fv(pixelOffsetLocation, 1, circles[i].position);
-            glUniform3fv(colorLocation, 1, circles[i].color);
-            glUniform1f(radiusLocation, circles[i].radius);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            setCircle(i, &c);
         }
+
+        glBindBuffer(GL_ARRAY_BUFFER, offsetBuffer);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(programState.gl.circles.offset), programState.gl.circles.offset);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, NUM_CIRCLES);
 
         //////////////////
         // SWAP BUFFERS
