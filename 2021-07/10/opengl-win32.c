@@ -36,7 +36,9 @@
 #include "wglext.h"
 #include <stdint.h>
 #include <stdio.h>
-
+#include <stdbool.h>
+#include <stdlib.h>
+#include <time.h>
 
 struct {
     struct {
@@ -49,6 +51,11 @@ struct {
         .height = 600
     }
 };
+
+float randomRange(float min, float max) {
+    float range = max - min;
+    return min + ((float) rand() / (RAND_MAX + 1)) * range;
+}
 
 /////////////////////////////////////
 // WGL loading helper functions 
@@ -64,6 +71,7 @@ struct {
 
 DECLARE_WGL_EXT_FUNC(BOOL, wglChoosePixelFormatARB, HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 DECLARE_WGL_EXT_FUNC(HGLRC, wglCreateContextAttribsARB, HDC hDC, HGLRC hshareContext, const int *attribList);
+DECLARE_WGL_EXT_FUNC(BOOL, wglSwapIntervalEXT, int interval);
 
 ////////////////
 // WIN32 setup
@@ -154,6 +162,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     LOAD_WGL_EXT_FUNC(wglChoosePixelFormatARB);
     LOAD_WGL_EXT_FUNC(wglCreateContextAttribsARB);
+    LOAD_WGL_EXT_FUNC(wglSwapIntervalEXT);
 
     if (!wglCreateContextAttribsARB || !wglCreateContextAttribsARB) {
         MessageBox(NULL, L"Didn't get wgl ARB functions!", L"FAILURE", MB_OK);
@@ -230,6 +239,10 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     wglMakeCurrent(deviceContext, gl);
     
+    if (wglSwapIntervalEXT) {
+        wglSwapIntervalEXT(1);
+    }
+    
     if (!sogl_loadOpenGL()) {
         const char **failures = sogl_getFailures();
         while (*failures) {
@@ -240,6 +253,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         }
     }
 
+    srand((unsigned int) time(NULL));
+
     ///////////////////////////
     // Set up GL resources
     ///////////////////////////
@@ -248,12 +263,14 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     const char* vsSource = "#version 450\n"
     "layout (location=0) in vec2 position;\n"
+    "uniform vec2 pixelOffset;\n"
     "uniform vec2 pixelSize;\n"
     "uniform float radius;\n"
     "out vec2 vPosition;\n"
     "void main() {\n"
+    "    vec2 clipOffset = (pixelOffset * pixelSize - 1.0) * vec2(1.0, -1.0);\n"
     "    vPosition = position * radius;\n"
-    "    gl_Position = vec4(vPosition * pixelSize, 0.0, 1.0);\n"
+    "    gl_Position = vec4(vPosition * pixelSize + clipOffset, 0.0, 1.0);\n"
     "}\n";
 
     const char* fsSource = "#version 450\n"
@@ -297,18 +314,33 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         }
     }
 
+    struct {
+        float x;
+        float y;
+        float vx;
+        float vy;
+        float radius;
+    } circle = {
+        .x = randomRange(0.0f, (float) programState.window.width),
+        .y = randomRange(0.0f, (float) programState.window.height),
+        .vx = randomRange(-5.0f, 5.0f),
+        .vy = randomRange(-5.0f, 5.0f),
+        .radius = randomRange(2.0f, 40.0f)
+    };
+
     glUseProgram(program);
     GLuint colorLocation = glGetUniformLocation(program, "color");
     GLuint pixelSizeLocation = glGetUniformLocation(program, "pixelSize");
     GLuint radiusLocation = glGetUniformLocation(program, "radius");
+    GLuint pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
     glUniform3f(colorLocation, 1.0f, 0.0f, 0.0f);
     glUniform2f(pixelSizeLocation, 2.0f / programState.window.width, 2.0f / programState.window.height);
-    glUniform1f(radiusLocation, 20.0f);
+    glUniform1f(radiusLocation, circle.radius);
 
 
-    GLuint circle;
-    glGenVertexArrays(1, &circle);
-    glBindVertexArray(circle);
+    GLuint circleArray;
+    glGenVertexArrays(1, &circleArray);
+    glBindVertexArray(circleArray);
 
     float positions[] = {
         -1.0f, -1.0f,
@@ -335,12 +367,49 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     //////////////////////////////////
 
     MSG message;
-    while (GetMessage(&message, NULL, 0, 0) > 0) {
-        TranslateMessage(&message);
-        DispatchMessage(&message);
+    bool running = true;
+    while (running) {
+        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&message);
+            DispatchMessage(&message);
+
+            if (message.message == WM_QUIT) {
+                running = false; 
+                break;
+            }
+        }
+
+        circle.x += circle.vx;
+        circle.y += circle.vy;
+
+        if (circle.x - circle.radius < 0) {
+            circle.x = circle.radius;
+            circle.vx *= -1;
+        }
+
+        if (circle.x + circle.radius > programState.window.width) {
+            circle.x = programState.window.width - circle.radius;
+            circle.vx *= -1;
+        }
+
+        if (circle.y - circle.radius < 0) {
+            circle.y = circle.radius;
+            circle.vy *= -1;
+        }
+
+        if (circle.y + circle.radius > programState.window.height) {
+            circle.y = programState.window.height - circle.radius;
+            circle.vy *= -1;
+        }
 
         glClear(GL_COLOR_BUFFER_BIT);
+        glUniform2f(pixelOffsetLocation, circle.x, circle.y);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        //////////////////
+        // SWAP BUFFERS
+        //////////////////
+
         SwapBuffers(deviceContext);
     }
 
