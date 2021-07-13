@@ -66,6 +66,8 @@ struct {
     struct {
         int x;
         int y;
+        int lastX;
+        int lastY;
     } mouse;
     int selectedCircleIndex;
 } programState = {
@@ -155,6 +157,8 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
                 }
             }
 
+            programState.mouse.lastX = x;
+            programState.mouse.lastY = y;
             programState.mouse.x = x;
             programState.mouse.y = y;
             return 0;
@@ -497,8 +501,11 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         if (programState.selectedCircleIndex > -1) {
             circle c;
             getCircle(programState.selectedCircleIndex, &c);
-            c.x = (float) programState.mouse.x;
-            c.y = (float) programState.mouse.y;
+            c.x += (float) programState.mouse.x - programState.mouse.lastX;
+            c.y += (float) programState.mouse.y - programState.mouse.lastY;
+
+            programState.mouse.lastX = programState.mouse.x;
+            programState.mouse.lastY = programState.mouse.y;
 
             if (c.x - c.radius < 0) {
                 c.x = c.radius;
