@@ -52,7 +52,7 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args);
 /////////////////////////////////////
 
 #define DECLARE_WGL_EXT_FUNC(returnType, name, ...) typedef returnType (WINAPI *name##FUNC)(__VA_ARGS__);\
-    name##FUNC name = (name##FUNC)0;
+    static name##FUNC name = (name##FUNC)0;
 #define LOAD_WGL_EXT_FUNC(name) name = (name##FUNC) wglGetProcAddress(#name)
 
 /////////////////////////////////////
