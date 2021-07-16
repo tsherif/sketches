@@ -50,6 +50,8 @@
 typedef struct {
     float* data;
     GLuint buffer;
+    GLuint itemSize;
+    GLenum usage;
 } buffer;
 
 typedef struct circle {
@@ -73,7 +75,20 @@ struct {
         float* data;
         size_t count;
     } storage;
-} circles;
+} circles = {
+    .offset = {
+        .itemSize = 2,
+        .usage = GL_DYNAMIC_DRAW
+    },
+    .color = {
+        .itemSize = 3,
+        .usage = GL_DYNAMIC_DRAW
+    },
+    .radius = {
+        .itemSize = 1,
+        .usage = GL_DYNAMIC_DRAW
+    }
+};
 
 struct {
     int x;
@@ -87,7 +102,8 @@ void checkStorage(size_t count) {
     }
 
     // 2 for offset, 3 for color, 1 for radius
-    size_t newCount = circles.storage.count > 0 ? circles.storage.count * 2 : 1;
+    size_t oldCount = circles.storage.count;
+    size_t newCount = oldCount > 0 ? oldCount * 2 : 1;
     while (newCount < count) {
         newCount *= 2;
     }
@@ -98,9 +114,9 @@ void checkStorage(size_t count) {
     float* radiusPtr = colorPtr + 3 * newCount;
 
     if (circles.storage.data) {
-        memcpy(offsetPtr, circles.offset.data, circles.storage.count * 2 * sizeof(float));
-        memcpy(colorPtr, circles.color.data, circles.storage.count * 3 * sizeof(float));
-        memcpy(radiusPtr, circles.radius.data, circles.storage.count * sizeof(float));
+        memcpy(offsetPtr, circles.offset.data, oldCount * circles.offset.itemSize * sizeof(float));
+        memcpy(colorPtr, circles.color.data, oldCount * circles.color.itemSize * sizeof(float));
+        memcpy(radiusPtr, circles.radius.data, oldCount *  circles.radius.itemSize * sizeof(float));
         free(circles.storage.data);
     }
 
@@ -109,6 +125,11 @@ void checkStorage(size_t count) {
     circles.offset.data = offsetPtr;
     circles.color.data = colorPtr;
     circles.radius.data = radiusPtr;
+}
+
+void flushBuffer(buffer* b, GLsizei count) {
+    glBindBuffer(GL_ARRAY_BUFFER, b->buffer);
+    glBufferData(GL_ARRAY_BUFFER, count * b->itemSize * sizeof(float), b->data, b->usage);
 }
 
 float randomRange(float min, float max) {
@@ -356,12 +377,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
         if (mouse.clicked) {
             addCircle((float) mouse.x, (float) mouse.y);
-            glBindBuffer(GL_ARRAY_BUFFER, circles.offset.buffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * 2 * sizeof(float), circles.offset.data, GL_DYNAMIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, circles.color.buffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * 3 * sizeof(float), circles.color.data, GL_DYNAMIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, circles.radius.buffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * sizeof(float), circles.radius.data, GL_DYNAMIC_DRAW);
+            flushBuffer(&circles.offset, circles.count);
+            flushBuffer(&circles.color, circles.count);
+            flushBuffer(&circles.radius, circles.count);
             mouse.clicked = false;
         }
 
