@@ -3,6 +3,10 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
 	TCHAR* title;
 	int majorVersion;
@@ -200,5 +204,9 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args) {
 }
 
 #endif // CREATE_OPENGL_WINDOW_IMPLEMENTATION
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CREATE_OPENGL_WINDOW_H

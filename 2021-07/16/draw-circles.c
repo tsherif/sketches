@@ -47,10 +47,10 @@
 #define WINDOW_HEIGHT 600
 #define CIRCLES_INITIAL_SIZE 32
 
-struct {
+typedef struct {
     float* data;
-    size_t count;
-} circleStorage;
+    GLuint buffer;
+} buffer;
 
 typedef struct circle {
     float x;
@@ -65,10 +65,14 @@ struct {
 } canvas;
 
 struct {
-    float* offset;
-    float* color;
-    float* radius;
+    buffer offset;
+    buffer color;
+    buffer radius;
     GLsizei count;
+    struct {
+        float* data;
+        size_t count;
+    } storage;
 } circles;
 
 struct {
@@ -78,12 +82,12 @@ struct {
 } mouse;
 
 void checkStorage(size_t count) {
-    if (circleStorage.count >= count) {
+    if (circles.storage.count >= count) {
         return;
     }
 
     // 2 for offset, 3 for color, 1 for radius
-    size_t newCount = circleStorage.count > 0 ? circleStorage.count * 2 : 1;
+    size_t newCount = circles.storage.count > 0 ? circles.storage.count * 2 : 1;
     while (newCount < count) {
         newCount *= 2;
     }
@@ -93,18 +97,18 @@ void checkStorage(size_t count) {
     float* colorPtr = offsetPtr + 2 * newCount;
     float* radiusPtr = colorPtr + 3 * newCount;
 
-    if (circleStorage.data) {
-        memcpy(offsetPtr, circles.offset, circleStorage.count * 2 * sizeof(float));
-        memcpy(colorPtr, circles.color, circleStorage.count * 3 * sizeof(float));
-        memcpy(radiusPtr, circles.radius, circleStorage.count * sizeof(float));
-        free(circleStorage.data);
+    if (circles.storage.data) {
+        memcpy(offsetPtr, circles.offset.data, circles.storage.count * 2 * sizeof(float));
+        memcpy(colorPtr, circles.color.data, circles.storage.count * 3 * sizeof(float));
+        memcpy(radiusPtr, circles.radius.data, circles.storage.count * sizeof(float));
+        free(circles.storage.data);
     }
 
-    circleStorage.data = newData;
-    circleStorage.count = newCount;
-    circles.offset = offsetPtr;
-    circles.color = colorPtr;
-    circles.radius = radiusPtr;
+    circles.storage.data = newData;
+    circles.storage.count = newCount;
+    circles.offset.data = offsetPtr;
+    circles.color.data = colorPtr;
+    circles.radius.data = radiusPtr;
 }
 
 float randomRange(float min, float max) {
@@ -116,24 +120,24 @@ void getCircle(size_t i, circle* c) {
     size_t pi = 2 * i;
     size_t ci = 3 * i;
 
-    c->x        = circles.offset[pi]; 
-    c->y        = circles.offset[pi + 1]; 
-    c->color[0] = circles.color[ci];
-    c->color[1] = circles.color[ci + 1];
-    c->color[2] = circles.color[ci + 2];
-    c->radius   = circles.radius[i];
+    c->x        = circles.offset.data[pi]; 
+    c->y        = circles.offset.data[pi + 1]; 
+    c->color[0] = circles.color.data[ci];
+    c->color[1] = circles.color.data[ci + 1];
+    c->color[2] = circles.color.data[ci + 2];
+    c->radius   = circles.radius.data[i];
 }
 
 void setCircle(size_t i, circle* c) {
     size_t pi = 2 * i;
     size_t ci = 3 * i;
 
-    circles.offset[pi]       = c->x; 
-    circles.offset[pi + 1]   = c->y; 
-    circles.color[ci]        = c->color[0];
-    circles.color[ci + 1]    = c->color[1];
-    circles.color[ci + 2]    = c->color[2];
-    circles.radius[i]        = c->radius;
+    circles.offset.data[pi]       = c->x; 
+    circles.offset.data[pi + 1]   = c->y; 
+    circles.color.data[ci]        = c->color[0];
+    circles.color.data[ci + 1]    = c->color[1];
+    circles.color.data[ci + 2]    = c->color[2];
+    circles.radius.data[i]        = c->radius;
 }
 
 void addCircle(float x, float y) {
@@ -288,6 +292,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     checkStorage(CIRCLES_INITIAL_SIZE);
 
+    GLuint instanceBuffers[3];
+    glGenBuffers(3, instanceBuffers);
+
+    circles.offset.buffer = instanceBuffers[0];
+    circles.color.buffer  = instanceBuffers[1];
+    circles.radius.buffer = instanceBuffers[2];
+
     GLuint positionBuffer;
     glGenBuffers(1, &positionBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
@@ -295,23 +306,17 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
 
-    GLuint offsetBuffer;
-    glGenBuffers(1, &offsetBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, offsetBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, circles.offset.buffer);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glVertexAttribDivisor(1, 1);
     glEnableVertexAttribArray(1);
 
-    GLuint colorBuffer;
-    glGenBuffers(1, &colorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, circles.color.buffer);
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glVertexAttribDivisor(2, 1);
     glEnableVertexAttribArray(2);
 
-    GLuint radiusBuffer;
-    glGenBuffers(1, &radiusBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, radiusBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, circles.radius.buffer);
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 0, NULL);
     glVertexAttribDivisor(3, 1);
     glEnableVertexAttribArray(3);
@@ -351,12 +356,12 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
         if (mouse.clicked) {
             addCircle((float) mouse.x, (float) mouse.y);
-            glBindBuffer(GL_ARRAY_BUFFER, offsetBuffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * 2 * sizeof(float), circles.offset, GL_DYNAMIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * 3 * sizeof(float), circles.color, GL_DYNAMIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, radiusBuffer);
-            glBufferData(GL_ARRAY_BUFFER, circles.count * sizeof(float), circles.radius, GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, circles.offset.buffer);
+            glBufferData(GL_ARRAY_BUFFER, circles.count * 2 * sizeof(float), circles.offset.data, GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, circles.color.buffer);
+            glBufferData(GL_ARRAY_BUFFER, circles.count * 3 * sizeof(float), circles.color.data, GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, circles.radius.buffer);
+            glBufferData(GL_ARRAY_BUFFER, circles.count * sizeof(float), circles.radius.data, GL_DYNAMIC_DRAW);
             mouse.clicked = false;
         }
 
