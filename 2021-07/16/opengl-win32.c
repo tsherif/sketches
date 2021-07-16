@@ -43,6 +43,8 @@
 #include "create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
 
+#define WINDOW_WIDTH 800
+#define WINDOW_HEIGHT 600
 #define CIRCLES_INITIAL_SIZE 32
 
 struct {
@@ -58,32 +60,22 @@ typedef struct circle {
 } circle;
 
 struct {
-    struct {
-        uint32_t width;
-        uint32_t height;
-    } window;
-    struct {
-        struct {
-            float* offset;
-            float* color;
-            float* radius;
-            GLsizei count;
-        } circles;
-    } gl;
-    struct {
-        int x;
-        int y;
-        bool clicked;
-    } mouse;
-} programState = {
-    .window = {
-        .width = 800,
-        .height = 600
-    },
-    .gl = {
-        .circles = { 0 }
-    }
-};
+    uint32_t width;
+    uint32_t height;
+} canvas;
+
+struct {
+    float* offset;
+    float* color;
+    float* radius;
+    GLsizei count;
+} circles;
+
+struct {
+    int x;
+    int y;
+    bool clicked;
+} mouse;
 
 void checkStorage(size_t count) {
     if (circleStorage.count >= count) {
@@ -102,17 +94,17 @@ void checkStorage(size_t count) {
     float* radiusPtr = colorPtr + 3 * newCount;
 
     if (circleStorage.data) {
-        memcpy(offsetPtr, programState.gl.circles.offset, circleStorage.count * 2 * sizeof(float));
-        memcpy(colorPtr, programState.gl.circles.color, circleStorage.count * 3 * sizeof(float));
-        memcpy(radiusPtr, programState.gl.circles.radius, circleStorage.count * sizeof(float));
+        memcpy(offsetPtr, circles.offset, circleStorage.count * 2 * sizeof(float));
+        memcpy(colorPtr, circles.color, circleStorage.count * 3 * sizeof(float));
+        memcpy(radiusPtr, circles.radius, circleStorage.count * sizeof(float));
         free(circleStorage.data);
     }
 
     circleStorage.data = newData;
     circleStorage.count = newCount;
-    programState.gl.circles.offset = offsetPtr;
-    programState.gl.circles.color = colorPtr;
-    programState.gl.circles.radius = radiusPtr;
+    circles.offset = offsetPtr;
+    circles.color = colorPtr;
+    circles.radius = radiusPtr;
 }
 
 float randomRange(float min, float max) {
@@ -124,28 +116,28 @@ void getCircle(size_t i, circle* c) {
     size_t pi = 2 * i;
     size_t ci = 3 * i;
 
-    c->x        = programState.gl.circles.offset[pi]; 
-    c->y        = programState.gl.circles.offset[pi + 1]; 
-    c->color[0] = programState.gl.circles.color[ci];
-    c->color[1] = programState.gl.circles.color[ci + 1];
-    c->color[2] = programState.gl.circles.color[ci + 2];
-    c->radius   = programState.gl.circles.radius[i];
+    c->x        = circles.offset[pi]; 
+    c->y        = circles.offset[pi + 1]; 
+    c->color[0] = circles.color[ci];
+    c->color[1] = circles.color[ci + 1];
+    c->color[2] = circles.color[ci + 2];
+    c->radius   = circles.radius[i];
 }
 
 void setCircle(size_t i, circle* c) {
     size_t pi = 2 * i;
     size_t ci = 3 * i;
 
-    programState.gl.circles.offset[pi]       = c->x; 
-    programState.gl.circles.offset[pi + 1]   = c->y; 
-    programState.gl.circles.color[ci]        = c->color[0];
-    programState.gl.circles.color[ci + 1]    = c->color[1];
-    programState.gl.circles.color[ci + 2]    = c->color[2];
-    programState.gl.circles.radius[i]        = c->radius;
+    circles.offset[pi]       = c->x; 
+    circles.offset[pi + 1]   = c->y; 
+    circles.color[ci]        = c->color[0];
+    circles.color[ci + 1]    = c->color[1];
+    circles.color[ci + 2]    = c->color[2];
+    circles.radius[i]        = c->radius;
 }
 
 void addCircle(float x, float y) {
-    checkStorage(programState.gl.circles.count + 1);
+    checkStorage(circles.count + 1);
 
     circle c;
     c.x = x;
@@ -155,8 +147,8 @@ void addCircle(float x, float y) {
     c.color[1] = randomRange(0.0f, 1.0f);
     c.color[2] = randomRange(0.0f, 1.0f);
 
-    setCircle(programState.gl.circles.count, &c);
-    ++programState.gl.circles.count;
+    setCircle(circles.count, &c);
+    ++circles.count;
 }
 
 ////////////////
@@ -168,14 +160,14 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
         case WM_SIZING: {
             RECT clientRect;
             GetClientRect(window, &clientRect); 
-            programState.window.width = clientRect.right - clientRect.left;
-            programState.window.height = clientRect.bottom - clientRect.top;
+            canvas.width = clientRect.right - clientRect.left;
+            canvas.height = clientRect.bottom - clientRect.top;
             return 0;
         } break;
         case WM_LBUTTONUP: {
-            programState.mouse.x = GET_X_LPARAM(lParam);
-            programState.mouse.y = GET_Y_LPARAM(lParam);
-            programState.mouse.clicked = true;
+            mouse.x = GET_X_LPARAM(lParam);
+            mouse.y = GET_Y_LPARAM(lParam);
+            mouse.clicked = true;
             return 0;
         } break;
         case WM_CLOSE: {
@@ -193,8 +185,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         .majorVersion = SOGL_MAJOR_VERSION, 
         .minorVersion = SOGL_MINOR_VERSION,
         .winCallback = winProc,
-        .width = programState.window.width,
-        .height = programState.window.height
+        .width = WINDOW_WIDTH,
+        .height = WINDOW_HEIGHT
     });
     
     if (!sogl_loadOpenGL()) {
@@ -211,8 +203,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     RECT clientRect;
     GetClientRect(window, &clientRect); 
-    programState.window.width = clientRect.right - clientRect.left;
-    programState.window.height = clientRect.bottom - clientRect.top;
+    canvas.width = clientRect.right - clientRect.left;
+    canvas.height = clientRect.bottom - clientRect.top;
 
     ///////////////////////////
     // Set up GL resources
@@ -357,21 +349,21 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             }
         }
 
-        if (programState.mouse.clicked) {
-            addCircle((float) programState.mouse.x, (float) programState.mouse.y);
+        if (mouse.clicked) {
+            addCircle((float) mouse.x, (float) mouse.y);
             glBindBuffer(GL_ARRAY_BUFFER, offsetBuffer);
-            glBufferData(GL_ARRAY_BUFFER, programState.gl.circles.count * 2 * sizeof(float), programState.gl.circles.offset, GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, circles.count * 2 * sizeof(float), circles.offset, GL_DYNAMIC_DRAW);
             glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-            glBufferData(GL_ARRAY_BUFFER, programState.gl.circles.count * 3 * sizeof(float), programState.gl.circles.color, GL_DYNAMIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, circles.count * 3 * sizeof(float), circles.color, GL_DYNAMIC_DRAW);
             glBindBuffer(GL_ARRAY_BUFFER, radiusBuffer);
-            glBufferData(GL_ARRAY_BUFFER, programState.gl.circles.count * sizeof(float), programState.gl.circles.radius, GL_DYNAMIC_DRAW);
-            programState.mouse.clicked = false;
+            glBufferData(GL_ARRAY_BUFFER, circles.count * sizeof(float), circles.radius, GL_DYNAMIC_DRAW);
+            mouse.clicked = false;
         }
 
-        glViewport(0, 0, programState.window.width, programState.window.height);
-        glUniform2f(pixelSizeLocation, 2.0f / programState.window.width, 2.0f / programState.window.height);
+        glViewport(0, 0, canvas.width, canvas.height);
+        glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
         glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, programState.gl.circles.count);
+        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
 
         //////////////////
         // SWAP BUFFERS
