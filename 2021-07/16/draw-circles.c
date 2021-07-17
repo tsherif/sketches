@@ -61,11 +61,6 @@ typedef struct circle {
     float radius;
 } circle;
 
-struct {
-    uint32_t width;
-    uint32_t height;
-} canvas;
-
 typedef struct {
     buffer offset;
     buffer color;
@@ -77,11 +72,33 @@ typedef struct {
     } storage;
 } CircleData;
 
-struct {
+static struct {
+    uint32_t width;
+    uint32_t height;
+} canvas;
+
+static struct {
     int x;
     int y;
     bool clicked;
 } mouse;
+
+static GLuint pixelSizeLocation;
+
+CircleData circles = {
+    .offset = {
+        .itemSize = 2,
+        .usage = GL_DYNAMIC_DRAW
+    },
+    .color = {
+        .itemSize = 3,
+        .usage = GL_DYNAMIC_DRAW
+    },
+    .radius = {
+        .itemSize = 1,
+        .usage = GL_DYNAMIC_DRAW
+    }
+};
 
 void checkStorage(CircleData* circles, size_t count) {
     if (circles->storage.count >= count) {
@@ -162,6 +179,13 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
             GetClientRect(window, &clientRect); 
             canvas.width = clientRect.right - clientRect.left;
             canvas.height = clientRect.bottom - clientRect.top;
+            glViewport(0, 0, canvas.width, canvas.height);
+            glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
+            HDC deviceContext = GetDC(window);
+            glClear(GL_COLOR_BUFFER_BIT);
+            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
+            SwapBuffers(deviceContext);
+            return 0;
             return 0;
         } break;
         case WM_LBUTTONUP: {
@@ -272,23 +296,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
 
     glUseProgram(program);
-    GLuint colorLocation = glGetUniformLocation(program, "color");
-    GLuint pixelSizeLocation = glGetUniformLocation(program, "pixelSize");    
-
-    CircleData circles = {
-        .offset = {
-            .itemSize = 2,
-            .usage = GL_DYNAMIC_DRAW
-        },
-        .color = {
-            .itemSize = 3,
-            .usage = GL_DYNAMIC_DRAW
-        },
-        .radius = {
-            .itemSize = 1,
-            .usage = GL_DYNAMIC_DRAW
-        }
-    };
+    pixelSizeLocation = glGetUniformLocation(program, "pixelSize");
 
     float positions[] = {
         -1.0f, -1.0f,
@@ -332,6 +340,9 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     glVertexAttribDivisor(3, 1);
     glEnableVertexAttribArray(3);
 
+    glViewport(0, 0, canvas.width, canvas.height);
+    glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
+
     ///////////////////
     // Display window
     ///////////////////
@@ -355,7 +366,8 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     bool running = true;
     while (running) {
         QueryPerformanceCounter(&startTicks);
-        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
+        int count = 0;
+        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE) && count < 100) {
             TranslateMessage(&message);
             DispatchMessage(&message);
 
@@ -363,6 +375,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
                 running = false; 
                 break;
             }
+            count++;
         }
 
         if (mouse.clicked) {
@@ -373,8 +386,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             mouse.clicked = false;
         }
 
-        glViewport(0, 0, canvas.width, canvas.height);
-        glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
 
@@ -398,7 +409,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
         if (ticks == 600) {
             char buffer[1024];
-            snprintf(buffer, 1024, "Bouncing Balls OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
+            snprintf(buffer, 1024, "Drawing Balls OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
             SetWindowTextA(window, buffer);
             totalTime = 0.0f;
             ticks = 0;

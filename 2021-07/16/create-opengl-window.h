@@ -76,7 +76,7 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args) {
         .hIcon = LoadIcon(instance, IDI_APPLICATION),
         .hIconSm = LoadIcon(instance, IDI_APPLICATION),
         .hCursor = LoadCursor(NULL, IDC_ARROW),
-        .hbrBackground = (HBRUSH)(COLOR_WINDOW + 1),
+        .hbrBackground = NULL,
         .lpszClassName = WIN_CLASS_NAME
     };
 
