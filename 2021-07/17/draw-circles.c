@@ -21,11 +21,6 @@
 * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 **********************************************************************************/
 
-//////////////////////////////////////////////////////
-// Example of basic usage of Simple OpenGL 
-// Loader with Win32 using SOGL_IMPLEMENTATION_WIN32
-//////////////////////////////////////////////////////
-
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
