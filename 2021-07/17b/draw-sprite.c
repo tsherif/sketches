@@ -50,6 +50,7 @@ static GLuint panelPixelSizeLocation;
 static GLuint spriteSheetLocation;
 static GLuint spriteSheetDimensionsLocation;
 static GLuint panelIndexLocation;
+static GLuint pixelOffsetLocation;
 
 static int animationPanel = 0;
 static int currentAnimation = 0;
@@ -59,6 +60,7 @@ void init(void) {
 
     const char* vsSource = "#version 450\n"
     "layout (location=0) in vec2 position;\n"
+    "uniform vec2 pixelOffset;\n"
     "uniform vec2 pixelSize;\n"
     "uniform vec2 panelPixelSize;\n"
     "uniform vec2 panelIndex;\n"
@@ -66,7 +68,8 @@ void init(void) {
     "out vec2 vUV;\n"
     "void main() {\n"
     "    vUV = (position + panelIndex) / spriteSheetDimensions;\n"
-    "    gl_Position = vec4((position * panelPixelSize * pixelSize * 4.0 - 1.0) * vec2(1.0, -1.0), 0.0, 1.0);\n"
+    "    vec2 clipOffset = pixelOffset * pixelSize - 1.0;\n"
+    "    gl_Position = vec4((position * panelPixelSize * pixelSize * 4.0 + clipOffset) * vec2(1.0, -1.0), 0.0, 1.0);\n"
     "}\n";
 
     const char* fsSource = "#version 450\n"
@@ -112,9 +115,11 @@ void init(void) {
     spriteSheetLocation = glGetUniformLocation(program, "spriteSheet");
     spriteSheetDimensionsLocation = glGetUniformLocation(program, "spriteSheetDimensions");
     panelIndexLocation = glGetUniformLocation(program, "panelIndex");
+    pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
 
     glUniform2f(panelPixelSizeLocation, 24.0f, 24.0f);
     glUniform2f(spriteSheetDimensionsLocation, 24.0f, 1.0f);
+    glUniform2f(pixelOffsetLocation, 300.0f, 200.0f);
 
     float positions[] = {
         0.0f, 0.0f,

@@ -52,7 +52,7 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
 int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showWindow) {
     HWND window = createOpenGLWindow( &(CreateOpenGLWindowArgs) {
-        .title = L"Bouncing Balls OpenGL Win32 Example", 
+        .title = L"Drawing Sprites OpenGL Win32 Example", 
         .majorVersion = SOGL_MAJOR_VERSION, 
         .minorVersion = SOGL_MINOR_VERSION,
         .winCallback = winProc,
@@ -135,7 +135,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
         if (ticks == 600) {
             char buffer[1024];
-            snprintf(buffer, 1024, "Drawing Balls OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
+            snprintf(buffer, 1024, "Drawing Sprites OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
             SetWindowTextA(window, buffer);
             totalTime = 0.0f;
             ticks = 0;
