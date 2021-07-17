@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <string.h>
 #include "../../lib/simple-opengl-loader.h"
@@ -84,6 +85,7 @@ static struct {
 } canvas;
 
 static GLuint pixelSizeLocation;
+static bool circleAdded = false;
 
 void checkStorage(size_t count) {
     if (circles.storage.count >= count) {
@@ -315,6 +317,13 @@ void draw(void) {
     }
 
     flushBuffer(&circles.offset, circles.count);
+
+    if (circleAdded) {
+        flushBuffer(&circles.color, circles.count);
+        flushBuffer(&circles.radius, circles.count);
+        circleAdded = false;
+    }
+
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
 }
@@ -329,7 +338,5 @@ void resize(int width, int height) {
 
 void mouseClick(int x, int y) {
     addCircle((float) x, (float) y);
-    flushBuffer(&circles.offset, circles.count);
-    flushBuffer(&circles.color, circles.count);
-    flushBuffer(&circles.radius, circles.count);
+    circleAdded = true;
 }

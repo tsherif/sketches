@@ -63,7 +63,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         const char **failures = sogl_getFailures();
         while (*failures) {
             char debugMessage[256];
-            snprintf(debugMessage, 256, "SOGL WIN32 EXAMPLE: Failed to load function %s\n", *failures);
+            snprintf(debugMessage, 256, "SOGL: Failed to load function %s\n", *failures);
             OutputDebugStringA(debugMessage);
             failures++;
         }
