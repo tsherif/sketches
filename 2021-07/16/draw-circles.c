@@ -26,25 +26,12 @@
 // Loader with Win32 using SOGL_IMPLEMENTATION_WIN32
 //////////////////////////////////////////////////////
 
-#define WIN32_LEAN_AND_MEAN
-#define SOGL_MAJOR_VERSION 4
-#define SOGL_MINOR_VERSION 5
-#define SOGL_IMPLEMENTATION_WIN32
-#define CREATE_OPENGL_WINDOW_IMPLEMENTATION
-#include <windows.h>
-#include <windowsx.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <time.h>
-#include <profileapi.h>
 #include <string.h>
-#include "create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
 
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
 #define CIRCLES_INITIAL_SIZE 32
 
 typedef struct {
@@ -76,12 +63,6 @@ static struct {
     uint32_t width;
     uint32_t height;
 } canvas;
-
-static struct {
-    int x;
-    int y;
-    bool clicked;
-} mouse;
 
 static GLuint pixelSizeLocation;
 
@@ -168,72 +149,7 @@ void addCircle(CircleData* circles, float x, float y) {
     ++circles->count;
 }
 
-////////////////
-// WIN32 setup
-////////////////
-
-LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-        case WM_SIZING: {
-            RECT clientRect;
-            GetClientRect(window, &clientRect); 
-            canvas.width = clientRect.right - clientRect.left;
-            canvas.height = clientRect.bottom - clientRect.top;
-            glViewport(0, 0, canvas.width, canvas.height);
-            glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
-            HDC deviceContext = GetDC(window);
-            glClear(GL_COLOR_BUFFER_BIT);
-            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
-            SwapBuffers(deviceContext);
-            return 0;
-            return 0;
-        } break;
-        case WM_LBUTTONUP: {
-            mouse.x = GET_X_LPARAM(lParam);
-            mouse.y = GET_Y_LPARAM(lParam);
-            mouse.clicked = true;
-            return 0;
-        } break;
-        case WM_CLOSE: {
-            PostQuitMessage(0);
-            return 0;
-        } break;
-    }
-
-    return DefWindowProc(window, message, wParam, lParam);
-}
-
-int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showWindow) {
-    HWND window = createOpenGLWindow( &(CreateOpenGLWindowArgs) {
-        .title = L"Bouncing Balls OpenGL Win32 Example", 
-        .majorVersion = SOGL_MAJOR_VERSION, 
-        .minorVersion = SOGL_MINOR_VERSION,
-        .winCallback = winProc,
-        .width = WINDOW_WIDTH,
-        .height = WINDOW_HEIGHT
-    });
-    
-    if (!sogl_loadOpenGL()) {
-        const char **failures = sogl_getFailures();
-        while (*failures) {
-            char debugMessage[256];
-            snprintf(debugMessage, 256, "SOGL WIN32 EXAMPLE: Failed to load function %s\n", *failures);
-            OutputDebugStringA(debugMessage);
-            failures++;
-        }
-    }
-
-    srand((unsigned int) time(NULL));
-
-    RECT clientRect;
-    GetClientRect(window, &clientRect); 
-    canvas.width = clientRect.right - clientRect.left;
-    canvas.height = clientRect.bottom - clientRect.top;
-
-    ///////////////////////////
-    // Set up GL resources
-    ///////////////////////////
-
+void init(void) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     const char* vsSource = "#version 450\n"
@@ -340,81 +256,23 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     glVertexAttribDivisor(3, 1);
     glEnableVertexAttribArray(3);
 
-    glViewport(0, 0, canvas.width, canvas.height);
-    glUniform2f(pixelSizeLocation, 2.0f / canvas.width, 2.0f / canvas.height);
+    srand((unsigned int) time(NULL));
+}
 
-    ///////////////////
-    // Display window
-    ///////////////////
+void draw(void) {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
+}
 
-    ShowWindow(window, showWindow);
-    HDC deviceContext = GetDC(window);
+void resize(int width, int height) {
+   glViewport(0, 0, width, height);
+   glUniform2f(pixelSizeLocation, 2.0f / width, 2.0f / height);
+   draw(); 
+}
 
-    //////////////////////////////////
-    // Start render and message loop
-    //////////////////////////////////
-
-    MSG message;
-    LARGE_INTEGER startTicks, endTicks, elapsedTime, tickFrequency;
-    QueryPerformanceFrequency(&tickFrequency);
-    uint32_t ticks = 0;
-    float frameTime = 0.0f;
-    float totalTime = 0.0f;
-    float averageTime = 0.0f;
-    float minTime = 10000.0f;
-    float maxTime = -10000.0f;
-    bool running = true;
-    while (running) {
-        QueryPerformanceCounter(&startTicks);
-        int count = 0;
-        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE) && count < 100) {
-            TranslateMessage(&message);
-            DispatchMessage(&message);
-
-            if (message.message == WM_QUIT) {
-                running = false; 
-                break;
-            }
-            count++;
-        }
-
-        if (mouse.clicked) {
-            addCircle(&circles, (float) mouse.x, (float) mouse.y);
-            flushBuffer(&circles.offset, circles.count);
-            flushBuffer(&circles.color, circles.count);
-            flushBuffer(&circles.radius, circles.count);
-            mouse.clicked = false;
-        }
-
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, circles.count);
-
-        //////////////////
-        // SWAP BUFFERS
-        //////////////////
-
-        SwapBuffers(deviceContext);
-        QueryPerformanceCounter(&endTicks);
-
-        elapsedTime.QuadPart = (endTicks.QuadPart - startTicks.QuadPart) * 1000000;
-        elapsedTime.QuadPart /= tickFrequency.QuadPart;
-
-        frameTime = elapsedTime.QuadPart / 1000.0f;
-        ++ticks;
-
-        totalTime += frameTime;
-        averageTime = totalTime / ticks;
-        minTime = frameTime < minTime ? frameTime : minTime;
-        maxTime = frameTime > maxTime ? frameTime : maxTime;
-
-        if (ticks == 600) {
-            char buffer[1024];
-            snprintf(buffer, 1024, "Drawing Balls OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
-            SetWindowTextA(window, buffer);
-            totalTime = 0.0f;
-            ticks = 0;
-        }
-    }
-
-    return (int) message.wParam;
+void mouseClick(int x, int y) {
+    addCircle(&circles, (float) x, (float) y);
+    flushBuffer(&circles.offset, circles.count);
+    flushBuffer(&circles.color, circles.count);
+    flushBuffer(&circles.radius, circles.count);
 }
