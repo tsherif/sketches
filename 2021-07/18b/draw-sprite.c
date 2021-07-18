@@ -239,12 +239,10 @@ void update(void) {
 
     if (sprite.position[0] < 0.0f) {
         sprite.position[0] = 0.0f;
-        setState(IDLE_LEFT);
     }
 
     if (sprite.position[0] + sprite.panelDims[0] > canvas.width) {
         sprite.position[0] = canvas.width - sprite.panelDims[0];
-        setState(IDLE_RIGHT);
     }
 
 
