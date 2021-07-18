@@ -35,6 +35,15 @@ static struct {
     uint32_t height;
 } canvas;
 
+int animations[][2]  = {
+    {0, 4},
+    {4, 6},
+    {10, 3},
+    {13, 4},
+    {17, 1},
+    {18, 6}
+};
+
 static struct {
     float position[2];
     float velocity[2];
@@ -45,21 +54,15 @@ static struct {
     float panelDims[2];
     float spriteSheetDims[2];
     int numAnimations;
-    int animations[5][2];
+    int (* animations)[2];
 } sprite = {
     .currentAnimation = 1,
     .position = { 100.0f, 200.0f },
     .velocity = { 1.0f, 0.0f },
-    .animations = {
-        {0, 4},
-        {4, 6},
-        {10, 3},
-        {13, 4},
-        {17, 7}
-    },
     .panelDims = { 96.0f, 96.0f },
     .spriteSheetDims = { 24.0f, 1.0f },
-    .numAnimations = 5
+    .animations = animations,
+    .numAnimations = sizeof(animations) / sizeof(animations[0])
 };
 
 static GLuint pixelSizeLocation;
@@ -218,7 +221,7 @@ void resize(int width, int height) {
 }
 
 void mouseClick(int x, int y) {
-    sprite.currentAnimation = sprite.currentAnimation == 1 ? 4 : 1;
+    sprite.currentAnimation = sprite.currentAnimation == 1 ? 5 : 1;
     float vx = sprite.currentAnimation == 1 ? 1.0f : 2.0f;
     if (sprite.velocity[0] < 0.0f) {
         vx *= -1.0f;
