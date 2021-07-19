@@ -8,6 +8,7 @@ typedef struct {
 	bool down;
 	bool space;
 	bool ctrl;
+	bool changed;
 } Keyboard;
 
 typedef struct {

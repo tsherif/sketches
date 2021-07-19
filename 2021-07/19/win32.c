@@ -47,6 +47,7 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
                 case VK_SPACE:   inputKeys.space = true; break;
                 case VK_CONTROL: inputKeys.ctrl  = true; break;
             }
+            inputKeys.changed = true;
             return 0;
         } break;
         case WM_KEYUP: {
@@ -58,6 +59,7 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
                 case VK_SPACE:   inputKeys.space = false; break;
                 case VK_CONTROL: inputKeys.ctrl  = false; break;
             }
+            inputKeys.changed = true;
             return 0;
         } break;
         case WM_LBUTTONUP: {
@@ -171,9 +173,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
                     mag /= 32767.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
                     controllerInput.leftStickX = x * mag;
                     controllerInput.leftStickY = y * mag;
-                    char buffer[1024];
-                    snprintf(buffer, 1024, "Input: x = %f, y = %f\n", controllerInput.leftStickX, controllerInput.leftStickY);
-                    OutputDebugStringA(buffer);
                 } else {
                     controllerInput.leftStickX = 0.0f;
                     controllerInput.leftStickY = 0.0f;
@@ -189,7 +188,10 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             mouse.clicked = false;
         }
 
-        // keyboard(&inputKeys);
+        if (inputKeys.changed) {
+            keyboard(&inputKeys);
+            inputKeys.changed = false;
+        }
 
         update();
         draw();
