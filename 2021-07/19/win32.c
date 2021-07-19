@@ -99,6 +99,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     XINPUT_STATE controllerState;
     int controllerIndex = -1;
+    DWORD lastPacketNumber = 0;
 
     for (int i = 0; i < XUSER_MAX_COUNT; ++i) {
         if (XInputGetState(i, &controllerState) == ERROR_SUCCESS) {
@@ -157,27 +158,30 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             }
         } else if (controllerIndex > -1) {
             if (XInputGetState(controllerIndex, &controllerState) == ERROR_SUCCESS) {
-                float x = controllerState.Gamepad.sThumbLX;
-                float y = controllerState.Gamepad.sThumbLY;
+                if (controllerState.dwPacketNumber != lastPacketNumber) {
+                    float x = controllerState.Gamepad.sThumbLX;
+                    float y = controllerState.Gamepad.sThumbLY;
 
-                float mag = (float) sqrt(x * x + y * y);
-                x /= mag;
-                y /= mag;
+                    float mag = (float) sqrt(x * x + y * y);
+                    x /= mag;
+                    y /= mag;
 
-                if (mag > 32767.0f) {
-                    mag = 32767.0f;
+                    if (mag > 32767.0f) {
+                        mag = 32767.0f;
+                    }
+
+                    if (mag > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) {
+                        mag -= XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
+                        mag /= 32767.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
+                        controllerInput.leftStickX = x * mag;
+                        controllerInput.leftStickY = y * mag;
+                    } else {
+                        controllerInput.leftStickX = 0.0f;
+                        controllerInput.leftStickY = 0.0f;
+                    }
+                    controller(&controllerInput);
+                    lastPacketNumber = controllerState.dwPacketNumber;
                 }
-
-                if (mag > XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE) {
-                    mag -= XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
-                    mag /= 32767.0f - XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
-                    controllerInput.leftStickX = x * mag;
-                    controllerInput.leftStickY = y * mag;
-                } else {
-                    controllerInput.leftStickX = 0.0f;
-                    controllerInput.leftStickY = 0.0f;
-                }
-                controller(&controllerInput);
             } else {
                 controllerIndex = -1;
             }
