@@ -43,7 +43,7 @@ typedef enum {
     WALK_LEFT,
     RUN_RIGHT,
     RUN_LEFT
-} spriteState;
+} DinoState;
 
 int animations[][2]  = {
     {0, 4},
@@ -54,25 +54,34 @@ int animations[][2]  = {
     {18, 6}
 };
 
+typedef struct {
+    float panelDims[2];
+    float sheetDims[2];
+    int (* animations)[2];
+    int numAnimations;
+    GLuint texture;
+} Sprite;
+
 static struct {
     float position[2];
     float velocity[2];
     bool faceLeft;
-    int animationPanel;
-    int panelIndex;
     int currentAnimation;
-    float panelDims[2];
-    float spriteSheetDims[2];
-    int numAnimations;
-    int (* animations)[2];
-    spriteState state;
-} sprite = {
+    int animationTick;
+    int currentSpritePanel;
+    float spriteScale;
+    DinoState state;
+    Sprite sprite;
+} dino = {
     .position = { 100.0f, 200.0f },
     .velocity = { 0.0f, 0.0f },
-    .panelDims = { 96.0f, 96.0f },
-    .spriteSheetDims = { 24.0f, 1.0f },
-    .animations = animations,
-    .numAnimations = sizeof(animations) / sizeof(animations[0])
+    .spriteScale = 4.0,
+    .sprite = {
+        .panelDims = { 24.0f, 24.0f },
+        .sheetDims = { 24.0f, 1.0f },
+        .animations = animations,
+        .numAnimations = sizeof(animations) / sizeof(animations[0])
+    }
 };
 
 static GLuint pixelSizeLocation;
@@ -81,48 +90,49 @@ static GLuint spriteSheetLocation;
 static GLuint spriteSheetDimensionsLocation;
 static GLuint panelIndexLocation;
 static GLuint pixelOffsetLocation;
+static GLuint spriteScaleLocation;
 
-void setState(spriteState state) {
-    if (sprite.state == state) {
+void setState(DinoState state) {
+    if (dino.state == state) {
         return;
     }
 
-    sprite.state = state;
+    dino.state = state;
 
     switch (state) {
         case RUN_LEFT: {
-            sprite.velocity[0] = -2.0f;
-            sprite.faceLeft = true;
-            sprite.currentAnimation = 5;
+            dino.velocity[0] = -2.0f;
+            dino.faceLeft = true;
+            dino.currentAnimation = 5;
         } break;
         case RUN_RIGHT:{
-            sprite.velocity[0] = 2.0f;
-            sprite.faceLeft = false;
-            sprite.currentAnimation = 5;
+            dino.velocity[0] = 2.0f;
+            dino.faceLeft = false;
+            dino.currentAnimation = 5;
         } break;
         case WALK_LEFT: {
-            sprite.velocity[0] = -1.0f;
-            sprite.faceLeft = true;
-            sprite.currentAnimation = 1;
+            dino.velocity[0] = -1.0f;
+            dino.faceLeft = true;
+            dino.currentAnimation = 1;
         } break;
         case WALK_RIGHT: {
-            sprite.velocity[0] = 1.0f;
-            sprite.faceLeft = false;
-            sprite.currentAnimation = 1;
+            dino.velocity[0] = 1.0f;
+            dino.faceLeft = false;
+            dino.currentAnimation = 1;
         } break;
         case IDLE_LEFT: {
-            sprite.velocity[0] = 0.0f;
-            sprite.faceLeft = true;
-            sprite.currentAnimation = 0;
+            dino.velocity[0] = 0.0f;
+            dino.faceLeft = true;
+            dino.currentAnimation = 0;
         } break;
         case IDLE_RIGHT:{
-            sprite.velocity[0] = 0.0f;
-            sprite.faceLeft = false;
-            sprite.currentAnimation = 0;
+            dino.velocity[0] = 0.0f;
+            dino.faceLeft = false;
+            dino.currentAnimation = 0;
         } break;
     }
 
-    sprite.animationPanel = 0;
+    dino.animationTick = 0;
 }
 
 
@@ -134,6 +144,7 @@ void init(void) {
     "uniform vec2 pixelOffset;\n"
     "uniform vec2 pixelSize;\n"
     "uniform vec2 panelPixelSize;\n"
+    "uniform float spriteScale;\n"
     "uniform vec3 panelIndex;\n" // z is whether to flip horizontally
     "uniform vec2 spriteSheetDimensions;\n"
     "out vec2 vUV;\n"
@@ -142,7 +153,7 @@ void init(void) {
     "    if (panelIndex.z == 1.0) uv.x = 1.0 - position.x;\n"
     "    vUV = (uv + panelIndex.xy) / spriteSheetDimensions;\n"
     "    vec2 clipOffset = pixelOffset * pixelSize - 1.0;\n"
-    "    gl_Position = vec4((position * panelPixelSize * pixelSize + clipOffset) * vec2(1.0, -1.0), 0.0, 1.0);\n"
+    "    gl_Position = vec4((position * panelPixelSize * pixelSize * spriteScale + clipOffset) * vec2(1.0, -1.0), 0.0, 1.0);\n"
     "}\n";
 
     const char* fsSource = "#version 450\n"
@@ -189,9 +200,11 @@ void init(void) {
     spriteSheetDimensionsLocation = glGetUniformLocation(program, "spriteSheetDimensions");
     panelIndexLocation = glGetUniformLocation(program, "panelIndex");
     pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
+    spriteScaleLocation = glGetUniformLocation(program, "spriteScale");
 
-    glUniform2fv(panelPixelSizeLocation, 1, sprite.panelDims);
-    glUniform2fv(spriteSheetDimensionsLocation, 1, sprite.spriteSheetDims);
+    glUniform2fv(panelPixelSizeLocation, 1, dino.sprite.panelDims);
+    glUniform2fv(spriteSheetDimensionsLocation, 1, dino.sprite.sheetDims);
+    glUniform1f(spriteScaleLocation, dino.spriteScale);
 
     float positions[] = {
         0.0f, 0.0f,
@@ -214,10 +227,9 @@ void init(void) {
     int imageWidth, imageHeight, imageChannels;
     uint8_t *imageData = stbi_load("dino-sprite.png", &imageWidth, &imageHeight, &imageChannels, 4);
 
-    GLuint spriteTexture;
-    glGenTextures(1, &spriteTexture);
+    glGenTextures(1, &dino.sprite.texture);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, spriteTexture);
+    glBindTexture(GL_TEXTURE_2D, dino.sprite.texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -234,29 +246,29 @@ void init(void) {
 
 static int tick = 0;
 void update(void) {
-    sprite.position[0] += sprite.velocity[0];
-    sprite.position[1] += sprite.velocity[1];
+    dino.position[0] += dino.velocity[0];
+    dino.position[1] += dino.velocity[1];
 
-    if (sprite.position[0] < 0.0f) {
-        sprite.position[0] = 0.0f;
+    if (dino.position[0] < 0.0f) {
+        dino.position[0] = 0.0f;
     }
 
-    if (sprite.position[0] + sprite.panelDims[0] > canvas.width) {
-        sprite.position[0] = canvas.width - sprite.panelDims[0];
+    if (dino.position[0] + dino.sprite.panelDims[0] > canvas.width) {
+        dino.position[0] = canvas.width - dino.sprite.panelDims[0];
     }
 
 
     ++tick;
     if (tick == 20) {
-        int start = sprite.animations[sprite.currentAnimation][0];
-        int count = sprite.animations[sprite.currentAnimation][1];
-        sprite.animationPanel = (sprite.animationPanel + 1) % count;
-        sprite.panelIndex = start + sprite.animationPanel;
+        int start = dino.sprite.animations[dino.currentAnimation][0];
+        int count = dino.sprite.animations[dino.currentAnimation][1];
+        dino.animationTick = (dino.animationTick + 1) % count;
+        dino.currentSpritePanel = start + dino.animationTick;
         tick = 0;
     }
 
-    glUniform2fv(pixelOffsetLocation, 1, sprite.position);
-    glUniform3f(panelIndexLocation, (float) sprite.panelIndex, 0.0f, (float) sprite.faceLeft);
+    glUniform2fv(pixelOffsetLocation, 1, dino.position);
+    glUniform3f(panelIndexLocation, (float) dino.currentSpritePanel, 0.0f, (float) dino.faceLeft);
 }
 
 void draw(void) {
@@ -276,14 +288,14 @@ void mouseClick(int x, int y) {
 }
 
 void keyboard(Keyboard* inputKeys) {
-    spriteState currentState = sprite.state;
+    DinoState currentState = dino.state;
     bool running = inputKeys->ctrl;
     if (inputKeys->left) {
         setState(running ? RUN_LEFT : WALK_LEFT);
     } else if (inputKeys->right) {
         setState(running ? RUN_RIGHT : WALK_RIGHT);
     } else {
-        setState(sprite.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
+        setState(dino.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
     }
 }
 
@@ -297,6 +309,6 @@ void controller(Controller* controllerInput) {
     } else if (controllerInput->leftStickX < 0.0f) {
         setState(WALK_LEFT);
     } else {
-        setState(sprite.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
+        setState(dino.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
     }
 }
