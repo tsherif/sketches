@@ -5,6 +5,7 @@ node_modules
 **/*.pdb
 **/*.ilk
 **/*.res
+**/*.sln
 .vs
 **/*.o
 **/*.so
