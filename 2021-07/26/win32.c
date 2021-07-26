@@ -42,12 +42,22 @@ IXAudio2MasteringVoice* xaudioMasterVoice;
 Sound music;
 Sound jump;
 
-void OnStreamEnd(IXAudio2VoiceCallback* This) { 
+void playJumpSound(void) {
     if (jump.voice) {
-        IXAudio2SourceVoice_Stop(jump.voice, 0, 0);
-        IXAudio2SourceVoice_SubmitSourceBuffer(jump.voice, &jump.buffer, NULL);
-        OutputDebugStringA("Resubmit source buffer.\n");
+        IXAudio2SourceVoice_Stop(jump.voice, 0, XAUDIO2_COMMIT_NOW);
+        IXAudio2SourceVoice_FlushSourceBuffers(jump.voice);
+        IXAudio2SourceVoice_Start(jump.voice, 0, XAUDIO2_COMMIT_NOW);
+        IXAudio2SourceVoice_SubmitSourceBuffer(jump.voice, &jump.buffer, NULL);   
     }
+}
+
+void OnStreamEnd(IXAudio2VoiceCallback* This) { 
+    // if (jump.voice) {
+    //     IXAudio2SourceVoice_FlushSourceBuffers(jump.voice);
+    //     IXAudio2SourceVoice_Stop(jump.voice, 0, 0);
+    //     IXAudio2SourceVoice_SubmitSourceBuffer(jump.voice, &jump.buffer, NULL);
+    //     OutputDebugStringA("Resubmit source buffer.\n");
+    // }
 }
 void OnVoiceProcessingPassEnd(IXAudio2VoiceCallback* This) { }
 void OnVoiceProcessingPassStart(IXAudio2VoiceCallback* This, UINT32 SamplesRequired) { }
@@ -77,56 +87,6 @@ bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
         gp1->sThumbLY == gp2->sThumbLY &&
         gp1->sThumbRX == gp2->sThumbRX &&
         gp1->sThumbRY == gp2->sThumbRY;
-}
-
-LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-        case WM_SIZING: {
-            RECT clientRect;
-            GetClientRect(window, &clientRect); 
-            HDC deviceContext = GetDC(window);
-            resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
-            SwapBuffers(deviceContext);
-            return 0;
-            return 0;
-        } break;
-        case WM_KEYDOWN: {
-            switch (wParam) {
-                case VK_LEFT:    inputKeys.left  = true; break;
-                case VK_RIGHT:   inputKeys.right = true; break;
-                case VK_UP:      inputKeys.up    = true; break;
-                case VK_DOWN:    inputKeys.down  = true; break;
-                case VK_SPACE:   inputKeys.space = true; break;
-                case VK_CONTROL: inputKeys.ctrl  = true; break;
-            }
-            inputKeys.changed = true;
-            return 0;
-        } break;
-        case WM_KEYUP: {
-            switch (wParam) {
-                case VK_LEFT:    inputKeys.left  = false; break;
-                case VK_RIGHT:   inputKeys.right = false; break;
-                case VK_UP:      inputKeys.up    = false; break;
-                case VK_DOWN:    inputKeys.down  = false; break;
-                case VK_SPACE:   inputKeys.space = false; break;
-                case VK_CONTROL: inputKeys.ctrl  = false; break;
-            }
-            inputKeys.changed = true;
-            return 0;
-        } break;
-        case WM_LBUTTONUP: {
-            mouse.x = GET_X_LPARAM(lParam);
-            mouse.y = GET_Y_LPARAM(lParam);
-            mouse.clicked = true;
-            return 0;
-        } break;
-        case WM_CLOSE: {
-            PostQuitMessage(0);
-            return 0;
-        } break;
-    }
-
-    return DefWindowProc(window, message, wParam, lParam);
 }
 
 Sound loadSound(const char* fileName) {
@@ -193,13 +153,62 @@ Sound loadSound(const char* fileName) {
     //     return NULL;
     // }
 
-    comResult = IXAudio2SourceVoice_SubmitSourceBuffer(sound.voice, &sound.buffer, NULL);
-
+    comResult = IXAudio2SourceVoice_Start(sound.voice, 0, XAUDIO2_COMMIT_NOW);
     // if (FAILED(comResult)) {
     //     return NULL;
     // }
 
     return sound;
+}
+
+LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    switch (message) {
+        case WM_SIZING: {
+            RECT clientRect;
+            GetClientRect(window, &clientRect); 
+            HDC deviceContext = GetDC(window);
+            resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+            SwapBuffers(deviceContext);
+            return 0;
+            return 0;
+        } break;
+        case WM_KEYDOWN: {
+            switch (wParam) {
+                case VK_LEFT:    inputKeys.left  = true; break;
+                case VK_RIGHT:   inputKeys.right = true; break;
+                case VK_UP:      inputKeys.up    = true; break;
+                case VK_DOWN:    inputKeys.down  = true; break;
+                case VK_SPACE:   inputKeys.space = true; break;
+                case VK_CONTROL: inputKeys.ctrl  = true; break;
+            }
+            inputKeys.changed = true;
+            return 0;
+        } break;
+        case WM_KEYUP: {
+            switch (wParam) {
+                case VK_LEFT:    inputKeys.left  = false; break;
+                case VK_RIGHT:   inputKeys.right = false; break;
+                case VK_UP:      inputKeys.up    = false; break;
+                case VK_DOWN:    inputKeys.down  = false; break;
+                case VK_SPACE:   inputKeys.space = false; break;
+                case VK_CONTROL: inputKeys.ctrl  = false; break;
+            }
+            inputKeys.changed = true;
+            return 0;
+        } break;
+        case WM_LBUTTONUP: {
+            mouse.x = GET_X_LPARAM(lParam);
+            mouse.y = GET_Y_LPARAM(lParam);
+            mouse.clicked = true;
+            return 0;
+        } break;
+        case WM_CLOSE: {
+            PostQuitMessage(0);
+            return 0;
+        } break;
+    }
+
+    return DefWindowProc(window, message, wParam, lParam);
 }
 
 int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showWindow) {
@@ -263,8 +272,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     music = loadSound("../../audio/music.wav");
     jump = loadSound("../../audio/jump.wav");
-
-    comResult = IXAudio2SourceVoice_Start(music.voice, 0, XAUDIO2_COMMIT_NOW);
+    IXAudio2SourceVoice_SubmitSourceBuffer(music.voice, &music.buffer, NULL);   
 
     if (FAILED(comResult)) {
         return 1;
@@ -341,6 +349,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
                         controllerInput.leftStickX = 0.0f;
                         controllerInput.leftStickY = 0.0f;
                     }
+                    controllerInput.aButton = controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A;
                     controller(&controllerInput);
                     lastGamePadState = controllerState.Gamepad;
                 }
@@ -377,7 +386,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         maxTime = frameTime > maxTime ? frameTime : maxTime;
 
         if (ticks == 600) {
-            IXAudio2SourceVoice_Start(jump.voice, 0, XAUDIO2_COMMIT_NOW);
             char buffer[1024];
             snprintf(buffer, 1024, "Drawing Sprites OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
             SetWindowTextA(window, buffer);

@@ -31,6 +31,11 @@
 #include "../../lib/stb_image.h"
 #include "input.h"
 
+#define GRAVITY (0.2f)
+#define JUMP_FORCE (-5.0f)
+
+void playJumpSound(void);
+
 static struct {
     uint32_t width;
     uint32_t height;
@@ -72,6 +77,7 @@ static struct {
     float spriteScale;
     DinoState state;
     Sprite sprite;
+    bool jumping;
 } dino = {
     .position = { 100.0f, 200.0f },
     .velocity = { 0.0f, 0.0f },
@@ -101,33 +107,21 @@ void setState(DinoState state) {
 
     switch (state) {
         case RUN_LEFT: {
-            dino.velocity[0] = -2.0f;
-            dino.faceLeft = true;
             dino.currentAnimation = 5;
         } break;
         case RUN_RIGHT:{
-            dino.velocity[0] = 2.0f;
-            dino.faceLeft = false;
             dino.currentAnimation = 5;
         } break;
         case WALK_LEFT: {
-            dino.velocity[0] = -1.0f;
-            dino.faceLeft = true;
             dino.currentAnimation = 1;
         } break;
         case WALK_RIGHT: {
-            dino.velocity[0] = 1.0f;
-            dino.faceLeft = false;
             dino.currentAnimation = 1;
         } break;
         case IDLE_LEFT: {
-            dino.velocity[0] = 0.0f;
-            dino.faceLeft = true;
             dino.currentAnimation = 0;
         } break;
         case IDLE_RIGHT:{
-            dino.velocity[0] = 0.0f;
-            dino.faceLeft = false;
             dino.currentAnimation = 0;
         } break;
     }
@@ -245,6 +239,8 @@ void init(void) {
 
 static int tick = 0;
 void update(void) {
+    dino.velocity[1] += GRAVITY;
+
     dino.position[0] += dino.velocity[0];
     dino.position[1] += dino.velocity[1];
 
@@ -256,6 +252,10 @@ void update(void) {
         dino.position[0] = canvas.width - dino.sprite.panelDims[0] * dino.spriteScale;
     }
 
+    if (dino.position[1] + dino.sprite.panelDims[1] * dino.spriteScale > canvas.height) {
+        dino.position[1] = canvas.height - dino.sprite.panelDims[1] * dino.spriteScale;
+        dino.jumping = false;
+    }
 
     ++tick;
     if (tick == 20) {
@@ -299,15 +299,27 @@ void keyboard(Keyboard* inputKeys) {
 }
 
 void controller(Controller* controllerInput) {
-    if (controllerInput->leftStickX > 0.5f) {
+    dino.velocity[0] = 2.0f * controllerInput->leftStickX;
+
+    if (controllerInput->aButton && !dino.jumping) {
+        dino.velocity[1] = JUMP_FORCE;
+        dino.jumping = true;
+        playJumpSound();
+    }
+
+     if (dino.velocity[0] > 1.0f) {
         setState(RUN_RIGHT);
-    } else if (controllerInput->leftStickX < -0.5f) {
+    } else if (dino.velocity[0] < -1.0f) {
         setState(RUN_LEFT);
-    } else if (controllerInput->leftStickX > 0.0f) {
+    } else if (dino.velocity[0] > 0.0f) {
         setState(WALK_RIGHT);
-    } else if (controllerInput->leftStickX < 0.0f) {
+    } else if (dino.velocity[0] < 0.0f) {
         setState(WALK_LEFT);
     } else {
         setState(dino.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
+    }
+
+    if (dino.velocity[0] != 0.0f) {
+        dino.faceLeft = dino.velocity[0] < 0.0f;
     }
 }

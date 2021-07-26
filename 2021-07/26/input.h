@@ -20,6 +20,7 @@ typedef struct {
 typedef struct {
 	float leftStickX;
 	float leftStickY;
+	bool aButton;
 } Controller;
 
 #endif
