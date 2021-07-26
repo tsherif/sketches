@@ -42,6 +42,33 @@ IXAudio2MasteringVoice* xaudioMasterVoice;
 Sound music;
 Sound jump;
 
+void OnStreamEnd(IXAudio2VoiceCallback* This) { 
+    if (jump.voice) {
+        IXAudio2SourceVoice_Stop(jump.voice, 0, 0);
+        IXAudio2SourceVoice_SubmitSourceBuffer(jump.voice, &jump.buffer, NULL);
+        OutputDebugStringA("Resubmit source buffer.\n");
+    }
+}
+void OnVoiceProcessingPassEnd(IXAudio2VoiceCallback* This) { }
+void OnVoiceProcessingPassStart(IXAudio2VoiceCallback* This, UINT32 SamplesRequired) { }
+void OnBufferEnd(IXAudio2VoiceCallback* This, void * pBufferContext)    { }
+void OnBufferStart(IXAudio2VoiceCallback* This, void * pBufferContext) { }
+void OnLoopEnd(IXAudio2VoiceCallback* This, void * pBufferContext) { }
+void OnVoiceError(IXAudio2VoiceCallback* This, void * pBufferContext, HRESULT Error) { }
+IXAudio2VoiceCallbackVtbl voiceCallbacksVtbl = {
+    .OnStreamEnd = OnStreamEnd,
+    .OnVoiceProcessingPassEnd = OnVoiceProcessingPassEnd,
+    .OnVoiceProcessingPassStart = OnVoiceProcessingPassStart,
+    .OnBufferEnd = OnBufferEnd,
+    .OnBufferStart = OnBufferStart,
+    .OnLoopEnd = OnLoopEnd,
+    .OnVoiceError = OnVoiceError
+};
+
+IXAudio2VoiceCallback voiceCallbacks = {
+    .lpVtbl = &voiceCallbacksVtbl
+};
+
 bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
     return gp1->wButtons == gp2->wButtons &&
         gp1->bLeftTrigger == gp2->bLeftTrigger &&
@@ -157,7 +184,7 @@ Sound loadSound(const char* fileName) {
         (WAVEFORMATEX*) &sound.format,
         0,
         XAUDIO2_DEFAULT_FREQ_RATIO,
-        NULL,
+        &voiceCallbacks,
         NULL,
         NULL
     );
@@ -350,6 +377,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         maxTime = frameTime > maxTime ? frameTime : maxTime;
 
         if (ticks == 600) {
+            IXAudio2SourceVoice_Start(jump.voice, 0, XAUDIO2_COMMIT_NOW);
             char buffer[1024];
             snprintf(buffer, 1024, "Drawing Sprites OpenGL Win32 Example: Frame Time Average: %.2fms, Min: %.2fms, Max: %.2fms", averageTime, minTime, maxTime);
             SetWindowTextA(window, buffer);
