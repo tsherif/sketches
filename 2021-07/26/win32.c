@@ -65,18 +65,17 @@ void OnBufferEnd(IXAudio2VoiceCallback* This, void * pBufferContext)    { }
 void OnBufferStart(IXAudio2VoiceCallback* This, void * pBufferContext) { }
 void OnLoopEnd(IXAudio2VoiceCallback* This, void * pBufferContext) { }
 void OnVoiceError(IXAudio2VoiceCallback* This, void * pBufferContext, HRESULT Error) { }
-IXAudio2VoiceCallbackVtbl voiceCallbacksVtbl = {
-    .OnStreamEnd = OnStreamEnd,
-    .OnVoiceProcessingPassEnd = OnVoiceProcessingPassEnd,
-    .OnVoiceProcessingPassStart = OnVoiceProcessingPassStart,
-    .OnBufferEnd = OnBufferEnd,
-    .OnBufferStart = OnBufferStart,
-    .OnLoopEnd = OnLoopEnd,
-    .OnVoiceError = OnVoiceError
-};
 
 IXAudio2VoiceCallback voiceCallbacks = {
-    .lpVtbl = &voiceCallbacksVtbl
+    .lpVtbl = &(IXAudio2VoiceCallbackVtbl) {
+        .OnStreamEnd = OnStreamEnd,
+        .OnVoiceProcessingPassEnd = OnVoiceProcessingPassEnd,
+        .OnVoiceProcessingPassStart = OnVoiceProcessingPassStart,
+        .OnBufferEnd = OnBufferEnd,
+        .OnBufferStart = OnBufferStart,
+        .OnLoopEnd = OnLoopEnd,
+        .OnVoiceError = OnVoiceError
+    }
 };
 
 bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {

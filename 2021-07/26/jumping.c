@@ -287,14 +287,27 @@ void mouseClick(int x, int y) {
 }
 
 void keyboard(Keyboard* inputKeys) {
-    DinoState currentState = dino.state;
+
+    if (inputKeys->space && !dino.jumping) {
+        dino.velocity[1] = JUMP_FORCE;
+        dino.jumping = true;
+        playJumpSound();
+    }
+
     bool running = inputKeys->ctrl;
     if (inputKeys->left) {
+        dino.velocity[0] = running ? -2.0f : -1.0f;
         setState(running ? RUN_LEFT : WALK_LEFT);
     } else if (inputKeys->right) {
+        dino.velocity[0] = running ? 2.0f : 1.0f;
         setState(running ? RUN_RIGHT : WALK_RIGHT);
     } else {
+        dino.velocity[0] = 0.0f;
         setState(dino.faceLeft ? IDLE_LEFT : IDLE_RIGHT);
+    }
+
+    if (dino.velocity[0] != 0.0f) {
+        dino.faceLeft = dino.velocity[0] < 0.0f;
     }
 }
 
