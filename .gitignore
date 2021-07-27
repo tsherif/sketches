@@ -6,6 +6,7 @@ node_modules
 **/*.ilk
 **/*.res
 **/*.i
+**/*.sln
 .vs
 **/*.o
 **/*.so

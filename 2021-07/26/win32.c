@@ -39,15 +39,17 @@ Keyboard inputKeys;
 Controller controllerInput;
 IXAudio2* xaudio;
 IXAudio2MasteringVoice* xaudioMasterVoice;
-Sound music;
-Sound jump;
 
-void playJumpSound(void) {
-    if (jump.voice) {
-        IXAudio2SourceVoice_Stop(jump.voice, 0, XAUDIO2_COMMIT_NOW);
-        IXAudio2SourceVoice_FlushSourceBuffers(jump.voice);
-        IXAudio2SourceVoice_Start(jump.voice, 0, XAUDIO2_COMMIT_NOW);
-        IXAudio2SourceVoice_SubmitSourceBuffer(jump.voice, &jump.buffer, NULL);   
+#define MAX_SOUNDS 16
+Sound sounds[MAX_SOUNDS];
+size_t numSounds;
+
+void playSound(Sound* sound) {
+    if (sound->voice) {
+        IXAudio2SourceVoice_Stop(sound->voice, 0, XAUDIO2_COMMIT_NOW);
+        IXAudio2SourceVoice_FlushSourceBuffers(sound->voice);
+        IXAudio2SourceVoice_Start(sound->voice, 0, XAUDIO2_COMMIT_NOW);
+        IXAudio2SourceVoice_SubmitSourceBuffer(sound->voice, &sound->buffer, NULL);   
     }
 }
 
@@ -88,7 +90,7 @@ bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
         gp1->sThumbRY == gp2->sThumbRY;
 }
 
-Sound loadSound(const char* fileName) {
+Sound* loadSound(const char* fileName) {
     HANDLE audioFile = CreateFileA(
       fileName,
       GENERIC_READ,
@@ -109,7 +111,8 @@ Sound loadSound(const char* fileName) {
     //     return NULL;
     // }
 
-    Sound sound = { 0 };
+    Sound* sound = sounds + numSounds;
+    ++numSounds;
 
     DWORD chunkType;
     DWORD chunkDataSize;
@@ -123,24 +126,24 @@ Sound loadSound(const char* fileName) {
     ReadFile(audioFile, &fileFormat, sizeof(DWORD), &bytesRead, NULL);    // WAVE format
     ReadFile(audioFile, &chunkType, sizeof(DWORD), &bytesRead, NULL);     // First subchunk (should be 'fmt')
     ReadFile(audioFile, &chunkDataSize, sizeof(DWORD), &bytesRead, NULL); // Data size for format
-    ReadFile(audioFile, &sound.format, chunkDataSize, &bytesRead, NULL);    // Wave format struct
+    ReadFile(audioFile, &sound->format, chunkDataSize, &bytesRead, NULL);    // Wave format struct
     ReadFile(audioFile, &chunkType, sizeof(DWORD), &bytesRead, NULL);     // Next subchunk (should be 'data')
     ReadFile(audioFile, &chunkDataSize, sizeof(DWORD), &bytesRead, NULL); // Data size for data
 
     BYTE* audioData = (BYTE *) malloc(chunkDataSize);
     ReadFile(audioFile, audioData, chunkDataSize, &bytesRead, NULL);      // FINALLY!
 
-    sound.buffer.AudioBytes = chunkDataSize;
-    sound.buffer.pAudioData = audioData;
-    sound.buffer.Flags = XAUDIO2_END_OF_STREAM;
+    sound->buffer.AudioBytes = chunkDataSize;
+    sound->buffer.pAudioData = audioData;
+    sound->buffer.Flags = XAUDIO2_END_OF_STREAM;
 
     CloseHandle(audioFile);
 
     HRESULT comResult;
     comResult = IXAudio2_CreateSourceVoice(
         xaudio,
-        &sound.voice,
-        (WAVEFORMATEX*) &sound.format,
+        &sound->voice,
+        (WAVEFORMATEX*) &sound->format,
         0,
         XAUDIO2_DEFAULT_FREQ_RATIO,
         &voiceCallbacks,
@@ -148,11 +151,6 @@ Sound loadSound(const char* fileName) {
         NULL
     );
 
-    // if (FAILED(comResult)) {
-    //     return NULL;
-    // }
-
-    comResult = IXAudio2SourceVoice_Start(sound.voice, 0, XAUDIO2_COMMIT_NOW);
     // if (FAILED(comResult)) {
     //     return NULL;
     // }
@@ -264,14 +262,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         NULL,
         AudioCategory_GameEffects
     );
-
-    if (FAILED(comResult)) {
-        return 1;
-    }
-
-    music = loadSound("../../audio/music.wav");
-    jump = loadSound("../../audio/jump.wav");
-    IXAudio2SourceVoice_SubmitSourceBuffer(music.voice, &music.buffer, NULL);   
 
     if (FAILED(comResult)) {
         return 1;

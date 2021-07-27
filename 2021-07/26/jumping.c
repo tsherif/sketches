@@ -34,7 +34,11 @@
 #define GRAVITY (0.2f)
 #define JUMP_FORCE (-5.0f)
 
-void playJumpSound(void);
+typedef struct Sound Sound;
+Sound* music;
+Sound* jump;
+Sound* loadSound(const char* fileName);
+void playSound(Sound* sound);
 
 static struct {
     uint32_t width;
@@ -130,6 +134,11 @@ void setState(DinoState state) {
 }
 
 void init(void) {
+    music = loadSound("../../audio/music.wav");
+    jump = loadSound("../../audio/jump.wav");
+
+    playSound(music);
+
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
     const char* vsSource = "#version 450\n"
@@ -291,7 +300,7 @@ void keyboard(Keyboard* inputKeys) {
     if (inputKeys->space && !dino.jumping) {
         dino.velocity[1] = JUMP_FORCE;
         dino.jumping = true;
-        playJumpSound();
+        playSound(jump);
     }
 
     bool running = inputKeys->ctrl;
@@ -317,7 +326,7 @@ void controller(Controller* controllerInput) {
     if (controllerInput->aButton && !dino.jumping) {
         dino.velocity[1] = JUMP_FORCE;
         dino.jumping = true;
-        playJumpSound();
+        playSound(jump);
     }
 
      if (dino.velocity[0] > 1.0f) {
