@@ -296,8 +296,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     bool running = true;
     while (running) {
         QueryPerformanceCounter(&startTicks);
-        int count = 0;
-        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE) && count < 100) {
+        while (PeekMessage(&message, NULL, 0, 0, PM_REMOVE)) {
             TranslateMessage(&message);
             DispatchMessage(&message);
 
@@ -305,7 +304,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
                 running = false; 
                 break;
             }
-            count++;
         }
 
         if (ticks % 200 == 0 && controllerIndex == -1) {
