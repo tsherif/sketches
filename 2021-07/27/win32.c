@@ -174,9 +174,15 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
         case WM_SIZING: {
             RECT clientRect;
             GetClientRect(window, &clientRect); 
-            HDC deviceContext = GetDC(window);
             resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+            return 0;
+        } break;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC deviceContext = BeginPaint(window, &ps);
+            draw();
             SwapBuffers(deviceContext);
+            EndPaint(window, &ps);
             return 0;
         } break;
         case WM_KEYDOWN: {
