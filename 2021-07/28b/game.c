@@ -38,13 +38,12 @@ static struct {
     uint16_t height;
 } canvas;
 
-typedef enum {
-    CENTER,
-    CENTER_LEFT,
-    LEFT,
-    CENTER_RIGHT,
-    RIGHT
-} ShipState;
+// Animations
+#define SHIP_CENTER       0
+#define SHIP_CENTER_LEFT  1
+#define SHIP_LEFT         2
+#define SHIP_CENTER_RIGHT 3
+#define SHIP_RIGHT        4
 
 typedef struct {
     uint8_t frames[32][2];
@@ -95,9 +94,7 @@ typedef struct {
     uint8_t animationTick;
     uint8_t currentSpritePanel[2];
     float spriteScale;
-    ShipState state;
     Sprite* sprite;
-    bool jumping;
 } Character;
 
 Sprite shipSprite = {
@@ -122,23 +119,21 @@ static GLuint panelIndexLocation;
 static GLuint pixelOffsetLocation;
 static GLuint spriteScaleLocation;
 
-static void updateAnimationPanel(void) {
-    uint8_t* panel = ship.sprite->animations[ship.currentAnimation].frames[ship.animationTick];
+static void updateAnimationPanel(Character* character) {
+    uint8_t* panel = character->sprite->animations[character->currentAnimation].frames[character->animationTick];
 
-    ship.currentSpritePanel[0] = panel[0];
-    ship.currentSpritePanel[1] = panel[1];
+    character->currentSpritePanel[0] = panel[0];
+    character->currentSpritePanel[1] = panel[1];
 }
 
-static void setState(ShipState state) {
-    if (ship.state == state) {
+static void setCharacterAnimation(Character* character, uint8_t animation) {
+    if (character->currentAnimation == animation) {
         return;
     }
 
-    ship.state = state;
-    ship.currentAnimation = state;
-
-    ship.animationTick = 0;
-    updateAnimationPanel();
+    character->currentAnimation = animation;
+    character->animationTick = 0;
+    updateAnimationPanel(character);
 }
 
 void game_init(void) {
@@ -256,7 +251,7 @@ void game_init(void) {
 
     glUniform1i(spriteSheetLocation, 0);
 
-    setState(CENTER);
+    setCharacterAnimation(&ship, SHIP_CENTER);
 }
 
 static int tick = 0;
@@ -278,13 +273,12 @@ void game_update(void) {
 
     if (ship.position[1] + ship.sprite->panelDims[1] * ship.spriteScale > canvas.height) {
         ship.position[1] = canvas.height - ship.sprite->panelDims[1] * ship.spriteScale;
-        ship.jumping = false;
     }
 
     if (tick == 0) {
         uint8_t count = ship.sprite->animations[ship.currentAnimation].numFrames;
         ship.animationTick = (ship.animationTick + 1) % count;
-        updateAnimationPanel();
+        updateAnimationPanel(&ship);
 
         tick = 40;
     }
@@ -309,13 +303,13 @@ void game_resize(int width, int height) {
 void game_keyboard(GameKeyboard* inputKeys) {
     if (inputKeys->left) {
         ship.velocity[0] = -2.0f;
-        setState(LEFT);
+        setCharacterAnimation(&ship, SHIP_LEFT);
     } else if (inputKeys->right) {
         ship.velocity[0] = 2.0f;
-        setState(RIGHT);
+        setCharacterAnimation(&ship, SHIP_RIGHT);
     } else {
         ship.velocity[0] = 0.0f;
-        setState(CENTER);
+        setCharacterAnimation(&ship, SHIP_CENTER);
     }
 
     if (inputKeys->up) {
@@ -332,14 +326,14 @@ void game_controller(GameController* controllerInput) {
     ship.velocity[1] = -2.0f * controllerInput->leftStickY;
 
     if (ship.velocity[0] < -1.0f) {
-        setState(LEFT);
+        setCharacterAnimation(&ship, SHIP_LEFT);
     } else if (ship.velocity[0] < 0.0f) {
-        setState(CENTER_LEFT);
+        setCharacterAnimation(&ship, SHIP_CENTER_LEFT);
     } else if (ship.velocity[0] > 1.0f) {
-        setState(RIGHT);
+        setCharacterAnimation(&ship, SHIP_RIGHT);
     } else if (ship.velocity[0] > 0.0f) {
-        setState(CENTER_RIGHT);
+        setCharacterAnimation(&ship, SHIP_CENTER_RIGHT);
     } else {
-        setState(CENTER);
+        setCharacterAnimation(&ship, SHIP_CENTER);
     }
 }
