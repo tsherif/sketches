@@ -9,27 +9,20 @@ typedef struct {
 	bool space;
 	bool ctrl;
 	bool changed;
-} Keyboard;
-
-typedef struct {
-    int x;
-    int y;
-    bool clicked;
-} Mouse;
+} GameKeyboard;
 
 typedef struct {
 	float leftStickX;
 	float leftStickY;
 	bool aButton;
-} Controller;
+} GameController;
 
 // Must be implemented by game, to be used by platform layer.
-void init(void);
-void update(void);
-void draw(void);
-void resize(int width, int height);
-void mouseClick(int x, int y);
-void keyboard(Keyboard* inputKeys);
-void controller(Controller* controllerInput);
+void game_init(void);
+void game_update(void);
+void game_draw(void);
+void game_resize(int width, int height);
+void game_keyboard(GameKeyboard* inputKeys);
+void game_controller(GameController* controllerInput);
 
 #endif

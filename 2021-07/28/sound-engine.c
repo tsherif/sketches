@@ -131,7 +131,7 @@ void setState(DinoState state) {
     dino.animationTick = 0;
 }
 
-void init(void) {
+void game_init(void) {
     music = loadSound("../../audio/music.wav");
     jump = loadSound("../../audio/jump.wav");
 
@@ -245,7 +245,7 @@ void init(void) {
 }
 
 static int tick = 0;
-void update(void) {
+void game_update(void) {
     dino.velocity[1] += GRAVITY;
 
     dino.position[0] += dino.velocity[0];
@@ -274,25 +274,22 @@ void update(void) {
     }
 }
 
-void draw(void) {
+void game_draw(void) {
     glUniform2fv(pixelOffsetLocation, 1, dino.position);
     glUniform3f(panelIndexLocation, (float) dino.currentSpritePanel, 0.0f, (float) dino.faceLeft);
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void resize(int width, int height) {
+void game_resize(int width, int height) {
     canvas.width = width;
     canvas.height = height;
     glViewport(0, 0, width, height);
     glUniform2f(pixelSizeLocation, 2.0f / width, 2.0f / height);
-    draw(); 
+    game_draw(); 
 }
 
-void mouseClick(int x, int y) {
-}
-
-void keyboard(Keyboard* inputKeys) {
+void game_keyboard(GameKeyboard* inputKeys) {
 
     if (inputKeys->space && !dino.jumping) {
         dino.velocity[1] = JUMP_FORCE;
@@ -317,7 +314,7 @@ void keyboard(Keyboard* inputKeys) {
     }
 }
 
-void controller(Controller* controllerInput) {
+void game_controller(GameController* controllerInput) {
     dino.velocity[0] = 2.0f * controllerInput->leftStickX;
 
     if (controllerInput->aButton && !dino.jumping) {

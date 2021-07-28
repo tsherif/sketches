@@ -16,9 +16,8 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 
-Mouse mouse;
-Keyboard inputKeys;
-Controller controllerInput;
+GameKeyboard inputKeys;
+GameController controllerInput;
 
 bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
     return gp1->wButtons == gp2->wButtons &&
@@ -35,19 +34,19 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
         case WM_SIZE: {
             RECT clientRect;
             GetClientRect(window, &clientRect); 
-            resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+            game_resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
             return 0;
         };
         case WM_SIZING: {
             RECT clientRect;
             GetClientRect(window, &clientRect); 
-            resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+            game_resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
             return 0;
         } break;
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC deviceContext = BeginPaint(window, &ps);
-            draw();
+            game_draw();
             SwapBuffers(deviceContext);
             EndPaint(window, &ps);
             return 0;
@@ -74,12 +73,6 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
                 case VK_CONTROL: inputKeys.ctrl  = false; break;
             }
             inputKeys.changed = true;
-            return 0;
-        } break;
-        case WM_LBUTTONUP: {
-            mouse.x = GET_X_LPARAM(lParam);
-            mouse.y = GET_Y_LPARAM(lParam);
-            mouse.clicked = true;
             return 0;
         } break;
         case WM_CLOSE: {
@@ -127,7 +120,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         return 1;
     }
 
-    init();
+    game_init();
     
     ///////////////////
     // Display window
@@ -193,7 +186,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
                         controllerInput.leftStickY = 0.0f;
                     }
                     controllerInput.aButton = controllerState.Gamepad.wButtons & XINPUT_GAMEPAD_A;
-                    controller(&controllerInput);
+                    game_controller(&controllerInput);
                     lastGamePadState = controllerState.Gamepad;
                 }
             } else {
@@ -201,18 +194,13 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
             }
         }
 
-        if (mouse.clicked) {
-            mouseClick(mouse.x, mouse.y);
-            mouse.clicked = false;
-        }
-
         if (inputKeys.changed) {
-            keyboard(&inputKeys);
+            game_keyboard(&inputKeys);
             inputKeys.changed = false;
         }
 
-        update();
-        draw();
+        game_update();
+        game_draw();
 
         SwapBuffers(deviceContext);
         QueryPerformanceCounter(&endTicks);
