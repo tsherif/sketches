@@ -51,7 +51,7 @@ typedef struct {
     uint8_t numFrames;
 } Animation;
 
-Animation animations[]  = {
+Animation shipAnimations[]  = {
     // Center
     {
         .frames = {{2, 0}, {2, 1}},
@@ -87,7 +87,7 @@ typedef struct {
     GLuint texture;
 } Sprite;
 
-static struct {
+typedef struct {
     float position[2];
     float velocity[2];
     bool faceLeft;
@@ -96,18 +96,22 @@ static struct {
     uint8_t currentSpritePanel[2];
     float spriteScale;
     ShipState state;
-    Sprite sprite;
+    Sprite* sprite;
     bool jumping;
-} ship = {
+} Character;
+
+Sprite shipSprite = {
+    .panelDims = { 16.0f, 24.0f },
+    .sheetDims = { 5.0f, 2.0f },
+    .animations = shipAnimations,
+    .numAnimations = sizeof(shipAnimations) / sizeof(shipAnimations[0])
+};
+
+Character ship = {
     .position = { 100.0f, 200.0f },
     .velocity = { 0.0f, 0.0f },
     .spriteScale = 4.0,
-    .sprite = {
-        .panelDims = { 16.0f, 24.0f },
-        .sheetDims = { 5.0f, 2.0f },
-        .animations = animations,
-        .numAnimations = sizeof(animations) / sizeof(animations[0])
-    }
+    .sprite = &shipSprite
 };
 
 static GLuint pixelSizeLocation;
@@ -119,7 +123,7 @@ static GLuint pixelOffsetLocation;
 static GLuint spriteScaleLocation;
 
 static void updateAnimationPanel(void) {
-    uint8_t* panel = ship.sprite.animations[ship.currentAnimation].frames[ship.animationTick];
+    uint8_t* panel = ship.sprite->animations[ship.currentAnimation].frames[ship.animationTick];
 
     ship.currentSpritePanel[0] = panel[0];
     ship.currentSpritePanel[1] = panel[1];
@@ -146,7 +150,7 @@ void game_init(void) {
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    ship.position[0] = canvas.width / 2 - ship.sprite.panelDims[0] * ship.spriteScale / 2;
+    ship.position[0] = canvas.width / 2 - ship.sprite->panelDims[0] * ship.spriteScale / 2;
     ship.position[1] = canvas.height - 150.0f;
 
     const char* vsSource = "#version 450\n"
@@ -213,8 +217,8 @@ void game_init(void) {
     pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
     spriteScaleLocation = glGetUniformLocation(program, "spriteScale");
 
-    glUniform2fv(panelPixelSizeLocation, 1, ship.sprite.panelDims);
-    glUniform2fv(spriteSheetDimensionsLocation, 1, ship.sprite.sheetDims);
+    glUniform2fv(panelPixelSizeLocation, 1, ship.sprite->panelDims);
+    glUniform2fv(spriteSheetDimensionsLocation, 1, ship.sprite->sheetDims);
     glUniform1f(spriteScaleLocation, ship.spriteScale);
 
     float positions[] = {
@@ -238,9 +242,9 @@ void game_init(void) {
     int imageWidth, imageHeight, imageChannels;
     uint8_t *imageData = stbi_load("../../img/ship.png", &imageWidth, &imageHeight, &imageChannels, 4);
 
-    glGenTextures(1, &ship.sprite.texture);
+    glGenTextures(1, &ship.sprite->texture);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ship.sprite.texture);
+    glBindTexture(GL_TEXTURE_2D, ship.sprite->texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -264,21 +268,21 @@ void game_update(void) {
         ship.position[0] = 0.0f;
     }
 
-    if (ship.position[0] + ship.sprite.panelDims[0] * ship.spriteScale > canvas.width) {
-        ship.position[0] = canvas.width - ship.sprite.panelDims[0] * ship.spriteScale;
+    if (ship.position[0] + ship.sprite->panelDims[0] * ship.spriteScale > canvas.width) {
+        ship.position[0] = canvas.width - ship.sprite->panelDims[0] * ship.spriteScale;
     }
 
     if (ship.position[1] < 0.0f) {
         ship.position[1] = 0.0f;
     }
 
-    if (ship.position[1] + ship.sprite.panelDims[1] * ship.spriteScale > canvas.height) {
-        ship.position[1] = canvas.height - ship.sprite.panelDims[1] * ship.spriteScale;
+    if (ship.position[1] + ship.sprite->panelDims[1] * ship.spriteScale > canvas.height) {
+        ship.position[1] = canvas.height - ship.sprite->panelDims[1] * ship.spriteScale;
         ship.jumping = false;
     }
 
     if (tick == 0) {
-        uint8_t count = ship.sprite.animations[ship.currentAnimation].numFrames;
+        uint8_t count = ship.sprite->animations[ship.currentAnimation].numFrames;
         ship.animationTick = (ship.animationTick + 1) % count;
         updateAnimationPanel();
 
