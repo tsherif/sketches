@@ -29,8 +29,7 @@
 #include <string.h>
 #include "../../lib/simple-opengl-loader.h"
 #include "../../lib/stb_image.h"
-#include "platform.h"
-#include "game.h"
+#include "platform-interface.h"
 
 #define GRAVITY (0.2f)
 #define JUMP_FORCE (-5.0f)

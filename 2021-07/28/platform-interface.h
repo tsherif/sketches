@@ -1,5 +1,6 @@
-#ifndef _GAME_H_
-#define _GAME_H_
+#ifndef _PLATFORM_interface_H_
+#define _PLATFORM_interface_H_
+#include <stdbool.h>
 
 typedef struct {
 	bool left;
@@ -24,5 +25,11 @@ void game_draw(void);
 void game_resize(int width, int height);
 void game_keyboard(GameKeyboard* inputKeys);
 void game_controller(GameController* controllerInput);
+
+// Must be implemented by platform layer, to be used by platform game.
+typedef struct PlatformSound PlatformSound;
+bool platform_initAudio(void);
+PlatformSound* platform_loadSound(const char* fileName);
+void platform_playSound(PlatformSound* sound);
 
 #endif

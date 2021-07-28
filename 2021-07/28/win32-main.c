@@ -10,8 +10,7 @@
 #include <profileapi.h>
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
-#include "game.h"
-#include "platform.h"
+#include "platform-interface.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
