@@ -49,27 +49,9 @@ typedef struct {
 Mouse mouse;
 Keyboard inputKeys;
 Controller controllerInput;
-IXAudio2* xaudio;
-IXAudio2MasteringVoice* xaudioMasterVoice;
 
 #define MAX_CHANNELS 8
 #define MAX_SOUNDS 16
-Channel channels[MAX_CHANNELS];
-Sound sounds[MAX_SOUNDS];
-size_t numSounds;
-
-void playSound(Sound* sound) {
-    for (int i = 0; i < MAX_CHANNELS; ++i) {
-        if (!channels[i].inUse) {
-            channels[i].buffer.AudioBytes = sound->size;
-            channels[i].buffer.pAudioData = sound->data;
-            IXAudio2SourceVoice_Start(channels[i].voice, 0, XAUDIO2_COMMIT_NOW);
-            IXAudio2SourceVoice_SubmitSourceBuffer(channels[i].voice, &channels[i].buffer, NULL);
-            channels[i].inUse = true;
-            break;
-        }
-    }
-}
 
 void OnBufferEnd(IXAudio2VoiceCallback* This, void* pBufferContext)    {
     Channel* channel = (Channel*) pBufferContext;
@@ -83,17 +65,39 @@ void OnBufferStart(IXAudio2VoiceCallback* This, void* pBufferContext) { }
 void OnLoopEnd(IXAudio2VoiceCallback* This, void* pBufferContext) { }
 void OnVoiceError(IXAudio2VoiceCallback* This, void* pBufferContext, HRESULT Error) { }
 
-IXAudio2VoiceCallback voiceCallbacks = {
-    .lpVtbl = &(IXAudio2VoiceCallbackVtbl) {
-        .OnStreamEnd = OnStreamEnd,
-        .OnVoiceProcessingPassEnd = OnVoiceProcessingPassEnd,
-        .OnVoiceProcessingPassStart = OnVoiceProcessingPassStart,
-        .OnBufferEnd = OnBufferEnd,
-        .OnBufferStart = OnBufferStart,
-        .OnLoopEnd = OnLoopEnd,
-        .OnVoiceError = OnVoiceError
+struct {
+    IXAudio2* xaudio;
+    IXAudio2MasteringVoice* xaudioMasterVoice;
+    Channel channels[MAX_CHANNELS];
+    Sound sounds[MAX_SOUNDS];
+    size_t numSounds;
+    IXAudio2VoiceCallback callbacks;
+} audioEngine = {
+    .callbacks = {
+        .lpVtbl = &(IXAudio2VoiceCallbackVtbl) {
+            .OnStreamEnd = OnStreamEnd,
+            .OnVoiceProcessingPassEnd = OnVoiceProcessingPassEnd,
+            .OnVoiceProcessingPassStart = OnVoiceProcessingPassStart,
+            .OnBufferEnd = OnBufferEnd,
+            .OnBufferStart = OnBufferStart,
+            .OnLoopEnd = OnLoopEnd,
+            .OnVoiceError = OnVoiceError
+        }
     }
 };
+
+void playSound(Sound* sound) {
+    for (int i = 0; i < MAX_CHANNELS; ++i) {
+        if (!audioEngine.channels[i].inUse) {
+            audioEngine.channels[i].buffer.AudioBytes = sound->size;
+            audioEngine.channels[i].buffer.pAudioData = sound->data;
+            IXAudio2SourceVoice_Start(audioEngine.channels[i].voice, 0, XAUDIO2_COMMIT_NOW);
+            IXAudio2SourceVoice_SubmitSourceBuffer(audioEngine.channels[i].voice, &audioEngine.channels[i].buffer, NULL);
+            audioEngine.channels[i].inUse = true;
+            break;
+        }
+    }
+}
 
 bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
     return gp1->wButtons == gp2->wButtons &&
@@ -126,7 +130,7 @@ Sound* loadSound(const char* fileName) {
         return NULL;
     }
 
-    Sound* sound = sounds + numSounds;
+    Sound* sound = audioEngine.sounds + audioEngine.numSounds;
 
     DWORD chunkType;
     DWORD chunkDataSize;
@@ -155,7 +159,7 @@ Sound* loadSound(const char* fileName) {
 
     CloseHandle(audioFile);
 
-    ++numSounds;
+    ++audioEngine.numSounds;
     return sound;
 }
 
@@ -247,15 +251,15 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         return 1;
     }
 
-    comResult = XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR );
+    comResult = XAudio2Create(&audioEngine.xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR );
 
     if (FAILED(comResult)) {
         return 1;
     }
 
     comResult = IXAudio2_CreateMasteringVoice(
-        xaudio,
-        &xaudioMasterVoice,
+        audioEngine.xaudio,
+        &audioEngine.xaudioMasterVoice,
         AUDIO_CHANNELS,
         AUDIO_SAMPLE_RATE,
         0,
@@ -269,16 +273,16 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     }
 
     for (int i = 0; i < MAX_CHANNELS; ++i) {
-        channels[i].buffer.Flags = XAUDIO2_END_OF_STREAM;
-        channels[i].buffer.pContext = channels + i;
+        audioEngine.channels[i].buffer.Flags = XAUDIO2_END_OF_STREAM;
+        audioEngine.channels[i].buffer.pContext = audioEngine.channels + i;
 
         comResult = IXAudio2_CreateSourceVoice(
-            xaudio,
-            &channels[i].voice,
+            audioEngine.xaudio,
+            &audioEngine.channels[i].voice,
             &AUDIO_SOURCE_FORMAT,
             0,
             XAUDIO2_DEFAULT_FREQ_RATIO,
-            &voiceCallbacks,
+            &audioEngine.callbacks,
             NULL,
             NULL
         );
