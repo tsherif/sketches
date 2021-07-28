@@ -45,12 +45,34 @@ static struct {
 #define SHIP_CENTER_RIGHT 3
 #define SHIP_RIGHT        4
 
+#define MAX_BULLETS 256
+#define BULLET_VELOCITY (-5.0f)
+
 typedef struct {
     uint8_t frames[32][2];
     uint8_t numFrames;
 } Animation;
 
-Animation shipAnimations[]  = {
+typedef struct {
+    float panelDims[2];
+    float sheetDims[2];
+    Animation* animations;
+    uint8_t numAnimations;
+    GLuint texture;
+} Sprite;
+
+typedef struct {
+    float position[2];
+    float velocity[2];
+    bool faceLeft;
+    uint8_t currentAnimation;
+    uint8_t animationTick;
+    uint8_t currentSpritePanel[2];
+    float spriteScale;
+    Sprite* sprite;
+} Character;
+
+static Animation shipAnimations[]  = {
     // Center
     {
         .frames = {{2, 0}, {2, 1}},
@@ -78,38 +100,40 @@ Animation shipAnimations[]  = {
     }
 };
 
-typedef struct {
-    float panelDims[2];
-    float sheetDims[2];
-    Animation* animations;
-    uint8_t numAnimations;
-    GLuint texture;
-} Sprite;
-
-typedef struct {
-    float position[2];
-    float velocity[2];
-    bool faceLeft;
-    uint8_t currentAnimation;
-    uint8_t animationTick;
-    uint8_t currentSpritePanel[2];
-    float spriteScale;
-    Sprite* sprite;
-} Character;
-
-Sprite shipSprite = {
+static Sprite shipSprite = {
     .panelDims = { 16.0f, 24.0f },
     .sheetDims = { 5.0f, 2.0f },
     .animations = shipAnimations,
     .numAnimations = sizeof(shipAnimations) / sizeof(shipAnimations[0])
 };
 
-Character ship = {
+static Character ship = {
     .position = { 100.0f, 200.0f },
     .velocity = { 0.0f, 0.0f },
     .spriteScale = 4.0,
     .sprite = &shipSprite
 };
+
+static Animation bulletAnimations[]  = {
+    {
+        .frames = {{0, 0}, {1, 0}},
+        .numFrames = 2
+    },
+    {
+        .frames = {{0, 1}, {1, 1}},
+        .numFrames = 2
+    }
+};
+
+static Sprite bulletSprite = {
+    .panelDims = { 16.0f, 16.0f },
+    .sheetDims = { 2.0f, 2.0f },
+    .animations = bulletAnimations,
+    .numAnimations = sizeof(bulletAnimations) / sizeof(bulletAnimations[0])
+};
+
+static Character bullets[MAX_BULLETS];
+static uint16_t numBullets;
 
 static GLuint pixelSizeLocation;
 static GLuint panelPixelSizeLocation;
@@ -134,6 +158,33 @@ static void setCharacterAnimation(Character* character, uint8_t animation) {
     character->currentAnimation = animation;
     character->animationTick = 0;
     updateAnimationPanel(character);
+}
+
+static void fireBullet(float x, float y) {
+    if (numBullets == MAX_BULLETS) {
+        return;
+    }
+
+    bullets[numBullets].position[0] = x;
+    bullets[numBullets].position[1] = y;
+    bullets[numBullets].velocity[0] = 0.0f;
+    bullets[numBullets].velocity[1] = BULLET_VELOCITY;
+    bullets[numBullets].spriteScale = 4.0,
+    bullets[numBullets].sprite = &bulletSprite;
+    bullets[numBullets].currentAnimation = 1;
+    bullets[numBullets].animationTick = 0;
+
+    updateAnimationPanel(&bullets[numBullets]);
+    ++numBullets;
+}
+
+static void killBullet(uint8_t i) {
+    if (i >= numBullets) {
+        return;
+    }
+
+    bullets[i] = bullets[numBullets - 1];
+    --numBullets;
 }
 
 void game_init(void) {
@@ -212,10 +263,6 @@ void game_init(void) {
     pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
     spriteScaleLocation = glGetUniformLocation(program, "spriteScale");
 
-    glUniform2fv(panelPixelSizeLocation, 1, ship.sprite->panelDims);
-    glUniform2fv(spriteSheetDimensionsLocation, 1, ship.sprite->sheetDims);
-    glUniform1f(spriteScaleLocation, ship.spriteScale);
-
     float positions[] = {
         0.0f, 0.0f,
         1.0f, 0.0f,
@@ -237,9 +284,23 @@ void game_init(void) {
     int imageWidth, imageHeight, imageChannels;
     uint8_t *imageData = stbi_load("../../img/ship.png", &imageWidth, &imageHeight, &imageChannels, 4);
 
-    glGenTextures(1, &ship.sprite->texture);
+    glGenTextures(1, &shipSprite.texture);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, ship.sprite->texture);
+    glBindTexture(GL_TEXTURE_2D, shipSprite.texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    stbi_image_free(imageData);
+
+    imageData = stbi_load("../../img/laser-bolts.png", &imageWidth, &imageHeight, &imageChannels, 4);
+
+    glGenTextures(1, &bulletSprite.texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, bulletSprite.texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -275,10 +336,21 @@ void game_update(void) {
         ship.position[1] = canvas.height - ship.sprite->panelDims[1] * ship.spriteScale;
     }
 
+    for (uint8_t i = 0; i < numBullets; ++i) {
+        bullets[i].position[0] += bullets[i].velocity[0];
+        bullets[i].position[1] += bullets[i].velocity[1];
+
+        if (bullets[i].position[1] + bullets[i].sprite->panelDims[1] * bullets[i].spriteScale < 0) {
+            killBullet(i);
+        }
+    }
+
     if (tick == 0) {
         uint8_t count = ship.sprite->animations[ship.currentAnimation].numFrames;
         ship.animationTick = (ship.animationTick + 1) % count;
         updateAnimationPanel(&ship);
+    fireBullet(100.0f, 200.0f);
+        
 
         tick = 40;
     }
@@ -286,10 +358,26 @@ void game_update(void) {
 }
 
 void game_draw(void) {
+    glClear(GL_COLOR_BUFFER_BIT);
+    
+    glBindTexture(GL_TEXTURE_2D, shipSprite.texture);
+    glUniform2fv(panelPixelSizeLocation, 1, shipSprite.panelDims);
+    glUniform2fv(spriteSheetDimensionsLocation, 1, shipSprite.sheetDims);
+    glUniform1f(spriteScaleLocation, ship.spriteScale);
     glUniform2fv(pixelOffsetLocation, 1, ship.position);
     glUniform3f(panelIndexLocation, (float) ship.currentSpritePanel[0], ship.currentSpritePanel[1], (float) ship.faceLeft);
-    glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glBindTexture(GL_TEXTURE_2D, bulletSprite.texture);
+    glUniform2fv(panelPixelSizeLocation, 1, bulletSprite.panelDims);
+    glUniform2fv(spriteSheetDimensionsLocation, 1, bulletSprite.sheetDims);
+
+    for (uint8_t i = 0; i < numBullets; ++i) {
+        glUniform1f(spriteScaleLocation, bullets[i].spriteScale);
+        glUniform2fv(pixelOffsetLocation, 1, bullets[i].position);
+        glUniform3f(panelIndexLocation, (float) bullets[i].currentSpritePanel[0], bullets[i].currentSpritePanel[1], (float) bullets[i].faceLeft);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    }
 }
 
 void game_resize(int width, int height) {
