@@ -32,6 +32,7 @@
 #include "platform-interface.h"
 
 PlatformSound* music;
+PlatformSound* shipBulletSound;
 
 static struct {
     uint16_t width;
@@ -47,6 +48,9 @@ static struct {
 
 #define MAX_BULLETS 256
 #define BULLET_VELOCITY (-5.0f)
+#define BULLET_THROTTLE_SHIP 20
+
+#define SPRITE_SCALE 4.0f
 
 typedef struct {
     uint8_t frames[32][2];
@@ -68,8 +72,8 @@ typedef struct {
     uint8_t currentAnimation;
     uint8_t animationTick;
     uint8_t currentSpritePanel[2];
-    float spriteScale;
     Sprite* sprite;
+    uint16_t bulletThrottle;
 } Character;
 
 static Animation shipAnimations[]  = {
@@ -110,7 +114,6 @@ static Sprite shipSprite = {
 static Character ship = {
     .position = { 100.0f, 200.0f },
     .velocity = { 0.0f, 0.0f },
-    .spriteScale = 4.0,
     .sprite = &shipSprite
 };
 
@@ -134,6 +137,7 @@ static Sprite bulletSprite = {
 
 static Character bullets[MAX_BULLETS];
 static uint16_t numBullets;
+static float shipBulletOffset[2];
 
 static GLuint pixelSizeLocation;
 static GLuint panelPixelSizeLocation;
@@ -169,12 +173,13 @@ static void fireBullet(float x, float y) {
     bullets[numBullets].position[1] = y;
     bullets[numBullets].velocity[0] = 0.0f;
     bullets[numBullets].velocity[1] = BULLET_VELOCITY;
-    bullets[numBullets].spriteScale = 4.0,
     bullets[numBullets].sprite = &bulletSprite;
     bullets[numBullets].currentAnimation = 1;
     bullets[numBullets].animationTick = 0;
 
     updateAnimationPanel(&bullets[numBullets]);
+    platform_playSound(shipBulletSound);
+
     ++numBullets;
 }
 
@@ -189,14 +194,18 @@ static void killBullet(uint8_t i) {
 
 void game_init(void) {
     music = platform_loadSound("../../audio/music.wav");
+    shipBulletSound = platform_loadSound("../../audio/Laser_002.wav");
 
     platform_playSound(music);
+
+    shipBulletOffset[0] = (shipSprite.panelDims[0] - bulletSprite.panelDims[0]) * SPRITE_SCALE / 2;
+    shipBulletOffset[1] =  -bulletSprite.panelDims[1] * SPRITE_SCALE;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    ship.position[0] = canvas.width / 2 - ship.sprite->panelDims[0] * ship.spriteScale / 2;
+    ship.position[0] = canvas.width / 2 - ship.sprite->panelDims[0] * SPRITE_SCALE / 2;
     ship.position[1] = canvas.height - 150.0f;
 
     const char* vsSource = "#version 450\n"
@@ -263,6 +272,8 @@ void game_init(void) {
     pixelOffsetLocation = glGetUniformLocation(program, "pixelOffset");
     spriteScaleLocation = glGetUniformLocation(program, "spriteScale");
 
+    glUniform1f(spriteScaleLocation, SPRITE_SCALE); 
+
     float positions[] = {
         0.0f, 0.0f,
         1.0f, 0.0f,
@@ -324,35 +335,44 @@ void game_update(void) {
         ship.position[0] = 0.0f;
     }
 
-    if (ship.position[0] + ship.sprite->panelDims[0] * ship.spriteScale > canvas.width) {
-        ship.position[0] = canvas.width - ship.sprite->panelDims[0] * ship.spriteScale;
+    if (ship.position[0] + ship.sprite->panelDims[0] * SPRITE_SCALE > canvas.width) {
+        ship.position[0] = canvas.width - ship.sprite->panelDims[0] * SPRITE_SCALE;
     }
 
     if (ship.position[1] < 0.0f) {
         ship.position[1] = 0.0f;
     }
 
-    if (ship.position[1] + ship.sprite->panelDims[1] * ship.spriteScale > canvas.height) {
-        ship.position[1] = canvas.height - ship.sprite->panelDims[1] * ship.spriteScale;
+    if (ship.position[1] + ship.sprite->panelDims[1] * SPRITE_SCALE > canvas.height) {
+        ship.position[1] = canvas.height - ship.sprite->panelDims[1] * SPRITE_SCALE;
+    }
+
+    if (ship.bulletThrottle > 0) {
+        --ship.bulletThrottle; 
     }
 
     for (uint8_t i = 0; i < numBullets; ++i) {
         bullets[i].position[0] += bullets[i].velocity[0];
         bullets[i].position[1] += bullets[i].velocity[1];
 
-        if (bullets[i].position[1] + bullets[i].sprite->panelDims[1] * bullets[i].spriteScale < 0) {
+        if (bullets[i].position[1] + bullets[i].sprite->panelDims[1] * SPRITE_SCALE < 0) {
             killBullet(i);
         }
     }
+
 
     if (tick == 0) {
         uint8_t count = ship.sprite->animations[ship.currentAnimation].numFrames;
         ship.animationTick = (ship.animationTick + 1) % count;
         updateAnimationPanel(&ship);
-    fireBullet(100.0f, 200.0f);
-        
 
-        tick = 40;
+        for (uint8_t i = 0; i < numBullets; ++i) {
+            uint8_t count = bullets[i].sprite->animations[bullets[i].currentAnimation].numFrames;
+            bullets[i].animationTick = (bullets[i].animationTick + 1) % count;
+            updateAnimationPanel(&bullets[i]);
+        }    
+
+        tick = 20;
     }
     --tick;
 }
@@ -363,7 +383,6 @@ void game_draw(void) {
     glBindTexture(GL_TEXTURE_2D, shipSprite.texture);
     glUniform2fv(panelPixelSizeLocation, 1, shipSprite.panelDims);
     glUniform2fv(spriteSheetDimensionsLocation, 1, shipSprite.sheetDims);
-    glUniform1f(spriteScaleLocation, ship.spriteScale);
     glUniform2fv(pixelOffsetLocation, 1, ship.position);
     glUniform3f(panelIndexLocation, (float) ship.currentSpritePanel[0], ship.currentSpritePanel[1], (float) ship.faceLeft);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -373,7 +392,6 @@ void game_draw(void) {
     glUniform2fv(spriteSheetDimensionsLocation, 1, bulletSprite.sheetDims);
 
     for (uint8_t i = 0; i < numBullets; ++i) {
-        glUniform1f(spriteScaleLocation, bullets[i].spriteScale);
         glUniform2fv(pixelOffsetLocation, 1, bullets[i].position);
         glUniform3f(panelIndexLocation, (float) bullets[i].currentSpritePanel[0], bullets[i].currentSpritePanel[1], (float) bullets[i].faceLeft);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -407,6 +425,11 @@ void game_keyboard(GameKeyboard* inputKeys) {
     } else {
         ship.velocity[1] = 0.0f;
     }
+
+    if (inputKeys->space && ship.bulletThrottle == 0) {
+        fireBullet(ship.position[0] + shipBulletOffset[0], ship.position[1] + shipBulletOffset[1]);
+        ship.bulletThrottle = BULLET_THROTTLE_SHIP;
+    }
 }
 
 void game_controller(GameController* controllerInput) {
@@ -423,5 +446,10 @@ void game_controller(GameController* controllerInput) {
         setCharacterAnimation(&ship, SHIP_CENTER_RIGHT);
     } else {
         setCharacterAnimation(&ship, SHIP_CENTER);
+    }
+
+    if (controllerInput->aButton && ship.bulletThrottle == 0) {
+        fireBullet(ship.position[0] + shipBulletOffset[0], ship.position[1] + shipBulletOffset[1]);
+        ship.bulletThrottle = BULLET_THROTTLE_SHIP;
     }
 }
