@@ -12,6 +12,7 @@
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
 #include "input.h"
+#include "game.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -32,14 +33,6 @@ WAVEFORMATEX AUDIO_SOURCE_FORMAT = {
   .wBitsPerSample = 16,
   .cbSize = 0
 };
-
-void init(void);
-void update(void);
-void draw(void);
-void resize(int width, int height);
-void mouseClick(int x, int y);
-void keyboard(Keyboard* inputKeys);
-void controller(Controller* controllerInput);
 
 typedef struct {
     WAVEFORMATEXTENSIBLE format;
@@ -150,8 +143,6 @@ Sound* loadSound(const char* fileName) {
     ReadFile(audioFile, &chunkType, sizeof(DWORD), &bytesRead, NULL);     // First subchunk (should be 'fmt')
     ReadFile(audioFile, &chunkDataSize, sizeof(DWORD), &bytesRead, NULL); // Data size for format
     ReadFile(audioFile, &sound->format, chunkDataSize, &bytesRead, NULL); // Wave format struct
-
-    if (sound->format.Format.)
 
     ReadFile(audioFile, &chunkType, sizeof(DWORD), &bytesRead, NULL);     // Next subchunk (should be 'data')
     ReadFile(audioFile, &chunkDataSize, sizeof(DWORD), &bytesRead, NULL); // Data size for data

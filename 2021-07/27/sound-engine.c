@@ -30,15 +30,13 @@
 #include "../../lib/simple-opengl-loader.h"
 #include "../../lib/stb_image.h"
 #include "input.h"
+#include "platform.h"
 
 #define GRAVITY (0.2f)
 #define JUMP_FORCE (-5.0f)
 
-typedef struct Sound Sound;
 Sound* music;
 Sound* jump;
-Sound* loadSound(const char* fileName);
-void playSound(Sound* sound);
 
 static struct {
     uint32_t width;
