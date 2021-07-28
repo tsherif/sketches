@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <xaudio2.h>
 #include <stdbool.h>
-#include "platform-audio.h"
+#include "platform.h"
 
 
 #define FOURCC_RIFF 'FFIR';
@@ -13,17 +13,17 @@
 #define AUDIO_SAMPLE_RATE 44100
 #define AUDIO_CHANNELS 2
 
-WAVEFORMATEX AUDIO_SOURCE_FORMAT = {
+static WAVEFORMATEX AUDIO_SOURCE_FORMAT = {
   .wFormatTag = WAVE_FORMAT_PCM,
-  .nChannels = 2,
-  .nSamplesPerSec = 44100,
+  .nChannels = AUDIO_CHANNELS,
+  .nSamplesPerSec = AUDIO_SAMPLE_RATE,
   .nAvgBytesPerSec = 176400,
   .nBlockAlign = 4,
   .wBitsPerSample = 16,
   .cbSize = 0
 };
 
-struct Sound {
+struct PlatformSound {
     WAVEFORMATEXTENSIBLE format;
     DWORD size;
     BYTE* data;
@@ -50,11 +50,11 @@ void OnBufferStart(IXAudio2VoiceCallback* This, void* pBufferContext) { }
 void OnLoopEnd(IXAudio2VoiceCallback* This, void* pBufferContext) { }
 void OnVoiceError(IXAudio2VoiceCallback* This, void* pBufferContext, HRESULT Error) { }
 
-struct {
+static struct {
     IXAudio2* xaudio;
     IXAudio2MasteringVoice* xaudioMasterVoice;
     Channel channels[MAX_CHANNELS];
-    Sound sounds[MAX_SOUNDS];
+    PlatformSound sounds[MAX_SOUNDS];
     size_t numSounds;
     IXAudio2VoiceCallback callbacks;
 } audioEngine = {
@@ -71,7 +71,7 @@ struct {
     }
 };
 
-bool initAudio(void) {
+bool platform_initAudio(void) {
     HRESULT comResult;
     comResult = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (FAILED(comResult)) {
@@ -122,7 +122,7 @@ bool initAudio(void) {
     return true;
 }
 
-void playSound(Sound* sound) {
+void platform_playSound(PlatformSound* sound) {
     for (int i = 0; i < MAX_CHANNELS; ++i) {
         if (!audioEngine.channels[i].inUse) {
             audioEngine.channels[i].buffer.AudioBytes = sound->size;
@@ -135,7 +135,7 @@ void playSound(Sound* sound) {
     }
 }
 
-Sound* loadSound(const char* fileName) {
+PlatformSound* platform_loadSound(const char* fileName) {
     HANDLE audioFile = CreateFileA(
       fileName,
       GENERIC_READ,
@@ -156,7 +156,7 @@ Sound* loadSound(const char* fileName) {
         return NULL;
     }
 
-    Sound* sound = audioEngine.sounds + audioEngine.numSounds;
+    PlatformSound* sound = audioEngine.sounds + audioEngine.numSounds;
 
     DWORD chunkType;
     DWORD chunkDataSize;

@@ -29,14 +29,14 @@
 #include <string.h>
 #include "../../lib/simple-opengl-loader.h"
 #include "../../lib/stb_image.h"
-#include "platform-audio.h"
+#include "platform.h"
 #include "game.h"
 
 #define GRAVITY (0.2f)
 #define JUMP_FORCE (-5.0f)
 
-Sound* music;
-Sound* jump;
+PlatformSound* music;
+PlatformSound* jump;
 
 static struct {
     uint32_t width;
@@ -132,10 +132,10 @@ void setState(DinoState state) {
 }
 
 void game_init(void) {
-    music = loadSound("../../audio/music.wav");
-    jump = loadSound("../../audio/jump.wav");
+    music = platform_loadSound("../../audio/music.wav");
+    jump = platform_loadSound("../../audio/jump.wav");
 
-    playSound(music);
+    platform_playSound(music);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -294,7 +294,7 @@ void game_keyboard(GameKeyboard* inputKeys) {
     if (inputKeys->space && !dino.jumping) {
         dino.velocity[1] = JUMP_FORCE;
         dino.jumping = true;
-        playSound(jump);
+        platform_playSound(jump);
     }
 
     bool running = inputKeys->ctrl;
@@ -320,7 +320,7 @@ void game_controller(GameController* controllerInput) {
     if (controllerInput->aButton && !dino.jumping) {
         dino.velocity[1] = JUMP_FORCE;
         dino.jumping = true;
-        playSound(jump);
+        platform_playSound(jump);
     }
 
      if (dino.velocity[0] > 1.0f) {

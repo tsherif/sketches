@@ -11,7 +11,7 @@
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
 #include "game.h"
-#include "platform-audio.h"
+#include "platform.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
@@ -116,7 +116,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
         }
     }
 
-    if (!initAudio()) {
+    if (!platform_initAudio()) {
         return 1;
     }
 
