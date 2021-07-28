@@ -99,16 +99,6 @@ void playSound(Sound* sound) {
     }
 }
 
-bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
-    return gp1->wButtons == gp2->wButtons &&
-        gp1->bLeftTrigger == gp2->bLeftTrigger &&
-        gp1->bRightTrigger == gp2->bRightTrigger &&
-        gp1->sThumbLX == gp2->sThumbLX &&
-        gp1->sThumbLY == gp2->sThumbLY &&
-        gp1->sThumbRX == gp2->sThumbRX &&
-        gp1->sThumbRY == gp2->sThumbRY;
-}
-
 Sound* loadSound(const char* fileName) {
     HANDLE audioFile = CreateFileA(
       fileName,
@@ -163,15 +153,30 @@ Sound* loadSound(const char* fileName) {
     return sound;
 }
 
+bool gamepadEquals(XINPUT_GAMEPAD* gp1, XINPUT_GAMEPAD* gp2) {
+    return gp1->wButtons == gp2->wButtons &&
+        gp1->bLeftTrigger == gp2->bLeftTrigger &&
+        gp1->bRightTrigger == gp2->bRightTrigger &&
+        gp1->sThumbLX == gp2->sThumbLX &&
+        gp1->sThumbLY == gp2->sThumbLY &&
+        gp1->sThumbRX == gp2->sThumbRX &&
+        gp1->sThumbRY == gp2->sThumbRY;
+}
+
 LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
+        case WM_SIZE: {
+            RECT clientRect;
+            GetClientRect(window, &clientRect); 
+            resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
+            return 0;
+        };
         case WM_SIZING: {
             RECT clientRect;
             GetClientRect(window, &clientRect); 
             HDC deviceContext = GetDC(window);
             resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
             SwapBuffers(deviceContext);
-            return 0;
             return 0;
         } break;
         case WM_KEYDOWN: {
@@ -293,10 +298,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     }
 
     init();
-
-    RECT clientRect;
-    GetClientRect(window, &clientRect); 
-    resize(clientRect.right - clientRect.left, clientRect.bottom - clientRect.top);
     
     ///////////////////
     // Display window

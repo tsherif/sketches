@@ -272,12 +272,11 @@ void update(void) {
         dino.currentSpritePanel = start + dino.animationTick;
         tick = 0;
     }
-
-    glUniform2fv(pixelOffsetLocation, 1, dino.position);
-    glUniform3f(panelIndexLocation, (float) dino.currentSpritePanel, 0.0f, (float) dino.faceLeft);
 }
 
 void draw(void) {
+    glUniform2fv(pixelOffsetLocation, 1, dino.position);
+    glUniform3f(panelIndexLocation, (float) dino.currentSpritePanel, 0.0f, (float) dino.faceLeft);
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
