@@ -118,7 +118,14 @@ static GLuint panelIndexLocation;
 static GLuint pixelOffsetLocation;
 static GLuint spriteScaleLocation;
 
-void setState(ShipState state) {
+static void updateAnimationPanel(void) {
+    uint8_t* panel = ship.sprite.animations[ship.currentAnimation].frames[ship.animationTick];
+
+    ship.currentSpritePanel[0] = panel[0];
+    ship.currentSpritePanel[1] = panel[1];
+}
+
+static void setState(ShipState state) {
     if (ship.state == state) {
         return;
     }
@@ -127,6 +134,7 @@ void setState(ShipState state) {
     ship.currentAnimation = state;
 
     ship.animationTick = 0;
+    updateAnimationPanel();
 }
 
 void game_init(void) {
@@ -272,10 +280,7 @@ void game_update(void) {
     if (tick == 0) {
         uint8_t count = ship.sprite.animations[ship.currentAnimation].numFrames;
         ship.animationTick = (ship.animationTick + 1) % count;
-        uint8_t* panel = ship.sprite.animations[ship.currentAnimation].frames[ship.animationTick];
-
-        ship.currentSpritePanel[0] = panel[0];
-        ship.currentSpritePanel[1] = panel[1];
+        updateAnimationPanel();
 
         tick = 40;
     }
@@ -300,10 +305,13 @@ void game_resize(int width, int height) {
 void game_keyboard(GameKeyboard* inputKeys) {
     if (inputKeys->left) {
         ship.velocity[0] = -2.0f;
+        setState(LEFT);
     } else if (inputKeys->right) {
         ship.velocity[0] = 2.0f;
+        setState(RIGHT);
     } else {
         ship.velocity[0] = 0.0f;
+        setState(CENTER);
     }
 
     if (inputKeys->up) {
@@ -318,4 +326,16 @@ void game_keyboard(GameKeyboard* inputKeys) {
 void game_controller(GameController* controllerInput) {
     ship.velocity[0] = 2.0f * controllerInput->leftStickX;
     ship.velocity[1] = -2.0f * controllerInput->leftStickY;
+
+    if (ship.velocity[0] < -1.0f) {
+        setState(LEFT);
+    } else if (ship.velocity[0] < 0.0f) {
+        setState(CENTER_LEFT);
+    } else if (ship.velocity[0] > 1.0f) {
+        setState(RIGHT);
+    } else if (ship.velocity[0] > 0.0f) {
+        setState(CENTER_RIGHT);
+    } else {
+        setState(CENTER);
+    }
 }
