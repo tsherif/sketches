@@ -29,34 +29,34 @@ function BallCanvas(props: BallCanvasProps) {
 	}, []);
 
 	useEffect(() => {
-		let tickId: ReturnType<typeof requestAnimationFrame>;
-
-		function tick() {
-			tickId = requestAnimationFrame(tick);
-		
-			const context = contextRef.current;
-
-			if (!context) {
-				return;
-			}
-
-			context.clearRect(0, 0, width, height);
-
-			for (const ball of balls) {
-				context.fillStyle = ball.color;
-				context.beginPath();
-				context.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-				context.fill();
-			}
+		const canvas = canvasRef.current;
+		if (!canvas) {
+			return;
 		}
 
-		tickId = requestAnimationFrame(tick);
+		canvas.width = width;
+		canvas.height = height;
+	}, [width, height]);
 
-		return () => cancelAnimationFrame(tickId)
-	}, [balls]);
+	useEffect(() => {
+		const context = contextRef.current;
+
+		if (!context) {
+			return;
+		}
+
+		context.clearRect(0, 0, width, height);
+
+		for (const ball of balls) {
+			context.fillStyle = ball.color;
+			context.beginPath();
+			context.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+			context.fill();
+		}
+	}, [balls, dimensions]);
 
 	return (
-		<canvas ref={canvasRef} width={width} height={height}></canvas>
+		<canvas ref={canvasRef}></canvas>
 	);
 }
 
