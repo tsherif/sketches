@@ -13,17 +13,17 @@ interface Ball {
 
 interface BallCanvasProps {
 	dimensions: [number, number];
-	dt: number;
 }
 
-function useDeltaTime(fn: (dt: number) => void) {
+function useDeltaTime() {
+	const [dt, setDt] = useState(0);
 	useEffect(() => {
 		let tickId = 0;
 		let lastTime = performance.now();
 		function tick() {
 			tickId = requestAnimationFrame(tick);
 			let time = performance.now();
-			fn(time - lastTime);
+			setDt(time - lastTime);
 			lastTime = time;
 		};
 
@@ -31,35 +31,27 @@ function useDeltaTime(fn: (dt: number) => void) {
 
 		return () => cancelAnimationFrame(tickId);
 	}, []);
+
+	return dt;
 }
 
-function useResize(fn: (width: number, height: number) => void) {
+function useResize() {
+	const [dimensions, setDimensions] = useState<[number, number]>([window.innerWidth, window.innerHeight])
 	useEffect(() => {
 		function resize() {
-			fn(window.innerWidth, window.innerHeight);
+			setDimensions([window.innerWidth, window.innerHeight]);
 		};
 
 		window.addEventListener("resize", resize);
 
 		return () => window.removeEventListener("resize", resize);
 	}, []);
+
+	return dimensions;
 }
 
-function pointInBall(x: number, y: number, ball: Ball) {
-	const dx = x - ball.x;
-	const dy = y - ball.y;
-
-	return dx * dx + dy * dy <= ball.r * ball.r;
-}
-
-
-function BallCanvas(props: BallCanvasProps) {
-	const {dimensions, dt} = props;
-	const [width, height] = dimensions;
-	const [balls, setBalls] = useState([]);
-	const canvasRef = useRef<HTMLCanvasElement>(null);
+function use2DContext(canvasRef: React.MutableRefObject<HTMLCanvasElement>, width: number, height: number) {
 	const contextRef = useRef<CanvasRenderingContext2D>(null);
-
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) {
@@ -77,6 +69,25 @@ function BallCanvas(props: BallCanvasProps) {
 		canvas.width = width;
 		canvas.height = height;
 	}, [width, height]);
+
+	return contextRef.current;
+}
+
+function pointInBall(x: number, y: number, ball: Ball) {
+	const dx = x - ball.x;
+	const dy = y - ball.y;
+
+	return dx * dx + dy * dy <= ball.r * ball.r;
+}
+
+
+export function BallCanvas() {
+	const [balls, setBalls] = useState([]);
+	const canvasRef = useRef<HTMLCanvasElement>(null);
+
+	const dt = useDeltaTime();
+    const [width, height] = useResize();
+    const context = use2DContext(canvasRef, width, height);
 
 	useEffect(() => {
 		const newBalls = new Array(30).fill(null).map(() => ({
@@ -130,8 +141,6 @@ function BallCanvas(props: BallCanvasProps) {
 	}, [dt]);
 
 	useEffect(() => {
-		const context = contextRef.current;
-
 		if (!context) {
 			return;
 		}
@@ -145,26 +154,9 @@ function BallCanvas(props: BallCanvasProps) {
 			context.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
 			context.fill();
 		}
-	}, [balls, dimensions]);
+	}, [balls, width, height]);
 
 	return (
 		<canvas ref={canvasRef}></canvas>
-	);
-}
-
-export function App() {
-	const [dt, setDt] = useState(0);
-	const [dimensions, setDimensions] = useState<[number, number]>([window.innerWidth, window.innerHeight]);
-	const [width, height] = dimensions;
-
-	useDeltaTime((dt) => setDt(dt));
-
-	useResize((width, height) => setDimensions([width, height]));
-
-	return (
-		<BallCanvas
-			dimensions={dimensions}
-			dt={dt}
-		/>
 	);
 }

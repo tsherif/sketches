@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDom from "react-dom";
 
-import { App } from "./App";
+import { BallCanvas } from "./BallCanvas";
 
 ReactDom.render(
-	<App />,
+	<BallCanvas />,
 	document.getElementById("root")
 );
