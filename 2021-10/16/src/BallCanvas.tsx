@@ -73,14 +73,6 @@ function use2DContext(canvasRef: React.MutableRefObject<HTMLCanvasElement>, widt
     return contextRef.current;
 }
 
-function pointInBall(x: number, y: number, ball: Ball) {
-    const dx = x - ball.x;
-    const dy = y - ball.y;
-
-    return dx * dx + dy * dy <= ball.r * ball.r;
-}
-
-
 export function BallCanvas() {
     const [balls, setBalls] = useState([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
