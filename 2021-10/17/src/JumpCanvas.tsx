@@ -58,29 +58,6 @@ function useResize() {
     return dimensions;
 }
 
-function use2DContext(canvasRef: React.MutableRefObject<HTMLCanvasElement>, width: number, height: number) {
-    const contextRef = useRef<CanvasRenderingContext2D>(null);
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return;
-        }
-        contextRef.current = canvas.getContext("2d");
-    }, []);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-    }, [width, height]);
-
-    return contextRef.current;
-}
-
 function useInput() {
     const [input, setInput] = useState<Input>({
         left: false,
@@ -141,12 +118,7 @@ function useInput() {
     return input;   
 }
 
-export function JumpCanvas() {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    const dt = useDeltaTime();
-    const [width, height] = useResize();
-    const context = use2DContext(canvasRef, width, height);
+function usePlayer(input: Input, dt: number, width: number, height: number) {
     const [player, setPlayer] = useState<Player>({
         x: width / 2,
         y: height - FLOOR - PLAYER_DIM,
@@ -154,8 +126,6 @@ export function JumpCanvas() {
         vy: 0,
         jumping: false
     });
-
-    const input = useInput();
 
     useEffect(() => {
         let {x, y, vx, vy, jumping} = {...player};
@@ -197,9 +167,34 @@ export function JumpCanvas() {
         }
 
         setPlayer({x, y, vx, vy, jumping});
-    }, [dt, input]);
+    }, [dt, input, width, height]);
+
+    return player;
+}
+
+function useDraw(canvasRef: React.MutableRefObject<HTMLCanvasElement>, player: Player, width: number, height: number) {
+    const contextRef = useRef<CanvasRenderingContext2D>(null);
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) {
+            return;
+        }
+        contextRef.current = canvas.getContext("2d");
+    }, []);
 
     useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) {
+            return;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+    }, [width, height]);
+
+    useEffect(() => {
+        const context = contextRef.current;
+
         if (!context) {
             return;
         }
@@ -214,6 +209,16 @@ export function JumpCanvas() {
         context.fillRect(player.x, player.y, PLAYER_DIM, PLAYER_DIM);
 
     }, [player, width, height]);
+}
+
+export function JumpCanvas() {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const [width, height] = useResize();
+    const dt = useDeltaTime();
+    const input = useInput();
+    const player = usePlayer(input, dt, width, height);
+    useDraw(canvasRef, player, width, height);
 
     return (
         <canvas ref={canvasRef}></canvas>
