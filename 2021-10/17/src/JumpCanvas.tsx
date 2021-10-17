@@ -43,7 +43,7 @@ function useDeltaTime() {
     return dt;
 }
 
-function useResize() {
+function useDimensions() {
     const [dimensions, setDimensions] = useState<[number, number]>([window.innerWidth, window.innerHeight])
     useEffect(() => {
         function resize() {
@@ -214,7 +214,7 @@ function useDraw(canvasRef: React.MutableRefObject<HTMLCanvasElement>, player: P
 export function JumpCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const [width, height] = useResize();
+    const [width, height] = useDimensions();
     const dt = useDeltaTime();
     const input = useInput();
     const player = usePlayer(input, dt, width, height);
