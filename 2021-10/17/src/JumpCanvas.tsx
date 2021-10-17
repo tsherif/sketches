@@ -113,7 +113,7 @@ function useInput() {
         if (input.jump) {
             setInput({...input, jump: false});
         }
-    });
+    }, [input]);
 
     return input;   
 }
