@@ -81,6 +81,66 @@ function use2DContext(canvasRef: React.MutableRefObject<HTMLCanvasElement>, widt
     return contextRef.current;
 }
 
+function useInput() {
+    const [input, setInput] = useState<Input>({
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        jump: false
+    });
+
+    useEffect(() => {
+        function keyDown(e: KeyboardEvent) {
+            const newInput = {...input};
+            let changed = false;
+            switch (e.key) {
+                case "ArrowUp": newInput.up = true; changed = true; break;
+                case "ArrowDown": newInput.down = true; changed = true; break;
+                case "ArrowLeft": newInput.left = true; changed = true; break;
+                case "ArrowRight": newInput.right = true; changed = true; break;
+                case " ": newInput.jump = true; changed = true; break;
+            }
+
+            if (changed) {
+                setInput(newInput);
+            }
+        } 
+
+        function keyUp(e: KeyboardEvent) {
+            const newInput = {...input};
+            let changed = false;
+            switch (e.key) {
+                case "ArrowUp": newInput.up = false; changed = true; break;
+                case "ArrowDown": newInput.down = false; changed = true; break;
+                case "ArrowLeft": newInput.left = false; changed = true; break;
+                case "ArrowRight": newInput.right = false; changed = true; break;
+                case " ": newInput.jump = false; changed = true; break;
+            }
+
+            if (changed) {
+                setInput(newInput);
+            }
+        } 
+
+        document.addEventListener("keydown", keyDown);
+        document.addEventListener("keyup", keyUp);
+
+        return () => {
+            document.removeEventListener("keydown", keyDown);
+            document.removeEventListener("keyup", keyUp);
+        };
+    }, [input]);
+
+    useEffect(() => {
+        if (input.jump) {
+            setInput({...input, jump: false});
+        }
+    });
+
+    return input;   
+}
+
 export function JumpCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -94,49 +154,8 @@ export function JumpCanvas() {
         vy: 0,
         jumping: false
     });
-    const [input, setInput] = useState<Input>({
-        left: false,
-        right: false,
-        up: false,
-        down: false,
-        jump: false
-    });
 
-    useEffect(() => {
-        function keyDown(e: KeyboardEvent) {
-            const newInput = {...input};
-            switch (e.key) {
-                case "ArrowUp": newInput.up = true; break;
-                case "ArrowDown": newInput.down = true; break;
-                case "ArrowLeft": newInput.left = true; break;
-                case "ArrowRight": newInput.right = true; break;
-                case " ": newInput.jump = true; break;
-            }
-
-            setInput(newInput);
-        } 
-
-        function keyUp(e: KeyboardEvent) {
-            const newInput = {...input};
-            switch (e.key) {
-                case "ArrowUp": newInput.up = false; break;
-                case "ArrowDown": newInput.down = false; break;
-                case "ArrowLeft": newInput.left = false; break;
-                case "ArrowRight": newInput.right = false; break;
-                case " ": newInput.jump = false; break;
-            }
-
-            setInput(newInput);  
-        } 
-
-        document.addEventListener("keydown", keyDown);
-        document.addEventListener("keyup", keyUp);
-
-        return () => {
-            document.removeEventListener("keydown", keyDown);
-            document.removeEventListener("keyup", keyUp);
-        };
-    }, [input])
+    const input = useInput();
 
     useEffect(() => {
         let {x, y, vx, vy, jumping} = {...player};
@@ -153,7 +172,6 @@ export function JumpCanvas() {
         if (input.jump && !jumping) {
             vy = PLAYER_JUMP;
             jumping = true;
-            setInput({...input, jump: false});
         }
 
         if (y < height - PLAYER_DIM - FLOOR) {
@@ -163,6 +181,10 @@ export function JumpCanvas() {
 
         x += vx * dt;
         y += vy * dt + ay * dt * dt;
+
+        if (x < 0) {
+            x = x = 0;
+        }
 
         if (x > width - PLAYER_DIM) {
             x = width - PLAYER_DIM;
