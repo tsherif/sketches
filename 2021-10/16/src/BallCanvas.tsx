@@ -11,10 +11,6 @@ interface Ball {
     highlight: boolean;
 }
 
-interface BallCanvasProps {
-    dimensions: [number, number];
-}
-
 function useDeltaTime() {
     const [dt, setDt] = useState(0);
     useEffect(() => {
@@ -74,7 +70,15 @@ function use2DContext(canvasRef: React.MutableRefObject<HTMLCanvasElement>, widt
 }
 
 export function BallCanvas() {
-    const [balls, setBalls] = useState([]);
+    const [balls, setBalls] = useState<Ball[]>(new Array(30).fill(null).map(() => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 20 + 10,
+        vx: Math.random() * 2 - 1,
+        vy: Math.random() * 2 - 1,
+        color: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
+        highlight: false
+    })));
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const dt = useDeltaTime();
@@ -82,24 +86,6 @@ export function BallCanvas() {
     const context = use2DContext(canvasRef, width, height);
 
     useEffect(() => {
-        const newBalls = new Array(30).fill(null).map(() => ({
-            x: Math.random() * window.innerWidth,
-            y: Math.random() * window.innerHeight,
-            r: Math.random() * 20 + 10,
-            vx: Math.random() * 2 - 1,
-            vy: Math.random() * 2 - 1,
-            color: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
-            highlight: false
-        }));
-
-        setBalls(newBalls);
-    }, []);
-
-    useEffect(() => {
-        if (balls.length === 0) {
-            return;
-        }
-
         const newBalls = balls.map(b => {
             const ball = {...b};
 
