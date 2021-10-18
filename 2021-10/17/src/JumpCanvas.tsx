@@ -13,6 +13,7 @@ interface Player {
     vx: number;
     vy: number;
     jumping: boolean;
+    timestamp: number;
 }
 
 interface Input {
@@ -23,16 +24,14 @@ interface Input {
     jump: boolean;
 }
 
-function useDeltaTime() {
-    const [dt, setDt] = useState(0);
+function useTime() {
+    const [time, setTime] = useState(performance.now());
     useEffect(() => {
         let tickId = 0;
         let lastTime = performance.now();
         function tick() {
             tickId = requestAnimationFrame(tick);
-            let time = performance.now();
-            setDt(time - lastTime);
-            lastTime = time;
+            setTime(performance.now());
         };
 
         tickId = requestAnimationFrame(tick);
@@ -40,7 +39,7 @@ function useDeltaTime() {
         return () => cancelAnimationFrame(tickId);
     }, []);
 
-    return dt;
+    return time;
 }
 
 function useDimensions() {
@@ -118,16 +117,19 @@ function useInput() {
     return input;   
 }
 
-function usePlayer(input: Input, dt: number, width: number, height: number) {
+function usePlayer(input: Input, time: number, width: number, height: number) {
     const [player, setPlayer] = useState<Player>({
         x: width / 2,
         y: height - FLOOR - PLAYER_DIM,
         vx: 0,
         vy: 0,
-        jumping: false
+        jumping: false,
+        timestamp: performance.now()
     });
 
     useEffect(() => {
+        const dt = time - player.timestamp;
+
         let {x, y, vx, vy, jumping} = {...player};
         let ay = 0;
 
@@ -166,8 +168,8 @@ function usePlayer(input: Input, dt: number, width: number, height: number) {
             vy = 0;
         }
 
-        setPlayer({x, y, vx, vy, jumping});
-    }, [dt, input, width, height]);
+        setPlayer({x, y, vx, vy, jumping, timestamp: time});
+    }, [time, input, width, height]);
 
     return player;
 }
@@ -215,7 +217,7 @@ export function JumpCanvas() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const [width, height] = useDimensions();
-    const dt = useDeltaTime();
+    const dt = useTime();
     const input = useInput();
     const player = usePlayer(input, dt, width, height);
     useDraw(canvasRef, player, width, height);
