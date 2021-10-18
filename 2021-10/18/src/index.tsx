@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDom from "react-dom";
 
-import { JumpCanvas } from "./JumpCanvas";
+import { Engine } from "./Engine";
 
 ReactDom.render(
-	<JumpCanvas />,
+	<Engine />,
 	document.getElementById("root")
 );

@@ -1,11 +1,11 @@
 import React, {useState, useEffect, useRef} from "react";
-import ReactDom from "react-dom";
+import { Renderer } from "./Renderer"
 
 const GRAVITY = 0.01;
-const FLOOR = 100;
-const PLAYER_DIM = 40;
 const PLAYER_WALK = 0.5;
 const PLAYER_JUMP = -2;
+const PLAYER_DIM = 40;
+const FLOOR = 100;
 
 interface Player {
     x: number;
@@ -166,55 +166,33 @@ function usePlayer(input: Input, time: number, width: number, height: number) {
     return playerRef.current;
 }
 
-function useDraw(canvasRef: React.MutableRefObject<HTMLCanvasElement>, player: Player, width: number, height: number) {
-    const contextRef = useRef<CanvasRenderingContext2D>(null);
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return;
-        }
-        contextRef.current = canvas.getContext("2d");
-    }, []);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-    }, [width, height]);
-
-    useEffect(() => {
-        const context = contextRef.current;
-
-        if (!context) {
-            return;
-        }
-
-        context.fillStyle = "black";
-        context.fillRect(0, 0, width, height);
-
-        context.fillStyle = "red";
-        context.fillRect(0, height - FLOOR, width, FLOOR);
-
-        context.fillStyle = "blue";
-        context.fillRect(player.x, player.y, PLAYER_DIM, PLAYER_DIM);
-
-    }, [player, width, height]);
-}
-
-export function JumpCanvas() {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+export function Engine() {
 
     const [width, height] = useDimensions();
     const time = useTime();
     const input = useInput();
     const player = usePlayer(input, time, width, height);
-    useDraw(canvasRef, player, width, height);
 
     return (
-        <canvas ref={canvasRef}></canvas>
+        <Renderer 
+            objects={[
+                {
+                    x: player.x,
+                    y: player.y,
+                    width: PLAYER_DIM,
+                    height: PLAYER_DIM,
+                    color: "red"
+                },
+                {
+                    x: 0,
+                    y: height - FLOOR,
+                    width,
+                    height: FLOOR,
+                    color: "blue"
+                }
+            ]}
+            width={width}
+            height={height}
+        />
     );
 }
