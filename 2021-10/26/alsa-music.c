@@ -52,15 +52,39 @@ int main(void) {
 
     mixSounds((int16_t*)(musicData.data + 4 * 44000), (int16_t*) jumpData.data, numJumpFrame);
 
-    snd_pcm_t* device;
+    snd_pcm_t* device = 0;
+    snd_pcm_hw_params_t *deviceParams = 0;
 
     if (snd_pcm_open(&device, "default", SND_PCM_STREAM_PLAYBACK, 0) < 0) {
         debugLog("Could not open audio device.");
         return 1;
     }
 
-    if (snd_pcm_set_params(device, SND_PCM_FORMAT_S16_LE, SND_PCM_ACCESS_RW_INTERLEAVED, 2, 44100, 1, 50000) < 0) {
-        debugLog("Could not set audio params.");
+    snd_pcm_hw_params_alloca(&deviceParams);
+    snd_pcm_hw_params_any(device, deviceParams);
+
+    if (snd_pcm_hw_params_set_access(device, deviceParams, SND_PCM_ACCESS_RW_INTERLEAVED) < 0) {
+        debugLog("Could not set access.");
+        return 1;   
+    }
+
+    if (snd_pcm_hw_params_set_format(device, deviceParams, SND_PCM_FORMAT_S16_LE) < 0) {
+        debugLog("Could not set format.");
+        return 1;   
+    }
+
+    if (snd_pcm_hw_params_set_rate(device, deviceParams, 44100, 0) < 0) {
+        debugLog("Could not set rate.");
+        return 1;   
+    }
+
+    if (snd_pcm_hw_params_set_channels(device, deviceParams, 2) < 0) {
+        debugLog("Could not set rate.");
+        return 1;   
+    }
+
+    if (snd_pcm_hw_params(device, deviceParams) < 0) {
+        debugLog("Could not set device params.");
         return 1;   
     }
 
