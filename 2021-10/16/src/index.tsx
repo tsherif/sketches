@@ -1,0 +1,9 @@
+import React from "react";
+import ReactDom from "react-dom";
+
+import { BallCanvas } from "./BallCanvas";
+
+ReactDom.render(
+	<BallCanvas />,
+	document.getElementById("root")
+);
