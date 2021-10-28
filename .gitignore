@@ -16,3 +16,4 @@ node_modules
 **/test-dlfcn-aot
 **/wordcount
 **/alsa-music
+**/alsa-mixer
