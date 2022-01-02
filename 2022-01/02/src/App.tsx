@@ -1,13 +1,48 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import {simulate, ballsSelector} from "./store";
+import {simulate, dimensions, ballsSelector, dimensionsSelector} from "./store";
+
+function useDimensions() {
+    const currentDimensions = useSelector(dimensionsSelector);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        const handleResize = () => {
+            dispatch(dimensions(window.innerWidth, window.innerHeight));
+        };
+        window.addEventListener("resize", handleResize);
+
+        return () => window.removeEventListener("resize", handleResize);
+    }, [])
+
+    return currentDimensions;
+}
+
+function useSimulate() {
+    const balls = useSelector(ballsSelector);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        let rafId: number;
+        const loop = () => {
+            rafId = requestAnimationFrame(loop);
+            dispatch(simulate(performance.now()));
+        }
+
+        rafId = requestAnimationFrame(loop);
+
+        return () => cancelAnimationFrame(rafId);
+    }, []);
+
+    return balls;
+}
 
 export function App() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const contextRef = useRef<CanvasRenderingContext2D>(null);
-    const balls = useSelector(ballsSelector);
-    const dispatch = useDispatch();
+    const { width, height } = useDimensions();
+    const balls = useSimulate();
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -18,14 +53,15 @@ export function App() {
     }, []);
 
     useEffect(() => {
-        let rafId: number;
-        const loop = () => {
-            rafId = requestAnimationFrame(loop);
-            dispatch(simulate());
+        const canvas = canvasRef.current;
+        
+        if (!canvasRef.current) {
+            return;
         }
 
-        rafId = requestAnimationFrame(loop);
-    }, []);
+        canvas.width = width;
+        canvas.height = height;
+    }, [width, height]);
 
     useEffect(() => {
         const context = contextRef.current;
@@ -34,7 +70,7 @@ export function App() {
         }
 
         context.fillStyle = "black";
-        context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        context.fillRect(0, 0, width, height);
 
         for (const ball of balls) {
             context.beginPath();
@@ -42,9 +78,9 @@ export function App() {
             context.arc(ball.x, ball.y, ball.r, 0, 2 * Math.PI);
             context.fill();
         }
-    }, [balls])
+    }, [balls, width, height]);
 
     return (
-        <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight}></canvas>
+        <canvas ref={canvasRef}></canvas>
     );
 }

@@ -12,33 +12,53 @@ interface Ball {
 
 interface StoreState {
     balls: Ball[];
+    timestamp: number;
+    width: number;
+    height: number;
 }
 
-interface StoreAction {
-    type: string;
+interface DimensionsPayload {
+    width: number;
+    height: number;
 }
+
+interface DimensionsAction {
+    type: "dimensions";
+    payload: DimensionsPayload;
+}
+
+interface SimulateAction {
+    type: "simulate";
+    payload: number;
+}
+
+type StoreAction = SimulateAction | DimensionsAction;
 
 const initialState: StoreState = {
-    balls: new Array(30).fill(null).map(() => ({
+    balls: new Array(100).fill(null).map(() => ({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
         r: Math.random() * 20 + 5,
-        vx: Math.random() * 4 - 2,
-        vy: Math.random() * 4 - 2,
+        vx: Math.random() - 0.5,
+        vy: Math.random() - 0.5,
         color: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
-    }))
+    })),
+    timestamp: performance.now(),
+    width: window.innerWidth,
+    height: window.innerHeight
 };
 
 function reducer(state = initialState, action: StoreAction) {
     switch (action.type) {
-        case "simulate": 
+        case "simulate":
+            const dt = action.payload - state.timestamp;
             return {
                 ...state, 
                 balls: state.balls.map(b => {
                     let vx = b.vx;
                     let vy = b.vy;
-                    let x = b.x + vx;
-                    let y = b.y + vy;
+                    let x = b.x + vx * dt;
+                    let y = b.y + vy * dt;
                     const r = b.r;
 
                     if (x < r) {
@@ -46,8 +66,8 @@ function reducer(state = initialState, action: StoreAction) {
                         vx *= -1;
                     }
 
-                    if (x > window.innerWidth - r) {
-                        x = window.innerWidth - r;
+                    if (x > state.width - r) {
+                        x = state.width - r;
                         vx *= -1;
                     }
 
@@ -56,8 +76,8 @@ function reducer(state = initialState, action: StoreAction) {
                         vy *= -1;
                     }
 
-                    if (y > window.innerHeight - r) {
-                        y = window.innerHeight - r;
+                    if (y > state.height - r) {
+                        y = state.height - r;
                         vy *= -1;
                     }
 
@@ -68,13 +88,23 @@ function reducer(state = initialState, action: StoreAction) {
                         vx,
                         vy
                     }
-                })
+                }),
+                timestamp: action.payload
             };
+        case "dimensions":
+            const {width, height} = action.payload;
+            return {
+                ...state,
+                width,
+                height
+            }
         default: return state;
     }
 }
 
 export const store = createStore(reducer, composeWithDevTools());
 
-export const simulate = () => ({ type: "simulate"});
+export const simulate = (timestamp: number) => ({ type: "simulate", payload: timestamp});
+export const dimensions = (width: number, height: number) => ({ type: "dimensions", payload: { width, height } });
 export const ballsSelector = (state: StoreState) => state.balls;
+export const dimensionsSelector = (state: StoreState) => ({ width: state.width, height: state.height});
