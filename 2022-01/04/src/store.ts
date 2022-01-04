@@ -1,4 +1,5 @@
-import {createStore} from "redux";
+import { createStore, applyMiddleware, AnyAction } from "redux";
+import thunkMiddleware, { ThunkAction } from "redux-thunk";
 import { composeWithDevTools } from 'redux-devtools-extension';
 import { mat4 } from "gl-matrix";
 
@@ -9,11 +10,22 @@ interface StoreState {
     angleY: number;
     modelMatrix: mat4;
     timestamp: number;
+    programLoaded: boolean;
+    textureLoaded: boolean;
 }
 
 interface DimensionsPayload {
     width: number;
     height: number;
+}
+
+
+interface ProgramLoadedAction {
+    type: "programLoaded";
+}
+
+interface TextureLoadedAction {
+    type: "textureLoaded";
 }
 
 interface DimensionsAction {
@@ -26,7 +38,7 @@ interface SimulateAction {
     payload: number;
 }
 
-type StoreAction = SimulateAction | DimensionsAction;
+type StoreAction = ProgramLoadedAction | TextureLoadedAction | SimulateAction | DimensionsAction;
 
 const initialState: StoreState = {
     width: window.innerWidth,
@@ -34,7 +46,9 @@ const initialState: StoreState = {
     angleX: 0,
     angleY: 0,
     modelMatrix: mat4.create(),
-    timestamp: performance.now()
+    timestamp: performance.now(),
+    programLoaded: false,
+    textureLoaded: false
 };
 
 let rotateXMatrix = mat4.create();
@@ -42,6 +56,16 @@ let rotateYMatrix = mat4.create();
 
 function reducer(state = initialState, action: StoreAction) {
     switch (action.type) {
+        case "programLoaded":
+            return {
+                ...state,
+                programLoaded: true
+            };
+        case "textureLoaded":
+            return {
+                ...state,
+                textureLoaded: true
+            };
         case "simulate":
             const dt = action.payload - state.timestamp;
 
@@ -68,10 +92,25 @@ function reducer(state = initialState, action: StoreAction) {
     }
 }
 
-export const store = createStore(reducer, composeWithDevTools());
+export const store = createStore(reducer, composeWithDevTools(applyMiddleware(thunkMiddleware)));
 
+export const programLoaded = () => ({ type: "programLoaded" });
+export const textureLoaded = () => ({ type: "textureLoaded" });
 export const simulate = (timestamp: number) => ({ type: "simulate", payload: timestamp});
 export const dimensions = (width: number, height: number) => ({ type: "dimensions", payload: { width, height } });
+export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, StoreState, void, AnyAction> => {
+    return (dispatch)  => {
+        return new Promise((resolve) => {
+            const image =  new Image();
+            image.onload = () => {
+                dispatch({type: "textureLoaded"});
+                resolve(image);
+            };
+            image.src = "./webgl-logo.png";
+        });
+    }
+}
 
+export const selectLoaded = (state: StoreState) => state.programLoaded && state.textureLoaded;
 export const selectModelMatrix = (state: StoreState) => state.modelMatrix;
 export const selectDimensions = (state: StoreState) => ({ width: state.width, height: state.height});

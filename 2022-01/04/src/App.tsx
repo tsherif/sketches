@@ -4,7 +4,26 @@ import { PicoGL, App as PicoGLApp, DrawCall, UniformBuffer } from "picogl";
 import {vec3, mat4} from "gl-matrix";
 import { createCube } from "../../../lib/utils";
 
-import {dimensions, selectDimensions, selectModelMatrix } from "./store";
+import {programLoaded, fetchTextureImage, simulate, dimensions, selectLoaded, selectDimensions, selectModelMatrix } from "./store";
+
+function useModelMatrix() {
+    const modelMatrix = useSelector(selectModelMatrix);
+    const dispatch = useDispatch();
+
+    useEffect(() => {
+        let rafId: number;
+        const loop = () => {
+            rafId = requestAnimationFrame(loop);
+            dispatch(simulate(performance.now()));
+        }
+
+        rafId = requestAnimationFrame(loop);
+
+        return () => cancelAnimationFrame(rafId);
+    }, []);
+
+    return modelMatrix;
+}
 
 function useDimensions() {
     const currentDimensions = useSelector(selectDimensions);
@@ -29,8 +48,9 @@ export function App() {
     const viewMatrixRef = useRef<mat4>(null);
     const sceneUniformRef = useRef<UniformBuffer>(null);
     const { width, height } = useDimensions();
-    const modelMatrix = useSelector(selectModelMatrix);
-    const [loaded, setLoaded] = useState(false);
+    const modelMatrix = useModelMatrix();
+    const loaded = useSelector(selectLoaded);
+    const dispatch = useDispatch();
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -39,7 +59,8 @@ export function App() {
         }
 
         picoglRef.current = PicoGL.createApp(canvas)
-        .clearColor(0.0, 0.0, 0.0, 1.0);
+            .clearColor(0.0, 0.0, 0.0, 1.0)
+            .enable(PicoGL.DEPTH_TEST);
 
         const picogl = picoglRef.current;
 
@@ -50,9 +71,9 @@ export function App() {
         let normals = picogl.createVertexBuffer(PicoGL.FLOAT, 3, cube.normals);
 
         let cubeArray = picogl.createVertexArray()
-        .vertexAttributeBuffer(0, positions)
-        .vertexAttributeBuffer(1, uv)
-        .vertexAttributeBuffer(2, normals)
+            .vertexAttributeBuffer(0, positions)
+            .vertexAttributeBuffer(1, uv)
+            .vertexAttributeBuffer(2, normals)
 
         // SET UP UNIFORM BUFFER
         const lightPosition = vec3.fromValues(1, 1, 0.5);
@@ -83,10 +104,10 @@ export function App() {
             PicoGL.FLOAT_VEC4,
             PicoGL.FLOAT_VEC4
         ])
-        .set(0, new Float32Array(viewProjMatrix))
-        .set(1, new Float32Array(eyePosition))
-        .set(2, new Float32Array(lightPosition))
-        .update();
+            .set(0, new Float32Array(viewProjMatrix))
+            .set(1, new Float32Array(eyePosition))
+            .set(2, new Float32Array(lightPosition))
+            .update();
 
         const vsSource = `
             #version 300 es
@@ -130,7 +151,7 @@ export function App() {
                 vec4 lightPosition;
             };
 
-            // uniform sampler2D tex;
+            uniform sampler2D tex;
             
             in vec3 vPosition;
             in vec2 vUV;
@@ -138,7 +159,7 @@ export function App() {
 
             out vec4 fragColor;
             void main() {
-                vec3 color = vec3(1.0); //texture(tex, vUV).rgb;
+                vec3 color = texture(tex, vUV).rgb;
 
                 vec3 normal = normalize(vNormal);
                 vec3 eyeVec = normalize(eyePosition.xyz - vPosition);
@@ -153,10 +174,18 @@ export function App() {
 
         picogl.createPrograms([vsSource, fsSource]).then(([program]) => {
             drawCallRef.current = picogl.createDrawCall(program, cubeArray)
-            .uniformBlock("SceneUniforms", sceneUniformRef.current)
-            // .texture("tex", texture);
+            .uniformBlock("SceneUniforms", sceneUniformRef.current);
 
-            setLoaded(true);
+            dispatch(programLoaded());
+        });
+    }, []);
+
+    useEffect(() => {
+        dispatch(fetchTextureImage()).then((image: HTMLImageElement) => {
+            drawCallRef.current.texture("tex", picoglRef.current.createTexture2D(image, { 
+                flipY: true,
+                maxAnisotropy: PicoGL.WEBGL_INFO.MAX_TEXTURE_ANISOTROPY 
+            }));
         });
     }, []);
 
@@ -194,7 +223,7 @@ export function App() {
             .uniform("uModel", modelMatrix)
             .draw();
 
-    }, [loaded, width, height]);
+    }, [loaded, modelMatrix, width, height]);
 
     return (
         <canvas ref={canvasRef}></canvas>
