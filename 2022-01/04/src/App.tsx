@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import { PicoGL, App as PicoGLApp, DrawCall, UniformBuffer } from "picogl";
 import {vec3, mat4} from "gl-matrix";
@@ -41,7 +41,7 @@ function useDimensions() {
 
     useEffect(() => {
         const handleResize = () => dispatch(dimensions(window.innerWidth, window.innerHeight));
-        
+
         window.addEventListener("resize", handleResize);
 
         return () => window.removeEventListener("resize", handleResize);
