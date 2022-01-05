@@ -4,7 +4,16 @@ import { PicoGL, App as PicoGLApp, DrawCall, UniformBuffer } from "picogl";
 import {vec3, mat4} from "gl-matrix";
 import { createCube } from "../../../lib/utils";
 
-import {useAppDispatch, programLoaded, fetchTextureImage, simulate, dimensions, selectLoaded, selectDimensions, selectModelMatrix } from "./store";
+import {
+    useAppDispatch,
+    programLoaded,
+    fetchTextureImage,
+    simulate,
+    dimensions,
+    selectLoaded,
+    selectDimensions,
+    selectModelMatrix 
+} from "./redux/store";
 
 function useModelMatrix() {
     const modelMatrix = useSelector(selectModelMatrix);
@@ -91,7 +100,7 @@ export function App() {
             mat4.perspective(
                 mat4.create(), 
                 Math.PI / 2, 
-                canvas.width / canvas.height, 
+                width / height, 
                 0.1, 
                 10.0
             ),
