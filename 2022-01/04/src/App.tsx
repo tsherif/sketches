@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import { PicoGL, App as PicoGLApp, DrawCall, UniformBuffer } from "picogl";
 import {vec3, mat4} from "gl-matrix";
 import { createCube } from "../../../lib/utils";
 
-import {programLoaded, fetchTextureImage, simulate, dimensions, selectLoaded, selectDimensions, selectModelMatrix } from "./store";
+import {useAppDispatch, programLoaded, fetchTextureImage, simulate, dimensions, selectLoaded, selectDimensions, selectModelMatrix } from "./store";
 
 function useModelMatrix() {
     const modelMatrix = useSelector(selectModelMatrix);
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
     useEffect(() => {
         let rafId: number;
@@ -27,7 +27,7 @@ function useModelMatrix() {
 
 function useDimensions() {
     const currentDimensions = useSelector(selectDimensions);
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
     useEffect(() => {
         const handleResize = () => {
@@ -50,7 +50,7 @@ export function App() {
     const { width, height } = useDimensions();
     const modelMatrix = useModelMatrix();
     const loaded = useSelector(selectLoaded);
-    const dispatch = useDispatch();
+    const dispatch = useAppDispatch();
 
     useEffect(() => {
         const canvas = canvasRef.current;

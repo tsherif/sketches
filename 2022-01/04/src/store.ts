@@ -1,5 +1,6 @@
 import { createStore, applyMiddleware, AnyAction } from "redux";
-import thunkMiddleware, { ThunkAction } from "redux-thunk";
+import { useDispatch } from "react-redux";
+import thunkMiddleware, { ThunkAction, ThunkDispatch } from "redux-thunk";
 import { composeWithDevTools } from 'redux-devtools-extension';
 import { mat4 } from "gl-matrix";
 
@@ -68,9 +69,8 @@ function reducer(state = initialState, action: StoreAction) {
             };
         case "simulate":
             const dt = action.payload - state.timestamp;
-
-            const angleX = state.angleX + 0.01;
-            const angleY = state.angleY + 0.02;
+            const angleX = state.angleX + 0.001 * dt;
+            const angleY = state.angleY + 0.002 * dt;
 
             mat4.fromXRotation(rotateXMatrix, angleX);
             mat4.fromYRotation(rotateYMatrix, angleY);
@@ -93,12 +93,13 @@ function reducer(state = initialState, action: StoreAction) {
 }
 
 export const store = createStore(reducer, composeWithDevTools(applyMiddleware(thunkMiddleware)));
+export const useAppDispatch = () => useDispatch<ThunkDispatch<StoreState, unknown, AnyAction>>();
 
 export const programLoaded = () => ({ type: "programLoaded" });
 export const textureLoaded = () => ({ type: "textureLoaded" });
 export const simulate = (timestamp: number) => ({ type: "simulate", payload: timestamp});
 export const dimensions = (width: number, height: number) => ({ type: "dimensions", payload: { width, height } });
-export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, StoreState, void, AnyAction> => {
+export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, StoreState, unknown, AnyAction> => {
     return (dispatch)  => {
         return new Promise((resolve) => {
             const image =  new Image();
