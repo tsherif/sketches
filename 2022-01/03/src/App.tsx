@@ -54,7 +54,7 @@ export function App() {
         // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
         let triangleArray = picogl.createVertexArray()
         .vertexAttributeBuffer(0, positions)
-        .vertexAttributeBuffer(1, colors, { normalized: Number(true) });
+        .vertexAttributeBuffer(1, colors, { normalized: true });
 
         const vsSource = `
             #version 300 es
