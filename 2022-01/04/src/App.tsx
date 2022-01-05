@@ -6,7 +6,7 @@ import { createCube } from "../../../lib/utils";
 
 import {
     useAppDispatch,
-    programLoaded,
+    buildProgram,
     fetchTextureImage,
     simulate,
     dimensions,
@@ -178,17 +178,15 @@ export function App() {
         `;
 
         Promise.all([
-            picogl.createPrograms([vsSource, fsSource]),
-            dispatch(fetchTextureImage())
-        ]).then(([[program], image]) => {
+            dispatch(buildProgram(picogl, vsSource, fsSource)),
+            dispatch(fetchTextureImage("./webgl-logo.png"))
+        ]).then(([program, image]) => {
             drawCallRef.current = picogl.createDrawCall(program, cubeArray)
             .uniformBlock("SceneUniforms", sceneUniformRef.current)
             .texture("tex", picoglRef.current.createTexture2D(image, { 
                 flipY: true,
                 maxAnisotropy: PicoGL.WEBGL_INFO.MAX_TEXTURE_ANISOTROPY 
             }));
-
-            dispatch(programLoaded());
         })
     }, []);
 
@@ -212,11 +210,8 @@ export function App() {
             return;
         }
 
-        const picogl = picoglRef.current;
-        const drawCall = drawCallRef.current;
-
-        picogl.clear();
-        drawCall
+        picoglRef.current.clear();
+        drawCallRef.current
             .uniform("uModel", modelMatrix)
             .draw();
 

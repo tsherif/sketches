@@ -2,6 +2,7 @@ import { createStore, combineReducers, applyMiddleware, AnyAction } from "redux"
 import { useDispatch } from "react-redux";
 import thunkMiddleware, { ThunkDispatch, ThunkAction } from "redux-thunk";
 import { composeWithDevTools } from 'redux-devtools-extension';
+import type { App as PicoGLApp, Program } from "picogl";
 import { loadedReducer } from "./loaded";
 import { sceneReducer } from "./scene";
 import { viewportReducer } from "./viewport";
@@ -23,7 +24,15 @@ export { programLoaded } from "./loaded";
 export { dimensions } from "./viewport";
 export { simulate } from "./scene";
 
-export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, StoreState, unknown, AnyAction> => {
+export const buildProgram = (picogl: PicoGLApp, vs: string, fs: string): ThunkAction<Promise<Program>, StoreState, unknown, AnyAction> => {
+    return async (dispatch)  => {
+        const [program] = await picogl.createPrograms([vs, fs]);
+        dispatch({type: "loaded/program"});
+        return program;
+    }
+}
+
+export const fetchTextureImage = (url: string): ThunkAction<Promise<HTMLImageElement>, StoreState, unknown, AnyAction> => {
     return (dispatch)  => {
         return new Promise((resolve) => {
             const image =  new Image();
@@ -31,7 +40,7 @@ export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, Stor
                 dispatch({type: "loaded/texture"});
                 resolve(image);
             };
-            image.src = "./webgl-logo.png";
+            image.src = url;
         });
     }
 }
