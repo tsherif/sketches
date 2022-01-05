@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import thunkMiddleware, { ThunkDispatch, ThunkAction } from "redux-thunk";
 import { composeWithDevTools } from 'redux-devtools-extension';
 import type { App as PicoGLApp, Program } from "picogl";
-import { loadedReducer } from "./loaded";
+import { loadingReducer } from "./loading";
 import { sceneReducer } from "./scene";
 import { viewportReducer } from "./viewport";
 
@@ -11,39 +11,17 @@ export const store = createStore(
     combineReducers({
         viewport: viewportReducer,
         scene: sceneReducer,
-        loaded: loadedReducer
+        loaded: loadingReducer
     }), 
     composeWithDevTools(applyMiddleware(thunkMiddleware))
 );
 type StoreState = ReturnType<typeof store.getState>
-export const useAppDispatch = () => useDispatch<ThunkDispatch<StoreState, unknown, AnyAction>>();
-
+export const useAppDispatch = () => useDispatch<ThunkDispatch<unknown, unknown, AnyAction>>();
 
 // Actions
-export { programLoaded } from "./loaded";
+export { buildProgram, fetchTextureImage } from "./loading";
 export { dimensions } from "./viewport";
 export { simulate } from "./scene";
-
-export const buildProgram = (picogl: PicoGLApp, vs: string, fs: string): ThunkAction<Promise<Program>, StoreState, unknown, AnyAction> => {
-    return async (dispatch)  => {
-        const [program] = await picogl.createPrograms([vs, fs]);
-        dispatch({type: "loaded/program"});
-        return program;
-    }
-}
-
-export const fetchTextureImage = (url: string): ThunkAction<Promise<HTMLImageElement>, StoreState, unknown, AnyAction> => {
-    return (dispatch)  => {
-        return new Promise((resolve) => {
-            const image =  new Image();
-            image.onload = () => {
-                dispatch({type: "loaded/texture"});
-                resolve(image);
-            };
-            image.src = url;
-        });
-    }
-}
 
 // Selectors
 export const selectLoaded = (state: StoreState) => state.loaded.program && state.loaded.texture;
