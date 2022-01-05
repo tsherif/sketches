@@ -1,6 +1,9 @@
+import { mat4 } from "gl-matrix";
+
 interface ViewportState {
     width: number;
     height: number;
+    projectionMatrix: mat4
 }
 
 interface DimensionsPayload {
@@ -16,6 +19,13 @@ interface DimensionsAction {
 const initialState: ViewportState = {
     width: window.innerWidth,
     height: window.innerHeight,
+    projectionMatrix: mat4.perspective(
+        mat4.create(), 
+        Math.PI / 2, 
+        window.innerWidth / window.innerHeight, 
+        0.1, 
+        10.0
+    )
 };
 
 
@@ -26,7 +36,14 @@ export function viewportReducer(state = initialState, action: DimensionsAction) 
             return {
                 ...state,
                 width,
-                height
+                height,
+                projectionMatrix: mat4.perspective(
+                    mat4.create(), 
+                    Math.PI / 2, 
+                    width / height, 
+                    0.1, 
+                    10.0
+                )
             }
         default: return state;
     }

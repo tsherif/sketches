@@ -12,7 +12,8 @@ import {
     dimensions,
     selectLoaded,
     selectDimensions,
-    selectModelMatrix 
+    selectModelMatrix,
+    selectProjectionMatrix
 } from "./redux/store";
 
 function useModelMatrix() {
@@ -58,6 +59,7 @@ export function App() {
     const sceneUniformRef = useRef<UniformBuffer>(null);
     const { width, height } = useDimensions();
     const modelMatrix = useModelMatrix();
+    const projectionMatrix = useSelector(selectProjectionMatrix);
     const loaded = useSelector(selectLoaded);
     const dispatch = useAppDispatch();
 
@@ -97,13 +99,7 @@ export function App() {
         
         const viewProjMatrix = mat4.multiply(
             mat4.create(), 
-            mat4.perspective(
-                mat4.create(), 
-                Math.PI / 2, 
-                width / height, 
-                0.1, 
-                10.0
-            ),
+            projectionMatrix,
             viewMatrixRef.current 
         );
 
@@ -181,21 +177,19 @@ export function App() {
             }
         `;
 
-        picogl.createPrograms([vsSource, fsSource]).then(([program]) => {
+        Promise.all([
+            picogl.createPrograms([vsSource, fsSource]),
+            dispatch(fetchTextureImage())
+        ]).then(([[program], image]) => {
             drawCallRef.current = picogl.createDrawCall(program, cubeArray)
-            .uniformBlock("SceneUniforms", sceneUniformRef.current);
-
-            dispatch(programLoaded());
-        });
-    }, []);
-
-    useEffect(() => {
-        dispatch(fetchTextureImage()).then((image: HTMLImageElement) => {
-            drawCallRef.current.texture("tex", picoglRef.current.createTexture2D(image, { 
+            .uniformBlock("SceneUniforms", sceneUniformRef.current)
+            .texture("tex", picoglRef.current.createTexture2D(image, { 
                 flipY: true,
                 maxAnisotropy: PicoGL.WEBGL_INFO.MAX_TEXTURE_ANISOTROPY 
             }));
-        });
+
+            dispatch(programLoaded());
+        })
     }, []);
 
     useEffect(() => {
@@ -208,13 +202,7 @@ export function App() {
         picogl.resize(width, height);
         sceneUniformRef.current.set(0, new Float32Array(mat4.multiply(
             mat4.create(), 
-            mat4.perspective(
-                mat4.create(), 
-                Math.PI / 2, 
-                width / height, 
-                0.1, 
-                10.0
-            ),
+            projectionMatrix,
             viewMatrixRef.current 
         ))).update();
     }, [width, height]);

@@ -40,3 +40,4 @@ export const fetchTextureImage = (): ThunkAction<Promise<HTMLImageElement>, Stor
 export const selectLoaded = (state: StoreState) => state.loaded.program && state.loaded.texture;
 export const selectModelMatrix = (state: StoreState) => state.scene.modelMatrix;
 export const selectDimensions = (state: StoreState) => ({ width: state.viewport.width, height: state.viewport.height});
+export const selectProjectionMatrix = (state: StoreState) => state.viewport.projectionMatrix;

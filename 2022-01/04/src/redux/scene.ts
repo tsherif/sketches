@@ -1,6 +1,5 @@
 import { mat4 } from "gl-matrix";
 
-
 interface SceneState {
     angleX: number;
     angleY: number;
