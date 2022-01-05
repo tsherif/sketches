@@ -40,9 +40,8 @@ function useDimensions() {
     const dispatch = useAppDispatch();
 
     useEffect(() => {
-        const handleResize = () => {
-            dispatch(dimensions(window.innerWidth, window.innerHeight));
-        };
+        const handleResize = () => dispatch(dimensions(window.innerWidth, window.innerHeight));
+        
         window.addEventListener("resize", handleResize);
 
         return () => window.removeEventListener("resize", handleResize);
