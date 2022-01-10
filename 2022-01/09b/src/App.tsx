@@ -187,10 +187,6 @@ export function App() {
 
         observable.subscribe({
             next: (({program, image}) => {
-                if (!program || !image) {
-                    return;
-                }
-
                 drawCallRef.current = picogl.createDrawCall(program, vertexArrayRef.current)
                 .uniformBlock("SceneUniforms", sceneUniformRef.current)
                 .texture("tex", picoglRef.current.createTexture2D(image, { 

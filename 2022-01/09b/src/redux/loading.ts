@@ -1,5 +1,5 @@
 import { put, takeEvery, all, SimpleEffect } from "redux-saga/effects";
-import { Observable, scan } from "rxjs";
+import { Observable, reduce } from "rxjs";
 import type { App as PicoGLApp, Program } from "picogl";
 
 type LoadingObservable = Observable<{ program: Program | null, image: HTMLImageElement | null}>;
@@ -53,19 +53,37 @@ function* initObservableSaga({payload: { picogl, vs, fs, imageURL }} : LoadingIn
     const [program] = yield picogl.createPrograms([vs, fs]);
 
     const observable = new Observable<Program | HTMLImageElement>(subscriber => {
-        picogl.createPrograms([vs, fs]).then(([program]) => subscriber.next(program));
-        const image =  new Image();
-        image.onload = () => subscriber.next(image);
-        image.src = imageURL;
-    }).pipe(scan((acc, curr) => {
-        if (isProgram(curr)) {
-            acc.program = curr;
-        } else {
-            acc.image = curr;
+        let imageLoaded = false;
+        let programLoaded = false;
+        const checkDone = () => {
+            if (imageLoaded && programLoaded) {
+                subscriber.complete();
+            }
         }
 
-        return acc;
-    }, { program: null, image: null }));
+        picogl.createPrograms([vs, fs]).then(([program]) => {
+            subscriber.next(program);
+            programLoaded = true;
+            checkDone();
+        });
+        const image =  new Image();
+        image.onload = () => {
+            subscriber.next(image);
+            imageLoaded = true;
+            checkDone();
+        }
+        image.src = imageURL;
+    }).pipe(
+        reduce((acc, curr) => {
+            if (isProgram(curr)) {
+                acc.program = curr;
+            } else {
+                acc.image = curr;
+            }
+
+            return acc;
+        }, { program: null, image: null })
+    );
 
     yield put({type: "LOADING_OBSERVABLE_INITIALIZED", payload: observable });
 }
