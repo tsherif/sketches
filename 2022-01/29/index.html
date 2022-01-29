@@ -54,6 +54,18 @@
 		.attr("r", 5)
 		.attr("fill", "red");
 
+		const line = d3.line()
+		.curve(d3.curveNatural)
+		.x(d => margins.left + scaleX(d[0]))
+		.y(d => margins.top + scaleY(d[1]));
+
+		const lineGroup = svg.append("g");
+
+		lineGroup.append("path")
+		.attr("stroke", "blue")
+		.attr("fill", "none")
+		.attr("d", line(data.sort((a, b) => a[0] - b[0])));
+
 		svg.append("g")
 		.call(d3.axisBottom(scaleX))
 		.attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
@@ -61,6 +73,27 @@
 		svg.append("g")
 		.call(d3.axisLeft(scaleY))
 		.attr("transform", `translate(${margins.left}, ${margins.top})`)
+
+		setTimeout(() => {
+			const data = new Array(100).fill(0).map(n => [Math.random() * 1000, Math.random() * 500]);
+
+			svg.selectAll("circle")
+			.data(data)
+			.transition()
+			.duration(1000)
+			.attr("cx", d => margins.left + scaleX(d[0]))
+			.attr("cy", d => margins.top + scaleY(d[1]));
+
+			const line = d3.line()
+			.curve(d3.curveNatural)
+			.x(d => margins.left + scaleX(d[0]))
+			.y(d => margins.top + scaleY(d[1]));
+
+			lineGroup.selectAll("path")
+			.transition()
+			.duration(1000)
+			.attr("d", line(data.sort((a, b) => a[0] - b[0])));
+		}, 2000);
 	</script>
 </body>
 </html>
