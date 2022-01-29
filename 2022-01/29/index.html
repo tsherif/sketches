@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>D3</title>
+	<script src="https://d3js.org/d3.v7.min.js"></script>
+	<style>
+		html, body {
+			margin: 0;
+			height: 100%;
+			overflow-y: hidden;
+		}
+	</style>
+</head>
+<body>
+	<svg id="svg"></svg>
+	<script>
+		const margins = {
+			top: 20,
+			left: 50,
+			right: 50,
+			bottom: 20
+		};
+
+		const graphWidth = window.innerWidth - margins.left - margins.right;
+		const graphHeight = window.innerHeight - margins.top - margins.bottom;
+
+		const data = new Array(100).fill(0).map(n => [Math.random() * 1000, Math.random() * 500]);
+
+		const svg = d3.select("#svg")
+		.attr("width", window.innerWidth)
+		.attr("height", window.innerHeight);
+
+		const domain = d3.extent(data, d => d[0]);
+		const range = d3.extent(data, d => d[1]);
+
+		const scaleX = d3.scaleLinear()
+		.domain(d3.extent(data, d => d[0]))
+		.range([0,graphWidth])
+		.nice();
+
+		const scaleY = d3.scaleLinear()
+		.domain(d3.extent(data, d => d[1]))
+		.range([graphHeight, 0])
+		.nice();
+
+		svg.selectAll("circle")
+		.data(data)
+		.enter()
+		.append("circle")
+		.attr("cx", d => margins.left + scaleX(d[0]))
+		.attr("cy", d => margins.top + scaleY(d[1]))
+		.attr("r", 5)
+		.attr("fill", "red");
+
+		svg.append("g")
+		.call(d3.axisBottom(scaleX))
+		.attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
+
+		svg.append("g")
+		.call(d3.axisLeft(scaleY))
+		.attr("transform", `translate(${margins.left}, ${margins.top})`)
+	</script>
+</body>
+</html>
