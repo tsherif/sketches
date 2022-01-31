@@ -43,7 +43,7 @@
 
 
 
-		d3.csv("wfp_food_prices_egy.csv").then(rawData => {
+		d3.csv("../../data/wfp_food_prices_egy.csv").then(rawData => {
 			const unfilteredData = new Map();
 
 			rawData.slice(1).forEach(d => {
