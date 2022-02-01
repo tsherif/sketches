@@ -145,6 +145,11 @@
             .style("text-anchor", "middle")
             .text("Price (EGP)");
 
+            const hoverCircle = svg.append("circle")
+            .attr("r", 5)
+            .attr("fill", "red")
+            .attr("visibility", "hidden");
+
 
             d3.select(window).on("resize", resize);
 
@@ -249,6 +254,10 @@
                     .style("display", "block")
                     .style("top", `${e.clientY - 20}px`)
                     .style("left", `${e.clientX + 10}px`);
+
+                    hoverCircle.attr("visibility", "visible")
+                    .attr("cx", scaleX(datum.date))
+                    .attr("cy", scaleY(datum.price));
                 })
                 .on("mousemove", (e, d) => {
                     const [x, y] = d3.pointer(e, svg.node());
@@ -256,10 +265,15 @@
                     tooltip
                     .text(`${d[0]} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
                     .style("top", `${e.clientY - 20}px`)
-                    .style("left", `${e.clientX + 10}px`);;
+                    .style("left", `${e.clientX + 10}px`);
+
+                    hoverCircle
+                    .attr("cx", margins.left + scaleX(datum.date))
+                    .attr("cy", margins.top + scaleY(datum.price));
                 })
                 .on("mouseleave", (e, d) => {
                     tooltip.style("display", "none");
+                    hoverCircle.attr("visibility", "hidden");
                 })
                 .merge(paths)
                 .transition()
