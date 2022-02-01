@@ -1,279 +1,285 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>D3</title>
-	<script src="https://d3js.org/d3.v7.min.js"></script>
-	<style>
-		html, body {
-			margin: 0;
-			height: 100%;
-			overflow-y: hidden;
-		}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Egyptian Food Prices</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow-y: hidden;
+        }
 
-		#tooltip {
-			position: absolute;
-			display: none;
-			color: white;
-			padding: 0.2em;
-			font-weight: bold;
-			border-radius: 5px;
-		}
+        #tooltip {
+            position: absolute;
+            display: none;
+            color: white;
+            padding: 0.2em;
+            font-weight: bold;
+            border-radius: 5px;
+        }
 
-		#header {
-			position: absolute;
-			top: 0;
-			left: 110px;
-		}
+        #header {
+            position: absolute;
+            top: 0;
+            left: 110px;
+        }
 
-		#header h1 {
-			margin-top: 20px;
-			font-size: 48px;
-		}
+        #header h1 {
+            margin-top: 20px;
+            font-size: 36px;
+        }
 
-		#data-source {
-			position: absolute;
-			bottom: 17px;
-			right: 50px;
-			text-anchor: end;
-		}
+        #data-source {
+            position: absolute;
+            bottom: 17px;
+            right: 50px;
+            text-anchor: end;
+        }
 
-		#options {
-			position: absolute;
-			bottom: 20px;
-			left:  50px;
-		}
+        #options {
+            position: absolute;
+            left:  50px;
+            width:  70%;
+            max-width: 800px;
+        }
 
-		#options span {
-			margin: 2px;
-			color: white;
-			padding: 3px;
-			border-radius: 5px;
-			font-weight: bold;
-		}
-	</style>
+        #options span {
+            display: inline-block;
+            margin-right: 2px;
+            margin-bottom: 2px;
+            color: white;
+            padding: 2px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-	<svg id="svg"></svg>
-	<div id="header">
-		<h1>Egyptian Food Prices</h1>
-	</div>
-	<div id="data-source">
-		<a href="https://data.humdata.org/dataset/wfp-food-prices-for-egypt">Data Source</a>
-	</div>
-	<div id="options"></div>
-	<div id="tooltip">Hello</div>
-	<script>
-		const margins = {
-			top: 30,
-			left: 70,
-			right: 50,
-			bottom: 100
-		};
+    <svg id="svg"></svg>
+    <div id="header">
+        <h1>Egyptian Food Prices</h1>
+    </div>
+    <div id="data-source">
+        <a href="https://data.humdata.org/dataset/wfp-food-prices-for-egypt">Data Source</a>
+    </div>
+    <div id="options"></div>
+    <div id="tooltip">Hello</div>
+    <script>
+        const margins = {
+            top: 30,
+            left: 70,
+            right: 50,
+            bottom: 150
+        };
 
-		let graphWidth = window.innerWidth - margins.left - margins.right;
-		let graphHeight = window.innerHeight - margins.top - margins.bottom;
+        let graphWidth = window.innerWidth - margins.left - margins.right;
+        let graphHeight = window.innerHeight - margins.top - margins.bottom;
 
-		const svg = d3.select("#svg")
-		.attr("width", window.innerWidth)
-		.attr("height", window.innerHeight);
-
-
-
-		d3.csv("../../data/wfp_food_prices_egy.csv").then(rawData => {
-			const unfilteredData = new Map();
-
-			rawData.slice(1).forEach(d => {
-				if (!unfilteredData.has(d.commodity)) {
-					unfilteredData.set(d.commodity, []);
-				}
-
-				unfilteredData.get(d.commodity).push({
-					date: new Date(d.date),
-					commodity: d.commodity,
-					unit: d.unit.toLowerCase(),
-					price: Number(d.price),
-					usdprice: Number(d.usdprice)
-				})
-			});
-
-			const data = Array.from(unfilteredData.entries()).map(e => [...e, true]).filter(([_, values]) => values.length === 136);
-			const commodities = data.map(d => d[0]);
-
-			const color = d3.scaleOrdinal()
-				.domain(commodities)
-				.range(d3.schemeTableau10);
-
-			const options = d3.select("#options")
-			.selectAll("span")
-			.data(data)
-			.enter()
-			.append("span");
-
-			options
-			.style("background-color", d => color(d[0]))
-			.append("input")
-			.attr("type", "checkbox")
-			.property("checked", true)
-			.on("click", (e, d) => {
-				d[2] = e.target.checked;
-				draw(data.filter(d => d[2]));
-			});
-
-			options.append("span").text(d => d[0])
-
-			const pathGroup = svg.append("g");
-			
-			const xAxisGroup = svg.append("g")
-			.attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
-
-			const xAxisLabel = svg.append("text")
-			.style("font-weight", "bold")
-			.style("text-anchor", "middle")
-			.text("Year");
-			
-			const yAxisGroup = svg.append("g")
-			.attr("transform", `translate(${margins.left}, ${margins.top})`)
-
-			const yAxisLabel = svg.append("text")
-			.style("font-weight", "bold")
-			.style("text-anchor", "middle")
-			.text("Price (EGP)");
+        const svg = d3.select("#svg")
+        .attr("width", window.innerWidth)
+        .attr("height", window.innerHeight);
 
 
-			d3.select(window).on("resize", resize);
 
-			resize();
+        d3.csv("../../data/wfp_food_prices_egy.csv").then(rawData => {
+            const unfilteredData = new Map();
 
-			function resize() {
-				graphWidth = window.innerWidth - margins.left - margins.right;
-				graphHeight = window.innerHeight - margins.top - margins.bottom;
+            rawData.slice(1).forEach(d => {
+                if (!unfilteredData.has(d.commodity)) {
+                    unfilteredData.set(d.commodity, []);
+                }
 
-				svg
-				.attr("width", window.innerWidth)
-				.attr("height", window.innerHeight);
+                unfilteredData.get(d.commodity).push({
+                    date: new Date(d.date),
+                    commodity: d.commodity,
+                    unit: d.unit.toLowerCase(),
+                    price: Number(d.price),
+                    usdprice: Number(d.usdprice)
+                })
+            });
 
-				xAxisGroup
-				.attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
+            const data = Array.from(unfilteredData.entries()).map(e => [...e, true]).filter(([_, values]) => values.length === 136);
+            const commodities = data.map(d => d[0]);
 
-				xAxisLabel
-				.attr("x", margins.left + graphWidth * 0.5)
-				.attr("y", window.innerHeight - margins.bottom + 40)
-				
-				
-				yAxisGroup
-				.attr("transform", `translate(${margins.left}, ${margins.top})`)
+            const color = d3.scaleOrdinal()
+                .domain(commodities)
+                .range(d3.schemeTableau10);
 
-				yAxisLabel
-				.attr("transform", `rotate(-90, ${margins.left - 35}, ${margins.top + graphHeight * 0.5})`)
-				.attr("x", margins.left - 35)
-				.attr("y", margins.top + graphHeight * 0.5)
+            const optionsContainer = d3.select("#options");
 
-				draw(data.filter(d => d[2]), 0);
-			}
+            const options = optionsContainer.selectAll("span")
+            .data(data)
+            .enter()
+            .append("span");
 
-			function draw(data, transitionTime = 1000) {
-				let minPrice = Number.POSITIVE_INFINITY;
-				let maxPrice = Number.NEGATIVE_INFINITY;
-				let minDate = new Date("3000-01-01");
-				let maxDate = new Date(0);
+            options
+            .style("background-color", d => color(d[0]))
+            .append("input")
+            .attr("type", "checkbox")
+            .property("checked", true)
+            .on("click", (e, d) => {
+                d[2] = e.target.checked;
+                draw(data.filter(d => d[2]));
+            });
 
-				data.forEach(entry => {
-					entry[1].forEach(d => {
-						minPrice = Math.min(minPrice, d.price);
-						maxPrice = Math.max(maxPrice, d.price);
+            options.append("span").text(d => d[0])
 
-						const date = new Date(d.date);
-						minDate = minDate < date ? minDate : date;
-						maxDate = maxDate > date ? maxDate : date;
-					})
-				});
+            const pathGroup = svg.append("g");
+            
+            const xAxisGroup = svg.append("g")
+            .attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
 
-				const scaleX = d3.scaleTime()
-				.domain([minDate, maxDate])
-				.range([0, graphWidth]);
+            const xAxisLabel = svg.append("text")
+            .style("font-weight", "bold")
+            .style("text-anchor", "middle")
+            .text("Year");
+            
+            const yAxisGroup = svg.append("g")
+            .attr("transform", `translate(${margins.left}, ${margins.top})`)
 
-				const scaleY = d3.scaleLinear()
-				.domain([minPrice, maxPrice])
-				.range([graphHeight, 0])
-				.nice();
+            const yAxisLabel = svg.append("text")
+            .style("font-weight", "bold")
+            .style("text-anchor", "middle")
+            .text("Price (EGP)");
 
-				const line = d3.line()
-				.curve(d3.curveNatural)
-				.x(d => scaleX(d.date) + margins.left)
-				.y(d => scaleY(d.price) + margins.top);
 
-				const tooltip = d3.select("#tooltip");
+            d3.select(window).on("resize", resize);
 
-				function findClosestDatum(data, x, y) {
-					let minDist = Number.POSITIVE_INFINITY;
-					let closestDatum = null;
+            resize();
 
-					for (const datum of data) {
-						const dx = x - scaleX(datum.date) - margins.left;
-						const dy = y - scaleY(datum.price) - margins.top;
+            function resize() {
+                graphWidth = window.innerWidth - margins.left - margins.right;
+                graphHeight = window.innerHeight - margins.top - margins.bottom;
 
-						const dist2 = dx * dx + dy + dy;
-						if (dist2 < minDist) {
-							closestDatum = datum;
-							minDist = dist2;
-						}
-					}
+                svg
+                .attr("width", window.innerWidth)
+                .attr("height", window.innerHeight);
 
-					return closestDatum;
-				}
+                xAxisGroup
+                .attr("transform", `translate(${margins.left}, ${window.innerHeight - margins.bottom})`);
 
-				const paths = pathGroup
-				.selectAll("path")
-				.data(data, d => d[0]);
+                xAxisLabel
+                .attr("x", margins.left + graphWidth * 0.5)
+                .attr("y", window.innerHeight - margins.bottom + 40)
+                
+                
+                yAxisGroup
+                .attr("transform", `translate(${margins.left}, ${margins.top})`)
 
-				paths.exit()
-				.remove();
+                yAxisLabel
+                .attr("transform", `rotate(-90, ${margins.left - 35}, ${margins.top + graphHeight * 0.5})`)
+                .attr("x", margins.left - 35)
+                .attr("y", margins.top + graphHeight * 0.5)
 
-				paths.enter()
-				.append("path")
-				.attr("fill", "none")
-				.attr("stroke-width", 5)
-				.attr("stroke", d => color(d[0]))
-				.on("mouseover", (e, d) => {
-					const [x, y] = d3.pointer(e, svg.node());
-					const datum = findClosestDatum(d[1], x, y);
-					tooltip
-					.text(`${d[0]} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
-					.style("background-color", color(d[0]))
-					.style("display", "block")
-					.style("top", `${e.clientY - 20}px`)
-					.style("left", `${e.clientX + 10}px`);
-				})
-				.on("mousemove", (e, d) => {
-					const [x, y] = d3.pointer(e, svg.node());
-					const datum = findClosestDatum(d[1], x, y);
-					tooltip
-					.text(`${d[0]} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
-					.style("top", `${e.clientY - 20}px`)
-					.style("left", `${e.clientX + 10}px`);;
-				})
-				.on("mouseleave", (e, d) => {
-					tooltip.style("display", "none");
-				})
-				.merge(paths)
-				.transition()
-				.duration(transitionTime)
-				.attr("d", d => line(d[1]));
-				
-				xAxisGroup
-				.transition()
-				.duration(transitionTime)
-				.call(d3.axisBottom(scaleX))
+                optionsContainer.style("top", `${margins.top + graphHeight + 60}px`)
 
-				yAxisGroup
-				.transition()
-				.duration(transitionTime)
-				.call(d3.axisLeft(scaleY))
-			}
+                draw(data.filter(d => d[2]), 0);
+            }
 
-		});
-	</script>
+            function draw(data, transitionTime = 1000) {
+                let minPrice = Number.POSITIVE_INFINITY;
+                let maxPrice = Number.NEGATIVE_INFINITY;
+                let minDate = new Date("3000-01-01");
+                let maxDate = new Date(0);
+
+                data.forEach(entry => {
+                    entry[1].forEach(d => {
+                        minPrice = Math.min(minPrice, d.price);
+                        maxPrice = Math.max(maxPrice, d.price);
+
+                        const date = new Date(d.date);
+                        minDate = minDate < date ? minDate : date;
+                        maxDate = maxDate > date ? maxDate : date;
+                    })
+                });
+
+                const scaleX = d3.scaleTime()
+                .domain([minDate, maxDate])
+                .range([0, graphWidth]);
+
+                const scaleY = d3.scaleLinear()
+                .domain([minPrice, maxPrice])
+                .range([graphHeight, 0])
+                .nice();
+
+                const line = d3.line()
+                .curve(d3.curveNatural)
+                .x(d => scaleX(d.date) + margins.left)
+                .y(d => scaleY(d.price) + margins.top);
+
+                const tooltip = d3.select("#tooltip");
+
+                function findClosestDatum(data, x, y) {
+                    let minDist = Number.POSITIVE_INFINITY;
+                    let closestDatum = null;
+
+                    for (const datum of data) {
+                        const dx = x - scaleX(datum.date) - margins.left;
+                        const dy = y - scaleY(datum.price) - margins.top;
+
+                        const dist2 = dx * dx + dy + dy;
+                        if (dist2 < minDist) {
+                            closestDatum = datum;
+                            minDist = dist2;
+                        }
+                    }
+
+                    return closestDatum;
+                }
+
+                const paths = pathGroup
+                .selectAll("path")
+                .data(data, d => d[0]);
+
+                paths.exit()
+                .remove();
+
+                paths.enter()
+                .append("path")
+                .attr("fill", "none")
+                .attr("stroke-width", 5)
+                .attr("stroke", d => color(d[0]))
+                .on("mouseover", (e, d) => {
+                    const [x, y] = d3.pointer(e, svg.node());
+                    const datum = findClosestDatum(d[1], x, y);
+                    tooltip
+                    .text(`${d[0]} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
+                    .style("background-color", color(d[0]))
+                    .style("display", "block")
+                    .style("top", `${e.clientY - 20}px`)
+                    .style("left", `${e.clientX + 10}px`);
+                })
+                .on("mousemove", (e, d) => {
+                    const [x, y] = d3.pointer(e, svg.node());
+                    const datum = findClosestDatum(d[1], x, y);
+                    tooltip
+                    .text(`${d[0]} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
+                    .style("top", `${e.clientY - 20}px`)
+                    .style("left", `${e.clientX + 10}px`);;
+                })
+                .on("mouseleave", (e, d) => {
+                    tooltip.style("display", "none");
+                })
+                .merge(paths)
+                .transition()
+                .duration(transitionTime)
+                .attr("d", d => line(d[1]));
+                
+                xAxisGroup
+                .transition()
+                .duration(transitionTime)
+                .call(d3.axisBottom(scaleX))
+
+                yAxisGroup
+                .transition()
+                .duration(transitionTime)
+                .call(d3.axisLeft(scaleY))
+            }
+
+        });
+    </script>
 </body>
 </html>
