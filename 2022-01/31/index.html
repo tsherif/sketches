@@ -170,9 +170,7 @@
                 .attr("transform", `translate(${margins.left}, ${margins.top})`)
 
                 yAxisLabel
-                .attr("transform", `rotate(-90, ${margins.left - 35}, ${margins.top + graphHeight * 0.5})`)
-                .attr("x", margins.left - 35)
-                .attr("y", margins.top + graphHeight * 0.5)
+                .attr("transform", `translate(${margins.left - 35}, ${margins.top + graphHeight * 0.5}) rotate(-90)`);
 
                 optionsContainer.style("top", `${margins.top + graphHeight + 60}px`)
 
