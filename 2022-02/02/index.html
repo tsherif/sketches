@@ -84,6 +84,32 @@
         .attr("width", windowWidth)
         .attr("height", windowHeight);
 
+        const pathGroup = svg.append("g");
+
+        const tooltip = d3.select("#tooltip");
+
+        const hoverCircle = svg.append("circle")
+        .attr("r", 3)
+        .attr("fill", "red")
+        .attr("visibility", "hidden");
+
+        const optionsContainer = d3.select("#options");
+        
+        const xAxisGroup = svg.append("g")
+        .attr("transform", `translate(${margins.left}, ${windowHeight - margins.bottom})`);
+
+        const xAxisLabel = svg.append("text")
+        .style("font-weight", "bold")
+        .style("text-anchor", "middle")
+        .text("Year");
+        
+        const yAxisGroup = svg.append("g")
+        .attr("transform", `translate(${margins.left}, ${margins.top})`)
+
+        const yAxisLabel = svg.append("text")
+        .style("font-weight", "bold")
+        .style("text-anchor", "middle")
+        .text("Price (EGP)");
 
 
         d3.csv("../../data/wfp_food_prices_egy.csv").then(rawData => {
@@ -110,8 +136,6 @@
                 .domain(commodities)
                 .range(d3.schemeTableau10);
 
-            const optionsContainer = d3.select("#options");
-
             const options = optionsContainer.selectAll("span")
             .data(data)
             .enter()
@@ -124,33 +148,12 @@
             .property("checked", true)
             .on("click", (e, d) => {
                 d[2] = e.target.checked;
+                tooltip.style("display", "none");
+                hoverCircle.attr("visibility", "hidden");
                 draw(data.filter(d => d[2]));
             });
 
-            options.append("span").text(d => d[0])
-
-            const pathGroup = svg.append("g");
-            
-            const xAxisGroup = svg.append("g")
-            .attr("transform", `translate(${margins.left}, ${windowHeight - margins.bottom})`);
-
-            const xAxisLabel = svg.append("text")
-            .style("font-weight", "bold")
-            .style("text-anchor", "middle")
-            .text("Year");
-            
-            const yAxisGroup = svg.append("g")
-            .attr("transform", `translate(${margins.left}, ${margins.top})`)
-
-            const yAxisLabel = svg.append("text")
-            .style("font-weight", "bold")
-            .style("text-anchor", "middle")
-            .text("Price (EGP)");
-
-            const hoverCircle = svg.append("circle")
-            .attr("r", 3)
-            .attr("fill", "red")
-            .attr("visibility", "hidden");
+            options.append("span").text(d => d[0]);
 
 
             d3.select(window).on("resize", resize);
@@ -182,6 +185,9 @@
                 .attr("transform", `translate(${margins.left - 35}, ${margins.top + graphHeight * 0.5}) rotate(-90)`);
 
                 optionsContainer.style("top", `${margins.top + graphHeight + 60}px`)
+
+                tooltip.style("display", "none");
+                hoverCircle.attr("visibility", "hidden");
 
                 draw(data.filter(d => d[2]), 0);
             }
@@ -217,8 +223,6 @@
                 .x(d => scaleX(d.date) + margins.left)
                 .y(d => scaleY(d.price) + margins.top);
 
-                const tooltip = d3.select("#tooltip");
-
                 function findClosestDatum(data, x, y) {
                     let minDist2 = 40 ** 2;
                     let closestName = null;
@@ -253,6 +257,7 @@
                 .attr("fill", "none")
                 .attr("stroke-width", 2)
                 .attr("stroke", d => color(d[0]))
+                .attr("d", d => line(d[1].map(item => ({...item, price: 0}))))
                 .merge(paths)
                 .transition()
                 .duration(transitionTime)
