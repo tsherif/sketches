@@ -274,7 +274,7 @@
                     }
 
                     tooltip
-                    .text(`${name} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
+                    .text(`${name} - ${datum.date.toLocaleDateString("eng-US", {month: "long", year: "numeric"})} - ${datum.price.toFixed(2)} EGP/${datum.unit}`)
                     .style("background-color", color(name))
                     .style("display", "block")
                     .style("top", `${e.clientY - 20}px`)
