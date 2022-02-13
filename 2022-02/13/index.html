@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NYC Causes of Death</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+    <svg id="svg"></svg>
+    <script>
+        const margins = {
+            top: 30,
+            left: 70,
+            right: 50,
+            bottom: 150
+        };
+
+        let windowWidth = window.innerWidth;
+        let windowHeight = window.innerHeight;
+        let graphWidth = windowWidth - margins.left - margins.right;
+        let graphHeight = windowHeight - margins.top - margins.bottom;
+
+        const svg = d3.select("#svg")
+        .attr("width", windowWidth)
+        .attr("height", windowHeight);
+
+        const pieGroup = svg.append("g")
+        .attr("transform", `translate(${windowWidth / 2}, ${windowHeight / 2})`)
+
+
+        d3.csv("../../data/New_York_City_Leading_Causes_of_Death.csv").then(rawData => {
+            console.log(rawData);
+
+            const rows = rawData.map(d => {
+                let year = Number(d["Year"]);
+                let cause = d["Leading Cause"].replace(/\s+\(.+/, "");
+                let race = d["Race Ethnicity"];
+                let sex = d["Sex"];
+                let deaths = Number(d["Deaths"]);
+
+                if (race === "Non-Hispanic White") {
+                    race = "White Non-Hispanic"
+                }
+
+                if (race === "Non-Hispanic Black") {
+                    race = "Black Non-Hispanic"
+                }
+
+                if (sex === "Male") {
+                    sex = "M";
+                }
+
+                if (sex === "Female") {
+                    sex = "F";
+                }
+
+                return {
+                    year,
+                    cause,
+                    race,
+                    sex,
+                    deaths
+                };
+            }).filter(d => d.year === 2019 && Number.isFinite(d.deaths))
+
+            const data = Array.from(d3.rollup(rows, v => d3.sum(v, d => d.deaths), d => d.cause).entries()).sort((a, b) => b[1] - a[1])
+
+            const pie = d3.pie().value(d => d[1]);
+            const arc = d3.arc().innerRadius(0).outerRadius(200);
+            const textArc = d3.arc().innerRadius(220).outerRadius(240);
+
+            const color = d3.scaleOrdinal()
+            .domain(data.map(d => d[0]))
+            .range(d3.schemeTableau10);
+
+            pieGroup.selectAll("path")
+            .data(pie(data))
+            .enter()
+            .append("path")
+            .attr("d", arc)
+            .attr("fill", d => color(d.data[0]))
+
+            pieGroup.selectAll("text")
+            .data(pie(data))
+            .enter()
+            .append("text")
+            .text(d => d.endAngle - d.startAngle > Math.PI / 4 ? d.data[0] : "")
+            .attr("x", d => textArc.centroid(d)[0])
+            .attr("y", d => textArc.centroid(d)[1])
+            .attr("text-anchor", d => d.startAngle < Math.PI / 2 ? "start" : "end")
+
+
+        });
+    </script>
+</body>
+</html>
