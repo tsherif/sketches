@@ -19,7 +19,7 @@
 <script type="module">
     import {setupInteractions} from "../../lib/interactions.js";
     import {orbitCamera, zoomCamera} from "../../lib/camera-utils.js";
-    import {createCube} from "../../lib/utils.js";
+    import {createCube, loadImages} from "../../lib/utils.js";
 
     (async () => {
         const canvas = document.getElementById("canvas");
@@ -52,7 +52,10 @@
             uniform mat4 view;
             uniform mat4 proj;
 
+            out vec2 vUV;
+
             void main() {
+                vUV = vec2(uv.x, 1.0 - uv.y);
                 gl_Position = proj * view * model * position;
             }
         `;
@@ -61,16 +64,21 @@
             #version 300 es
             precision highp float;
 
+            in vec2 vUV;
+
+            uniform sampler2D tex;
+
             out vec4 fragColor;
 
             void main() {
-                fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                vec4 color = texture(tex, vUV);
+                fragColor = color;
             }
         `;
 
-        const eye = vec3.fromValues(2, 2, 2)
-        const look = vec3.fromValues(0, 0, 0)
-        const up = vec3.fromValues(0, 1, 0)
+        const eye = vec3.fromValues(2, 2, 2);
+        const look = vec3.fromValues(0, 0, 0);
+        const up = vec3.fromValues(0, 1, 0);
 
         const modelMatrix = mat4.create();
         const viewMatrix = mat4.lookAt(
@@ -88,14 +96,17 @@
             5,
         );
 
-        const [program] = await app.createPrograms([vs, fs]);
+        const [[program], [image]] = await Promise.all([app.createPrograms([vs, fs]), loadImages(["../../img/webgl-logo.png"])]);
 
-        program
+        const texture = app.createTexture2D(image);
+
+        
+        const drawCall = app.createDrawCall(program, vertexArray)
         .uniform("model", modelMatrix)
         .uniform("view", viewMatrix)
-        .uniform("proj", projMatrix);
+        .uniform("proj", projMatrix)
+        .texture("tex", texture);
 
-        const drawCall = app.createDrawCall(program, vertexArray);
         let zoom = vec3.length(eye);
 
         setupInteractions(canvas, {
@@ -118,11 +129,13 @@
                 up
             );
 
-            program.uniform("view", viewMatrix)
             
 
             app.clear();
-            drawCall.draw();    
+            
+            drawCall
+            .uniform("view", viewMatrix)
+            .draw();    
         };
         
         requestAnimationFrame(loop);
