@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>July 17 Sketch</title>
+    <script src="../../lib/gl-matrix.js"></script>
+    <script src="../../lib/picogl.min.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin:  0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+    import {setupInteractions} from "../../lib/interactions.js";
+    import {orbitCamera, zoomCamera} from "../../lib/camera-utils.js";
+    import {createCube, loadImages} from "../../lib/utils.js";
+
+    (async () => {
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const app = PicoGL.createApp(canvas)
+        .clearColor(0.0, 0.0, 0.0, 1.0)
+        .enable(PicoGL.DEPTH_TEST);
+
+        const cubeData = createCube();
+
+        const positionBuffer = app.createVertexBuffer(PicoGL.FLOAT, 3, cubeData.positions);
+        const normalBuffer = app.createVertexBuffer(PicoGL.FLOAT, 3, cubeData.normals);
+        const uvBuffer = app.createVertexBuffer(PicoGL.FLOAT, 2, cubeData.uvs);
+
+        const vertexArray = app.createVertexArray()
+        .vertexAttributeBuffer(0, positionBuffer)
+        .vertexAttributeBuffer(1, normalBuffer)
+        .vertexAttributeBuffer(2, uvBuffer);
+
+        const vs = `
+            #version 300 es
+
+            layout (location = 0) in vec4 position;
+            layout (location = 1) in vec3 normal;
+            layout (location = 2) in vec2 uv;
+
+            uniform mat4 model;
+            uniform mat4 view;
+            uniform mat4 proj;
+
+            out vec3 vViewPosition;
+            out vec3 vViewNormal;
+            out vec2 vUV;
+
+            void main() {
+                vec4 viewPosition = view * model * position;
+                vViewPosition = viewPosition.xyz;
+                vViewNormal = mat3(view) * mat3(model) * normal;
+                vUV = vec2(uv.x, 1.0 - uv.y);
+
+                gl_Position = proj * viewPosition;
+            }
+        `;
+
+        const fs = `
+            #version 300 es
+            precision highp float;
+
+            in vec3 vViewPosition;
+            in vec3 vViewNormal;
+            in vec2 vUV;
+
+            uniform sampler2D tex;
+            uniform vec3 viewLightPosition;
+
+            out vec4 fragColor;
+
+            void main() {
+                vec4 color = texture(tex, vUV);
+
+                vec3 normal = normalize(vViewNormal);
+                vec3 lightVec = normalize(viewLightPosition - vViewPosition);
+                vec3 eyeVec = normalize(-vViewPosition);
+                float diffuse = max(dot(lightVec, normal), 0.0);
+                float highlight = pow(max(dot(eyeVec, reflect(-lightVec, normal)), 0.0), 100.0);
+                float ambient = 0.05;
+
+                fragColor = vec4(color.rgb * (diffuse + highlight + ambient), 1.0);
+            }
+        `;
+
+        const eye = vec3.fromValues(2, 2, 2);
+        const look = vec3.fromValues(0, 0, 0);
+        const up = vec3.fromValues(0, 1, 0);
+        const viewLightPosition = vec3.fromValues(1, 1, 0);
+
+        const modelMatrix = mat4.create();
+        const viewMatrix = mat4.lookAt(
+            mat4.create(),
+            eye,
+            look,
+            up
+        );
+        
+        const projMatrix = mat4.perspective(
+            mat4.create(),
+            Math.PI / 3,
+            canvas.width / canvas.height,
+            0.1,
+            5,
+        );
+
+        const [[program], [image]] = await Promise.all([app.createPrograms([vs, fs]), loadImages(["../../img/webgl-logo.png"])]);
+
+        const texture = app.createTexture2D(image);
+
+        
+        const drawCall = app.createDrawCall(program, vertexArray)
+        .uniform("model", modelMatrix)
+        .uniform("view", viewMatrix)
+        .uniform("proj", projMatrix)
+        .uniform("viewLightPosition", viewLightPosition)
+        .texture("tex", texture);
+
+        let zoom = vec3.length(eye);
+
+        setupInteractions(canvas, {
+            onDrag(dx, dy) {
+                orbitCamera(eye, look, up, -dx * 0.01, -dy * 0.01);
+            },
+            onWheel(d) {
+                zoom += d * 0.1;
+                zoomCamera(eye, look, zoom);
+            }
+        })
+
+        const loop = () => {
+            requestAnimationFrame(loop);
+
+            mat4.lookAt(
+                viewMatrix,
+                eye,
+                look,
+                up
+            );
+
+            
+
+            app.clear();
+            
+            drawCall
+            .uniform("view", viewMatrix)
+            .draw();    
+        };
+        
+        requestAnimationFrame(loop);
+
+    })();
+
+</script>
+</body>
+</html>
