@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <malloc.h> 
+#include <unistd.h>
 #include "utils.h"
 
 void debugLog(const char* message) {

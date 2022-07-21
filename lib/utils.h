@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <malloc.h>
+#include <string.h>
 
 typedef struct {
     uint8_t* data;
