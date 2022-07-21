@@ -88,7 +88,7 @@ int main() {
 
     glUseProgram(program);
 
-    glDrawArrays(GL_TRIANGLES, 0, 4);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 
 
     return 0;
