@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gamepad/Fullscreen Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        h1 {
+            font-size: 124px;
+            background-color: blue;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "blue";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let gamepadIndex = -1;
+
+    canvas.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    });
+
+    window.addEventListener("gamepadconnected", function(e) {
+        canvas.requestFullscreen();
+    });
+
+    let lastPressed = false;
+    requestAnimationFrame(function loop() {
+        requestAnimationFrame(loop);
+        
+        const gamepad = navigator.getGamepads().filter(gp => gp)[0];
+
+        const pressed = Boolean(gamepad?.buttons[0].pressed);
+        if (pressed && !lastPressed) {
+            if (!document.fullscreenElement) {
+                canvas.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        lastPressed = pressed;
+    });
+
+
+
+</script>
+</body>
+</html>
