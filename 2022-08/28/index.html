@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>August 28, 2022 Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const pixels = new ImageData(canvas.width, canvas.height);
+    const { data, width, height } = pixels;
+    const aspect = width / height;
+    const r2 = 0.5 ** 2;
+
+    for (r = 0; r < height; ++r) {
+        for (c = 0; c < width; ++c) {
+            const i = (r * width + c) * 4;
+            const xNorm = ((c / width) * 2 - 1) * aspect; 
+            const yNorm = (r / height) * 2 - 1;
+            if (xNorm ** 2 + yNorm ** 2 < r2) {
+                data[i] = 255;
+            } else {
+                data[i] = 0; 
+            }
+            data[i + 1] = 0;
+            data[i + 2] = 0;
+            data[i + 3] = 255;
+        }
+    }
+
+    ctx.putImageData(pixels, 0, 0);
+
+</script>
+</body>
+</html>
