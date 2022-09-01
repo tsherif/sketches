@@ -80,6 +80,8 @@ void destroyOpenGLWindow(HWND window);
 #define WGL_GREEN_BITS_ARB                0x2017
 #define WGL_BLUE_BITS_ARB                 0x2019
 #define WGL_ALPHA_BITS_ARB                0x201B
+#define WGL_DEPTH_BITS_ARB                0x2022
+#define WGL_STENCIL_BITS_ARB              0x2023
 #define WGL_FULL_ACCELERATION_ARB         0x2027
 #define WGL_TYPE_RGBA_ARB                 0x202B
 #define WGL_SAMPLE_BUFFERS_ARB            0x2041
@@ -239,6 +241,7 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args) {
         WGL_BLUE_BITS_ARB, 8,
         WGL_RED_BITS_ARB, 8,
         WGL_ALPHA_BITS_ARB, 8,
+        WGL_DEPTH_BITS_ARB, 16,
         0
     };
     BOOL success = wglChoosePixelFormatARB(
