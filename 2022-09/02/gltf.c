@@ -8,10 +8,12 @@
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
 #include "../../lib/cgltf.h"
+#include "../../lib/gl-utils.h"
+#include "../../lib/gltf-utils.h"
+#include "../../lib/stb_image.h"
 #include "../../lib/HandmadeMath.h"
 #include "../../lib/utils.h"
 #include "../../lib/windows-utils.h"
-#include "../../lib/stb_image.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -57,52 +59,25 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     }
 
     char filePath[1024] = { 0 };
-    cgltf_options options = { 0 };
-    cgltf_data* gltf = NULL;
+    cgltf_data* gltf_data = NULL;
 
     snprintf(filePath, 1024, "%s/Duck.gltf", MODEL_DIR);
     
-    if (cgltf_parse_file(& (cgltf_options) { 0 }, filePath, &gltf) != cgltf_result_success) {
+    if (cgltf_parse_file(& (cgltf_options) { 0 }, filePath, &gltf_data) != cgltf_result_success) {
         OutputDebugStringA("Failed to load model.\n");
         return 1;
     }
 
+    GLTF gltf = { 0 };
+    parseGLTF(gltf_data, &gltf);
+
     Buffer bufferData = { 0 };
-    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf->buffers[0].uri);
+    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf.bufferFilename);
     loadBinFile(filePath, &bufferData);
 
     int32_t imageWidth, imageHeight, imageChannels;
-    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf->images[0].uri);    
+    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf.imageFilename);    
     uint8_t *imageData = stbi_load(filePath, &imageWidth, &imageHeight, &imageChannels, 0);
-    
-    cgltf_primitive* primitive = gltf->meshes[0].primitives;
-    cgltf_accessor* indices = primitive->indices;
-
-    int32_t indexOffset = (int32_t) (indices->offset + indices->buffer_view->offset);
-    int32_t elementCount = (int32_t) indices->count; 
-    int32_t indexByteLength = (int32_t) (elementCount * sizeof(uint16_t));
-
-    int32_t positionOffset = 0; 
-    int32_t positionByteLength = 0;
-    int32_t normalOffset = 0; 
-    int32_t normalByteLength = 0; 
-    int32_t uvOffset = 0; 
-    int32_t uvByteLength = 0; 
-
-    for (int32_t i = 0; i < primitive->attributes_count; ++i) {
-        cgltf_attribute* attribute = primitive->attributes + i;
-
-        if (strEquals(attribute->name, "POSITION", sizeof("POSITION"))) {
-            positionOffset = (int32_t) (attribute->data->offset + attribute->data->buffer_view->offset); 
-            positionByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
-        } else if (strEquals(attribute->name, "NORMAL", sizeof("NORMAL"))) {
-            normalOffset = (int32_t) (attribute->data->offset + attribute->data->buffer_view->offset); 
-            normalByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
-        } else if (strEquals(attribute->name, "TEXCOORD_0", sizeof("TEXCOORD_0"))) {
-            uvOffset = (int32_t) (attribute->data->offset + attribute->data->buffer_view->offset); 
-            uvByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
-        }
-    }
 
     GLuint vao = 0;
     glGenVertexArrays(1, &vao);
@@ -112,20 +87,20 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     glGenBuffers(4, vbos);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbos[0]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexByteLength, bufferData.data + indexOffset, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, gltf.indexByteLength, bufferData.data + gltf.indexOffset, GL_STATIC_DRAW);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbos[1]);
-    glBufferData(GL_ARRAY_BUFFER, positionByteLength, bufferData.data + positionOffset, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, gltf.positionByteLength, bufferData.data + gltf.positionOffset, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbos[2]);
-    glBufferData(GL_ARRAY_BUFFER, normalByteLength, bufferData.data + normalOffset, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, gltf.normalByteLength, bufferData.data + gltf.normalOffset, GL_STATIC_DRAW);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbos[3]);
-    glBufferData(GL_ARRAY_BUFFER, uvByteLength, bufferData.data + uvOffset, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, gltf.uvByteLength, bufferData.data + gltf.uvOffset, GL_STATIC_DRAW);
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(2);
 
@@ -188,38 +163,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     "    fragColor = vec4(color * (diffuse + highlight + ambient), 1.0);\n"
     "}\n";
 
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vsSource, NULL);
-    glCompileShader(vertexShader);
+    GLuint program = createProgram(vsSource, fsSource, OutputDebugStringA);
 
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fsSource, NULL);
-    glCompileShader(fragmentShader);
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
-
-    GLint result;
-    glGetProgramiv(program, GL_LINK_STATUS, &result);
-
-    if (result != GL_TRUE) {
-        OutputDebugStringA("Program failed to link!\n");
-        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &result);
-        char errorLog[1024];
-        if (result != GL_TRUE) {
-            OutputDebugStringA("Vertex shader failed to compile!\n");
-            glGetShaderInfoLog(vertexShader, 1024, NULL, errorLog);
-            OutputDebugStringA(errorLog);
-        }
-        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &result);
-        if (result != GL_TRUE) {
-            OutputDebugStringA("Fragment shader failed to compile!\n");
-            glGetShaderInfoLog(fragmentShader, 1024, NULL, errorLog);
-            OutputDebugStringA(errorLog);
-        }
-
+    if (!program) {
         return 1;
     }
 
@@ -269,7 +215,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         }
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDrawElements(GL_TRIANGLES, elementCount, GL_UNSIGNED_SHORT, NULL);
+        glDrawElements(GL_TRIANGLES, gltf.elementCount, GL_UNSIGNED_SHORT, NULL);
 
         SwapBuffers(deviceContext);            
     }
