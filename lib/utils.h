@@ -56,4 +56,18 @@ bool wavToSound(Buffer* soundData, Buffer* sound) {
     return true;
 }
 
+bool strEquals(const char* s1, const char* s2, int32_t n) {
+    for (int32_t i = 0; i < n; ++i) {
+        if (s1[i] != s2[i]) {
+            return false;
+        }
+
+        if (s1[i] == '\0' || s2[i] == '\0') {
+            return s1[i] == '\0' && s2[i] == '\0';
+        }
+    }
+
+    return true;
+}
+
 #endif
