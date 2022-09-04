@@ -24,27 +24,32 @@
 #define MODEL_DIR "../../models/duck/glTF"
 
 struct {
-    int32_t x;
-    int32_t y;
-    int32_t lastX;
-    int32_t lastY;
+    float x;
+    float y;
+    float lastX;
+    float lastY;
+    float wheelDelta;
     bool buttonDown;
 } mouse = {
-    .lastX = -1,
-    .lastY = -1
+    .lastX = -1.0f,
+    .lastY = -1.0f
 };
 
 #define ORBIT_SCALE 0.1f
+#define ZOOM_SCALE 3.0f
 
 static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_MBUTTONDOWN: 
         case WM_MBUTTONUP:
         case WM_MOUSEMOVE: {
-            mouse.x = GET_X_LPARAM(lParam); 
-            mouse.y = GET_Y_LPARAM(lParam); 
+            mouse.x = (float) GET_X_LPARAM(lParam); 
+            mouse.y = (float) GET_Y_LPARAM(lParam); 
             mouse.buttonDown = (wParam & MK_LBUTTON) != 0;
             return 0;
+        } break;
+        case WM_MOUSEWHEEL: {
+            mouse.wheelDelta = (float) GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
         } break;
         case WM_CLOSE: {
             PostQuitMessage(0);
@@ -55,7 +60,6 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
     return DefWindowProc(window, message, wParam, lParam);
 }
 
-static hmm_mat4 cameraRotation;
 void orbitCamera(hmm_vec3* pEye, hmm_vec3* pLook, hmm_vec3* pUp, float x, float y) {
     hmm_vec3 eye = *pEye;
     hmm_vec3 look = *pLook;
@@ -79,6 +83,22 @@ void orbitCamera(hmm_vec3* pEye, hmm_vec3* pLook, hmm_vec3* pUp, float x, float 
     *pEye = eye;
     *pLook = look;
     *pUp = up;
+}
+
+void zoomCamera(hmm_vec3* pEye, hmm_vec3* pLook, float zoom) {
+    hmm_vec3 eye = *pEye;
+    hmm_vec3 look = *pLook;
+
+    *pEye = 
+        HMM_AddVec3(
+            HMM_MultiplyVec3f(
+                HMM_NormalizeVec3(
+                    HMM_SubtractVec3(eye, look)
+                ), 
+                zoom
+            ), 
+            look
+        );
 }
 
 int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int32_t showWindow) {
@@ -238,6 +258,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     hmm_vec3 eyeTarget = { 0.0f, 0.7f, 0.0f };
     hmm_vec3 eyeUp = { 0.0f, 1.0f, 0.0f };
     hmm_mat4 viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
+    float zoom = HMM_LengthVec3(HMM_SubtractVec3(eyePosition, eyeTarget));
+    float minZoom = zoom * 0.1f;
+    float maxZoom = zoom * 10.0f;
 
     hmm_vec3 lightPosition = { 200.0f, 200.0f, -100.0f };
 
@@ -277,21 +300,38 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         }
 
         if (mouse.buttonDown) {
-            int32_t lastX = mouse.lastX > -1 ? mouse.lastX : mouse.x;
-            int32_t lastY = mouse.lastY > -1 ? mouse.lastY : mouse.y;
+            float lastX = mouse.lastX > -1.0f ? mouse.lastX : mouse.x;
+            float lastY = mouse.lastY > -1.0f ? mouse.lastY : mouse.y;
             float dx = (lastX - mouse.x) * ORBIT_SCALE;
             float dy = (lastY - mouse.y) * ORBIT_SCALE;
 
             orbitCamera(&eyePosition, &eyeTarget, &eyeUp, dx, dy);
-            viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
-            glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
             
             mouse.lastX = mouse.x;
             mouse.lastY = mouse.y;
         } else {
-            mouse.lastX = -1;
-            mouse.lastY = -1;
+            mouse.lastX = -1.0f;
+            mouse.lastY = -1.0f;
         }
+
+        if (mouse.wheelDelta != 0.0f) {
+            zoom -= mouse.wheelDelta * ZOOM_SCALE;
+
+            if (zoom < minZoom) {
+                zoom = minZoom;
+            }
+
+            if (zoom > maxZoom) {
+                zoom = maxZoom;
+            }
+
+            zoomCamera(&eyePosition, &eyeTarget, zoom);
+        
+            mouse.wheelDelta = 0.0f;
+        }
+
+        viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
+        glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawElements(GL_TRIANGLES, gltf.elementCount, GL_UNSIGNED_SHORT, NULL);
