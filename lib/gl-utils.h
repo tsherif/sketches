@@ -47,4 +47,42 @@ GLuint createProgram(const char* vsSource, const char* fsSource, void (*logFn)(c
     return program;
 }
 
+typedef struct {
+    GLuint vbo;
+    GLuint attributeIndex;
+    uint8_t* data;
+    int32_t dataByteLength;
+    GLenum type;
+    GLint vectorSize;
+} AttributeBufferDataOpts;
+
+void attributeBufferData(AttributeBufferDataOpts* opts) {
+    glBindBuffer(GL_ARRAY_BUFFER, opts->vbo);
+    glBufferData(GL_ARRAY_BUFFER, opts->dataByteLength, opts->data, GL_STATIC_DRAW);
+    glVertexAttribPointer(opts->attributeIndex, opts->vectorSize, opts->type, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(opts->attributeIndex);
+}
+
+typedef struct {
+    GLuint texture;
+    int32_t textureIndex;
+    uint8_t* data;
+    int32_t width;
+    int32_t height;
+    GLenum format;
+    GLenum type;
+} TextureData2DOpts;
+
+void textureData2D(TextureData2DOpts* opts) {
+    glActiveTexture(GL_TEXTURE0 + opts->textureIndex);
+    glBindTexture(GL_TEXTURE_2D, opts->texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, opts->format, opts->width, opts->height, 0, opts->format, opts->type, opts->data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+}
+
 #endif

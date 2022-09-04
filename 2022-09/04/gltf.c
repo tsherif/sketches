@@ -89,32 +89,45 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbos[0]);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, gltf.indicesByteLength, gltf.indices, GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbos[1]);
-    glBufferData(GL_ARRAY_BUFFER, gltf.positionsByteLength, gltf.positions, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(0);
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = vbos[1],
+        .attributeIndex = 0,
+        .data = gltf.positions,
+        .dataByteLength = gltf.positionsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 3
+    });
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbos[2]);
-    glBufferData(GL_ARRAY_BUFFER, gltf.normalsByteLength, gltf.normals, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(1);
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = vbos[2],
+        .attributeIndex = 1,
+        .data = gltf.normals,
+        .dataByteLength = gltf.normalsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 3
+    });
 
-    glBindBuffer(GL_ARRAY_BUFFER, vbos[3]);
-    glBufferData(GL_ARRAY_BUFFER, gltf.uvsByteLength, gltf.uvs, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(2);
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = vbos[3],
+        .attributeIndex = 2,
+        .data = gltf.uvs,
+        .dataByteLength = gltf.uvsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 2
+    });
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, imageData);
-    glGenerateMipmap(GL_TEXTURE_2D);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    textureData2D(& (TextureData2DOpts) {
+        .texture = texture,
+        .textureIndex = 0,
+        .data = imageData,
+        .width = imageWidth,
+        .height = imageHeight,
+        .format = GL_RGB,
+        .type = GL_UNSIGNED_BYTE
+    });
 
     const char* vsSource =
     "#version 440\n"

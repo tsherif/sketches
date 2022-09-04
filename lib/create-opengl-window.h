@@ -241,7 +241,7 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args) {
         WGL_BLUE_BITS_ARB, 8,
         WGL_RED_BITS_ARB, 8,
         WGL_ALPHA_BITS_ARB, 8,
-        WGL_DEPTH_BITS_ARB, 16,
+        WGL_DEPTH_BITS_ARB, 24,
         0
     };
     BOOL success = wglChoosePixelFormatARB(
