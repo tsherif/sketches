@@ -15,6 +15,7 @@
 #include "../../lib/utils.h"
 #include "../../lib/windows-utils.h"
 
+#include <windowsx.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -22,8 +23,29 @@
 #define HEIGHT 1024
 #define MODEL_DIR "../../models/duck/glTF"
 
+struct {
+    int32_t x;
+    int32_t y;
+    int32_t lastX;
+    int32_t lastY;
+    bool buttonDown;
+} mouse = {
+    .lastX = -1,
+    .lastY = -1
+};
+
+#define ORBIT_SCALE 0.1f
+
 static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
+        case WM_MBUTTONDOWN: 
+        case WM_MBUTTONUP:
+        case WM_MOUSEMOVE: {
+            mouse.x = GET_X_LPARAM(lParam); 
+            mouse.y = GET_Y_LPARAM(lParam); 
+            mouse.buttonDown = (wParam & MK_LBUTTON) != 0;
+            return 0;
+        } break;
         case WM_CLOSE: {
             PostQuitMessage(0);
             return 0;
@@ -31,6 +53,32 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
     }
 
     return DefWindowProc(window, message, wParam, lParam);
+}
+
+static hmm_mat4 cameraRotation;
+void orbitCamera(hmm_vec3* pEye, hmm_vec3* pLook, hmm_vec3* pUp, float x, float y) {
+    hmm_vec3 eye = *pEye;
+    hmm_vec3 look = *pLook;
+    hmm_vec3 up = *pUp;
+
+    eye = HMM_SubtractVec3(eye, look);
+    hmm_vec3 axis = HMM_Cross(up, eye);
+    axis = HMM_NormalizeVec3(axis);
+    up = HMM_Cross(eye, axis);
+    up = HMM_NormalizeVec3(up);
+
+    // HMM_Rotate
+    hmm_mat4 xRotation = HMM_Rotate(x, up);
+    hmm_mat4 yRotation = HMM_Rotate(y, axis);
+    hmm_mat4 rotation = HMM_MultiplyMat4(xRotation, yRotation);
+
+    hmm_vec4 hEye = HMM_Vec4v(eye, 1.0f);
+    hEye = HMM_MultiplyMat4ByVec4(rotation, hEye);
+    eye = HMM_AddVec3(hEye.XYZ, look);
+
+    *pEye = eye;
+    *pLook = look;
+    *pUp = up;
 }
 
 int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int32_t showWindow) {
@@ -135,11 +183,12 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     "layout(location=0) in vec4 position;\n"
     "layout(location=1) in vec3 normal;\n"
     "layout(location=2) in vec2 uv;\n"
-    "uniform SceneUniforms {\n"
-    "    mat4 viewProj;\n"
+    "layout(std140, column_major) uniform SceneUniforms {\n"
+    "    mat4 proj;\n"
     "    vec4 eyePosition;\n"
     "    vec4 lightPosition;\n"
-    "} uScene;\n"       
+    "};\n"       
+    "uniform mat4 view;\n"
     "out  vec3 vPosition;\n"
     "out  vec2 vUV;\n"
     "out  vec3 vNormal;\n"
@@ -148,17 +197,16 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     "    vPosition = position.xyz;\n"
     "    vUV = uv;\n"
     "    vNormal = normal;\n"
-    "    gl_Position = uScene.viewProj * worldPosition;\n"
+    "    gl_Position = proj * view * worldPosition;\n"
     "}\n";
 
     const char* fsSource = 
     "#version 440\n"
-    "layout(std140, column_major) uniform;\n"
-    "uniform SceneUniforms {\n"
-    "    mat4 viewProj;\n"
+    "layout(std140, column_major) uniform SceneUniforms {\n"
+    "    mat4 proj;\n"
     "    vec4 eyePosition;\n"
     "    vec4 lightPosition;\n"
-    "} uScene;\n"
+    "};\n"
     "uniform sampler2D tex;\n"
     "in vec3 vPosition;\n"
     "in vec2 vUV;\n"
@@ -167,8 +215,8 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     "void main() {\n"
     "    vec3 color = texture(tex, vUV).rgb;\n"
     "    vec3 normal = normalize(vNormal);\n"
-    "    vec3 eyeVec = normalize(uScene.eyePosition.xyz - vPosition);\n"
-    "    vec3 incidentVec = normalize(vPosition - uScene.lightPosition.xyz);\n"
+    "    vec3 eyeVec = normalize(eyePosition.xyz - vPosition);\n"
+    "    vec3 incidentVec = normalize(vPosition - lightPosition.xyz);\n"
     "    vec3 lightVec = -incidentVec;\n"
     "    float diffuse = max(dot(lightVec, normal), 0.0);\n"
     "    float highlight = pow(max(dot(eyeVec, reflect(incidentVec, normal)), 0.0), 100.0);\n"
@@ -191,12 +239,10 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     hmm_vec3 eyeUp = { 0.0f, 1.0f, 0.0f };
     hmm_mat4 viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
 
-    hmm_mat4 viewProjMatrix = HMM_MultiplyMat4(projMatrix, viewMatrix);
-
     hmm_vec3 lightPosition = { 200.0f, 200.0f, -100.0f };
 
     float sceneUniformData[24] = { 0 };
-    memcpy(sceneUniformData, &viewProjMatrix, sizeof(viewProjMatrix));
+    memcpy(sceneUniformData, &projMatrix, sizeof(projMatrix));
     memcpy(sceneUniformData + 16, &eyePosition, sizeof(eyePosition));
     memcpy(sceneUniformData + 20, &lightPosition, sizeof(lightPosition));
 
@@ -204,6 +250,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     glGenBuffers(1, &sceneUniformBuffer);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, sceneUniformBuffer);
     glBufferData(GL_UNIFORM_BUFFER, sizeof(sceneUniformData), sceneUniformData, GL_STATIC_DRAW);
+
+    GLuint viewLocation = glGetUniformLocation(program, "view");
+    glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
 
     GLuint texLocation = glGetUniformLocation(program, "tex");
     glUniform1i(texLocation, 0);
@@ -227,6 +276,23 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             }
         }
 
+        if (mouse.buttonDown) {
+            int32_t lastX = mouse.lastX > -1 ? mouse.lastX : mouse.x;
+            int32_t lastY = mouse.lastY > -1 ? mouse.lastY : mouse.y;
+            float dx = (lastX - mouse.x) * ORBIT_SCALE;
+            float dy = (lastY - mouse.y) * ORBIT_SCALE;
+
+            orbitCamera(&eyePosition, &eyeTarget, &eyeUp, dx, dy);
+            viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
+            glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
+            
+            mouse.lastX = mouse.x;
+            mouse.lastY = mouse.y;
+        } else {
+            mouse.lastX = -1;
+            mouse.lastY = -1;
+        }
+        
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawElements(GL_TRIANGLES, gltf.elementCount, GL_UNSIGNED_SHORT, NULL);
 
