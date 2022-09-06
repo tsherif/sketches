@@ -117,6 +117,36 @@ void initMeshBuffers(Object* object) {
     });
 }
 
+hmm_mat4 parseTransform(cgltf_node* node) {
+    hmm_mat4 transform = HMM_Mat4d(1.0f);
+
+    if (node->has_rotation) {
+        hmm_mat4 rotation = HMM_QuaternionToMat4(
+            HMM_Quaternion(node->rotation[0], node->rotation[1], node->rotation[2], node->rotation[3])
+        );
+
+        transform = HMM_MultiplyMat4(rotation, transform);
+    }
+
+    if (node->has_scale) {
+        hmm_mat4 scale = HMM_Scale(
+            HMM_Vec3(node->scale[0], node->scale[1], node->scale[2])
+        );
+
+        transform = HMM_MultiplyMat4(scale, transform);
+    }
+
+    if (node->has_translation) {
+        hmm_mat4 translation = HMM_Translate(
+            HMM_Vec3(node->translation[0], node->translation[1], node->translation[2])
+        );
+
+        transform = HMM_MultiplyMat4(translation, transform);
+    }
+
+    return transform;
+}
+
 int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int32_t showWindow) {
     
     CreateOpenGLWindowArgs args = { 0 };
@@ -164,6 +194,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     parseGLTF(gltf_data->meshes, &bufferData, &tripod.mesh);
 
     initMeshBuffers(&tripod);
+    tripod.transform = parseTransform(gltf_data->nodes + 1);
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
@@ -215,7 +246,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     glBufferData(GL_UNIFORM_BUFFER, sizeof(sceneUniformData), sceneUniformData, GL_STATIC_DRAW);
 
     GLuint viewLocation = glGetUniformLocation(program, "view");
-    glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
+    GLuint worldLocation = glGetUniformLocation(program, "world");
 
     GLuint texLocation = glGetUniformLocation(program, "tex");
     glUniform1i(texLocation, 0);
@@ -273,7 +304,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
         glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
         
+        
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &tripod.transform);
         glDrawElements(GL_TRIANGLES, tripod.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
 
         SwapBuffers(deviceContext);            
