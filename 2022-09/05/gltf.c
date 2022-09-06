@@ -174,7 +174,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     "out  vec3 vNormal;\n"
     "void main() {\n"
     "    vec4 worldPosition = vec4(position.xyz * 0.01, 1.0);\n"
-    "    vPosition = position.xyz;\n"
+    "    vPosition = worldPosition.xyz;\n"
     "    vUV = uv;\n"
     "    vNormal = normal;\n"
     "    gl_Position = proj * view * worldPosition;\n"

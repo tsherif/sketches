@@ -15,10 +15,10 @@ typedef struct {
     int32_t uvsByteLength;
     int32_t indicesByteLength;
     int32_t elementCount; 
-} GLTF;
+} GLTF_Mesh;
 
-void parseGLTF(cgltf_data* gltf, Buffer* buffer, GLTF* parsed) {
-    cgltf_primitive* primitive = gltf->meshes[0].primitives;
+void parseGLTF(cgltf_mesh* mesh, Buffer* buffer, GLTF_Mesh* parsed) {
+    cgltf_primitive* primitive = mesh->primitives;
     cgltf_accessor* indices = primitive->indices;
 
     parsed->buffer = *buffer;

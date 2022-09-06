@@ -22,7 +22,7 @@
 
 #define WIDTH 1024
 #define HEIGHT 1024
-#define MODEL_DIR "../../models/duck/glTF"
+#define MODEL_DIR "../../models/antique-camera/glTF"
 
 struct {
     float x;
@@ -35,6 +35,20 @@ struct {
     .lastX = -1.0f,
     .lastY = -1.0f
 };
+
+typedef struct {
+    GLuint vao;
+    GLuint indexBuffer;
+    GLuint positionBuffer;
+    GLuint normalBuffer;
+    GLuint uvBuffer;
+} GL_Buffers;
+
+typedef struct {
+    GLTF_Mesh mesh;
+    GL_Buffers buffers;
+    hmm_mat4 transform;
+} Object;
 
 #define ORBIT_SCALE 0.1f
 #define ZOOM_SCALE 3.0f
@@ -59,6 +73,48 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
     }
 
     return DefWindowProc(window, message, wParam, lParam);
+}
+
+void initMeshBuffers(Object* object) {
+    glGenVertexArrays(1, &object->buffers.vao);
+    glBindVertexArray(object->buffers.vao);
+
+    GLuint vbos[4] = { 0 };
+    glGenBuffers(4, vbos);
+    object->buffers.indexBuffer = vbos[0];
+    object->buffers.positionBuffer = vbos[1];
+    object->buffers.normalBuffer = vbos[2];
+    object->buffers.uvBuffer = vbos[3];
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, object->buffers.indexBuffer);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, object->mesh.indicesByteLength, object->mesh.indices, GL_STATIC_DRAW);
+
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = object->buffers.positionBuffer,
+        .attributeIndex = 0,
+        .data = object->mesh.positions,
+        .dataByteLength = object->mesh.positionsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 3
+    });
+
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = object->buffers.normalBuffer,
+        .attributeIndex = 1,
+        .data = object->mesh.normals,
+        .dataByteLength = object->mesh.normalsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 3
+    });
+
+    attributeBufferData(& (AttributeBufferDataOpts) {
+        .vbo = object->buffers.uvBuffer,
+        .attributeIndex = 2,
+        .data = object->mesh.uvs,
+        .dataByteLength = object->mesh.uvsByteLength,
+        .type = GL_FLOAT,
+        .vectorSize = 2
+    });
 }
 
 int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int32_t showWindow) {
@@ -89,7 +145,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     char filePath[1024] = { 0 };
     cgltf_data* gltf_data = NULL;
 
-    snprintf(filePath, 1024, "%s/Duck.gltf", MODEL_DIR);
+    snprintf(filePath, 1024, "%s/AntiqueCamera.gltf", MODEL_DIR);
     
     if (cgltf_parse_file(& (cgltf_options) { 0 }, filePath, &gltf_data) != cgltf_result_success) {
         OutputDebugStringA("Failed to load model.\n");
@@ -101,48 +157,13 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     loadBinFile(filePath, &bufferData);
 
     int32_t imageWidth, imageHeight, imageChannels;
-    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[0].uri);    
+    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[2].uri);    
     uint8_t *imageData = stbi_load(filePath, &imageWidth, &imageHeight, &imageChannels, 0);
 
-    GLTF gltf = { 0 };
-    parseGLTF(gltf_data, &bufferData, &gltf);
+    Object tripod = { 0 };
+    parseGLTF(gltf_data->meshes, &bufferData, &tripod.mesh);
 
-    GLuint vao = 0;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    GLuint vbos[4] = { 0 };
-    glGenBuffers(4, vbos);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vbos[0]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, gltf.indicesByteLength, gltf.indices, GL_STATIC_DRAW);
-
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = vbos[1],
-        .attributeIndex = 0,
-        .data = gltf.positions,
-        .dataByteLength = gltf.positionsByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
-
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = vbos[2],
-        .attributeIndex = 1,
-        .data = gltf.normals,
-        .dataByteLength = gltf.normalsByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
-
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = vbos[3],
-        .attributeIndex = 2,
-        .data = gltf.uvs,
-        .dataByteLength = gltf.uvsByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 2
-    });
+    initMeshBuffers(&tripod);
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
@@ -174,7 +195,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     hmm_mat4 projMatrix = HMM_Perspective((float) M_PI / 3.0f, (float) WIDTH / HEIGHT, 10.0f, 1000.0f);
 
     hmm_vec3 eyePosition = { 100.0f, 50.0f, 40.0f };
-    hmm_vec3 eyeTarget = { 0.0f, 0.7f, 0.0f };
+    hmm_vec3 eyeTarget = { 0.0f, 0.0f, 0.0f };
     hmm_vec3 eyeUp = { 0.0f, 1.0f, 0.0f };
     hmm_mat4 viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
     float zoom = HMM_LengthVec3(HMM_SubtractVec3(eyePosition, eyeTarget));
@@ -253,7 +274,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDrawElements(GL_TRIANGLES, gltf.elementCount, GL_UNSIGNED_SHORT, NULL);
+        glDrawElements(GL_TRIANGLES, tripod.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
 
         SwapBuffers(deviceContext);            
     }

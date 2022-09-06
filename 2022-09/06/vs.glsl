@@ -17,8 +17,8 @@ out  vec2 vUV;
 out  vec3 vNormal;
 
 void main() {
-    vec4 worldPosition = vec4(position.xyz * 0.01, 1.0);
-    vPosition = position.xyz;
+    vec4 worldPosition = position;
+    vPosition = worldPosition.xyz;
     vUV = uv;
     vNormal = normal;
     gl_Position = proj * view * worldPosition;
