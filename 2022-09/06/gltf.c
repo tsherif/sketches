@@ -45,8 +45,13 @@ typedef struct {
 } GL_Buffers;
 
 typedef struct {
+    GLuint colorTexture;
+} GL_Textures;
+
+typedef struct {
     GLTF_Mesh mesh;
     GL_Buffers buffers;
+    GL_Textures textures;
     hmm_mat4 transform;
 } Object;
 
@@ -115,6 +120,8 @@ void initMeshBuffers(Object* object) {
         .type = GL_FLOAT,
         .vectorSize = 2
     });
+
+    glBindVertexArray(0);
 }
 
 hmm_mat4 parseTransform(cgltf_node* node) {
@@ -306,6 +313,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glBindVertexArray(tripod.buffers.vao);
         glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &tripod.transform);
         glDrawElements(GL_TRIANGLES, tripod.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
 
