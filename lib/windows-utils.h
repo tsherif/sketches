@@ -13,7 +13,7 @@ void debugLog(const char* message) {
     OutputDebugStringA("\n"); 
 }
 
-bool loadBinFile(const char* fileName, Buffer* buffer) {
+static bool loadFile(const char* fileName, Buffer* buffer, bool nullTerminate) {
     HANDLE file = CreateFileA(
       fileName,
       GENERIC_READ,
@@ -45,6 +45,10 @@ bool loadBinFile(const char* fileName, Buffer* buffer) {
 
     int32_t allocation = fileSize.LowPart;
 
+    if (nullTerminate) {
+        allocation += 1;
+    }
+
     DWORD bytesRead = 0;
     data = (uint8_t*) malloc(allocation);
 
@@ -56,6 +60,10 @@ bool loadBinFile(const char* fileName, Buffer* buffer) {
     if (!ReadFile(file, data, fileSize.LowPart, &bytesRead, NULL)) {
         debugLog("Unable to read data.");
         goto ERROR_DATA_ALLOCATED;
+    }
+
+    if (nullTerminate) {
+        data[allocation - 1] = 0;
     }
 
     buffer->data = data;
@@ -80,6 +88,14 @@ bool loadBinFile(const char* fileName, Buffer* buffer) {
     
     ERROR_NO_RESOURCES:
     return false;
+}
+
+bool loadBinFile(const char* fileName, Buffer* buffer) {
+    return loadFile(fileName, buffer, false);
+}
+
+bool loadTextFile(const char* fileName, Buffer* buffer) {
+    return loadFile(fileName, buffer, true);
 }
 
 #endif
