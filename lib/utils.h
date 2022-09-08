@@ -15,6 +15,7 @@ typedef struct {
     uint8_t* data;
     int32_t width;
     int32_t height;
+    int32_t channels;
 } Image;
 
 // TODO(Tarek): Check format. Should be 2-channel 44.1kHz
