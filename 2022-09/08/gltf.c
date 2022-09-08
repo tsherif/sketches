@@ -57,6 +57,7 @@ typedef struct {
 
 #define ORBIT_SCALE 0.1f
 #define ZOOM_SCALE 3.0f
+#define MAX_OBJECTS 64
 #define MAX_IMAGES 128
 
 struct {
@@ -64,6 +65,10 @@ struct {
     int32_t count;
 } images;
 
+struct {
+    Object objects[MAX_OBJECTS];
+    int32_t count;
+} objects;
 
 static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
@@ -211,34 +216,37 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         return 1;
     }
 
-    Buffer bufferData = { 0 };
-    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->buffers[0].uri);
-    loadBinFile(filePath, &bufferData);
+    if (gltf_data->nodes_count > MAX_OBJECTS) {
+        OutputDebugStringA("Too many nodes.\n");
+        return 1;
+    }
 
     if (gltf_data->images_count > MAX_IMAGES) {
         OutputDebugStringA("Too many images.\n");
         return 1;
     }
 
+    Buffer bufferData = { 0 };
+    snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->buffers[0].uri);
+    loadBinFile(filePath, &bufferData);
+
     for (int32_t i = 0; i < gltf_data->images_count; ++i) {
         Image* image = images.images + i;
         snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[i].uri);
-        image->data = stbi_load(filePath, &image->width, &image->height, &image->channels, 0);   
+        image->data = stbi_load(filePath, &image->width, &image->height, &image->channels, 0);  
+        ++images.count; 
     }
 
-    Object tripod = { 0 };
-    parseGLTF(gltf_data->meshes, &bufferData, &tripod.mesh);
 
-    initTexture(images.images + 2, &tripod.material.colorTexture);
-    initMeshBuffers(&tripod);
-    tripod.transform = parseTransform(gltf_data->nodes + 1);
-
-    Object camera = { 0 };
-    parseGLTF(gltf_data->meshes + 1, &bufferData, &camera.mesh);
-
-    initTexture(images.images + 1, &camera.material.colorTexture);
-    initMeshBuffers(&camera);
-    camera.transform = parseTransform(gltf_data->nodes);
+    for (int32_t i = 0; i < gltf_data->nodes_count; ++i) {
+        Object* object = objects.objects + i;
+        cgltf_node* node = gltf_data->nodes + i;
+        parseGLTF(node->mesh, gltf_data->images, &bufferData, &object->mesh);
+        initTexture(images.images + object->mesh.material.colorImage, &object->material.colorTexture);
+        initMeshBuffers(object);
+        object->transform = parseTransform(node);
+        ++objects.count;
+    }
 
     Buffer vsSource = { 0 };
     loadTextFile("vs.glsl", &vsSource);
@@ -338,17 +346,15 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        glBindVertexArray(tripod.buffers.vao);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, tripod.material.colorTexture);
-        glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &tripod.transform);
-        glDrawElements(GL_TRIANGLES, tripod.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
+        for (int32_t i = 0; i < objects.count; ++i) {
+            Object* object = objects.objects + i;
 
-        glBindVertexArray(camera.buffers.vao);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, camera.material.colorTexture);
-        glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &camera.transform);
-        glDrawElements(GL_TRIANGLES, camera.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
+            glBindVertexArray(object->buffers.vao);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, object->material.colorTexture);
+            glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object->transform);
+            glDrawElements(GL_TRIANGLES, object->mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
+        }
 
         SwapBuffers(deviceContext);            
     }
