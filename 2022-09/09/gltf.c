@@ -44,26 +44,22 @@ typedef struct {
     GLuint uvBuffer;
 } GL_Buffers;
 
-typedef struct {
-    GLuint colorTexture;
-} GL_Material;
 
 typedef struct {
     GLTF_Mesh mesh;
     GL_Buffers buffers;
-    GL_Material material;
     hmm_mat4 transform;
 } Object;
 
 #define ORBIT_SCALE 0.1f
-#define ZOOM_SCALE 3.0f
+#define ZOOM_SCALE 1.0f
 #define MAX_OBJECTS 64
-#define MAX_IMAGES 128
+#define MAX_TEXTURES 128
 
 struct {
-    Image images[MAX_IMAGES];
+    GLuint textures[MAX_TEXTURES];
     int32_t count;
-} images;
+} textures;
 
 struct {
     Object objects[MAX_OBJECTS];
@@ -136,19 +132,24 @@ void initMeshBuffers(Object* object) {
     glBindVertexArray(0);
 }
 
-void initTexture(Image* image, GLuint* texture) {
-    glGenTextures(1, texture);
+GLuint createTexture(const char* filePath) {
+    int32_t width, height, channels;
+    uint8_t* data = stbi_load(filePath, &width, &height, &channels, 0);
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
 
     textureData2D(& (TextureData2DOpts) {
-        .texture = *texture,
+        .texture = texture,
         .textureIndex = 0,
-        .data = image->data,
-        .width = image->width,
-        .height = image->height,
-        .format = image->channels == 3 ? GL_RGB : GL_RGBA,
+        .data = data,
+        .width = width,
+        .height = height,
+        .format = channels == 3 ? GL_RGB : GL_RGBA,
         .type = GL_UNSIGNED_BYTE
     });
 
+    return texture;
 }
 
 hmm_mat4 parseTransform(cgltf_node* node) {
@@ -221,7 +222,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         return 1;
     }
 
-    if (gltf_data->images_count > MAX_IMAGES) {
+    if (gltf_data->images_count > MAX_TEXTURES) {
         OutputDebugStringA("Too many images.\n");
         return 1;
     }
@@ -231,10 +232,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     loadBinFile(filePath, &bufferData);
 
     for (int32_t i = 0; i < gltf_data->images_count; ++i) {
-        Image* image = images.images + i;
         snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[i].uri);
-        image->data = stbi_load(filePath, &image->width, &image->height, &image->channels, 0);  
-        ++images.count; 
+        textures.textures[i] = createTexture(filePath);
+        ++textures.count; 
     }
 
 
@@ -242,7 +242,6 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         Object* object = objects.objects + i;
         cgltf_node* node = gltf_data->nodes + i;
         parseGLTF(node->mesh, gltf_data->images, &bufferData, &object->mesh);
-        initTexture(images.images + object->mesh.material.colorImage, &object->material.colorTexture);
         initMeshBuffers(object);
         object->transform = parseTransform(node);
         ++objects.count;
@@ -350,10 +349,11 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         
         for (int32_t i = 0; i < objects.count; ++i) {
             Object* object = objects.objects + i;
+            GLuint colorTexture = textures.textures[object->mesh.material.colorTexture];
 
             glBindVertexArray(object->buffers.vao);
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, object->material.colorTexture);
+            glBindTexture(GL_TEXTURE_2D, colorTexture);
             glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object->transform);
             glDrawElements(GL_TRIANGLES, object->mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
         }

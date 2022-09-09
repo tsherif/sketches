@@ -5,7 +5,7 @@
 #include "utils.h"
 
 typedef struct {
-    int32_t colorImage;
+    int32_t colorTexture;
 } GLTF_Material;
 
 typedef struct {
@@ -31,7 +31,7 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
     parsed->indices = buffer->data + indices->offset + indices->buffer_view->offset;
     parsed->elementCount = (int32_t) indices->count; 
     parsed->indicesByteLength = (int32_t) (parsed->elementCount * sizeof(uint16_t));
-    parsed->material.colorImage = (int32_t) (material->pbr_metallic_roughness.base_color_texture.texture->image - imageBase);
+    parsed->material.colorTexture = (int32_t) (material->pbr_metallic_roughness.base_color_texture.texture->image - imageBase);
 
     for (int32_t i = 0; i < primitive->attributes_count; ++i) {
         cgltf_attribute* attribute = primitive->attributes + i;
