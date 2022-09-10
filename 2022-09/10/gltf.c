@@ -94,7 +94,7 @@ void initMeshBuffers(Object* object) {
     glBindVertexArray(object->buffers.vao);
 
     GLuint vbos[5] = { 0 };
-    glGenBuffers(4, vbos);
+    glGenBuffers(5, vbos);
     object->buffers.indexBuffer = vbos[0];
     object->buffers.positionBuffer = vbos[1];
     object->buffers.normalBuffer = vbos[2];

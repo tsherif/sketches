@@ -16,6 +16,7 @@ uniform mat4 view;
 uniform mat4 world;
 
 out  vec3 vPosition;
+out  vec3 vNormal;
 out  mat3 vTBN;
 out  vec2 vUV;
 
@@ -33,6 +34,7 @@ void main() {
         normalize(world3 * B),
         normalize(world3 * normal)
     );
+    vNormal = world3 * normal;
 
     gl_Position = proj * view * worldPosition;
 };

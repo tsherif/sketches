@@ -10,6 +10,7 @@ uniform sampler2D tex;
 uniform sampler2D normalMap;
 
 in vec3 vPosition;
+in vec3 vNormal;
 in mat3 vTBN;
 in vec2 vUV;
 
@@ -19,6 +20,7 @@ void main() {
     vec3 color = texture(tex, vUV).rgb;
     vec3 normal = texture(normalMap, vUV).xyz * 2.0 - 1.0;
     normal = normalize(vTBN * normal);
+    // vec3 normal = normalize(vNormal);
 
     vec3 eyeVec = normalize(eyePosition.xyz - vPosition);
     vec3 lightVec = normalize(lightPosition.xyz - vPosition);
