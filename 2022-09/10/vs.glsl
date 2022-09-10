@@ -16,15 +16,23 @@ uniform mat4 view;
 uniform mat4 world;
 
 out  vec3 vPosition;
-out  vec3 vNormal;
-out  vec3 vTangent;
+out  mat3 vTBN;
 out  vec2 vUV;
 
 void main() {
     vec4 worldPosition = world * position;
+    
     vPosition = worldPosition.xyz;
     vUV = uv;
-    vNormal = mat3(world) * normal;
-    vTangent = mat3(world) * tangent;
+    
+    vec3 B = cross(normal, tangent);
+    vec3 T = cross(B, normal);
+    mat3 world3 = mat3(world);
+    vTBN =  mat3 (
+        normalize(world3 * T),
+        normalize(world3 * B),
+        normalize(world3 * normal)
+    );
+
     gl_Position = proj * view * worldPosition;
 };

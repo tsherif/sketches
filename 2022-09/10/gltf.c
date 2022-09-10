@@ -302,6 +302,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     GLuint texLocation = glGetUniformLocation(program, "tex");
     glUniform1i(texLocation, 0);
 
+    GLuint nmLocation = glGetUniformLocation(program, "normalMap");
+    glUniform1i(nmLocation, 1);
+
     ShowWindow(window, showWindow);
     HDC deviceContext = GetDC(window);
     MSG message = { 0 };
@@ -360,11 +363,16 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         
         for (int32_t i = 0; i < objects.count; ++i) {
             Object* object = objects.objects + i;
-            GLuint colorTexture = textures.textures[object->mesh.material.normalTexture];
+            GLuint colorTexture = textures.textures[object->mesh.material.colorTexture];
+            GLuint normalTexture = textures.textures[object->mesh.material.normalTexture];
 
             glBindVertexArray(object->buffers.vao);
+            
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, colorTexture);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, normalTexture);
+
             glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object->transform);
             glDrawElements(GL_TRIANGLES, object->mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
         }

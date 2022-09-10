@@ -115,8 +115,8 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
                     HMM_MultiplyVec3f(edge1, duv0.Y)
                 ),
                 f
-            );
-        )
+            )
+        );
 
         tangents[pi0]     = tangent.X;
         tangents[pi0 + 1] = tangent.Y;
