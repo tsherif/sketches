@@ -284,12 +284,14 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
 
     hmm_vec3 lightPosition = { 20.0f, 20.0f, 20.0f };
     hmm_vec3 lightDirection = { 0.0f, 0.0f, 1.0f };
+    hmm_vec3 viewLightPosition = { 2.0f, 2.0f, 0.0f };
 
-    float sceneUniformData[28] = { 0 };
+    float sceneUniformData[32] = { 0 };
     memcpy(sceneUniformData, &projMatrix, sizeof(projMatrix));
     memcpy(sceneUniformData + 16, &eyePosition, sizeof(eyePosition));
     memcpy(sceneUniformData + 20, &lightPosition, sizeof(lightPosition));
     memcpy(sceneUniformData + 24, &lightDirection, sizeof(lightDirection));
+    memcpy(sceneUniformData + 28, &viewLightPosition, sizeof(viewLightPosition));
 
     GLuint sceneUniformBuffer = 0;
     glGenBuffers(1, &sceneUniformBuffer);
