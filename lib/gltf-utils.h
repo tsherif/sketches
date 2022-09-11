@@ -54,26 +54,8 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
         }
     }
 
-    // hmm_vec3 pos0 = HMM_Vec3(-1.0f, -1.0f, 0.0f);
-    // hmm_vec3 pos1 = HMM_Vec3(1.0f, -1.0f, 0.0f);
-    // hmm_vec3 pos2 = HMM_Vec3(1.0f, 1.0f, 0.0f);
-
-    // hmm_vec2 uv0 = HMM_Vec2(0.0f, 0.0f);
-    // hmm_vec2 uv1 = HMM_Vec2(1.0f, 0.0f);
-    // hmm_vec2 uv2 = HMM_Vec2(1.0f, 1.0f);
-
-    // hmm_vec3 edge0 = HMM_SubtractVec3(pos1, pos0);
-    // hmm_vec3 edge1 = HMM_SubtractVec3(pos2, pos0);
-    // hmm_vec2 duv0 = HMM_SubtractVec2(uv1, uv0);
-    // hmm_vec2 duv1 = HMM_SubtractVec2(uv2, uv0);
-
-    // float f = 1.0f / (duv0.X * duv1.Y - duv1.X * duv0.Y);
-
-    // float tangentx = f * (duv1.Y * edge0.X - duv0.Y * edge1.X);
-    // float tangenty = f * (duv1.Y * edge0.Y - duv0.Y * edge1.Y);
-    // float tangentz = f * (duv1.Y * edge0.Z - duv0.Y * edge1.Z);
-
     float* positions = (float *) parsed->positions;
+    float* normals = (float *) parsed->normals;
     float* uvs = (float *) parsed->uvs;
     uint16_t* indices = (uint16_t *) parsed->indices;
     int32_t count = parsed->elementCount;
@@ -97,6 +79,10 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
         hmm_vec3 pos1 = HMM_Vec3(positions[pi1], positions[pi1 + 1], positions[pi1 + 2]);
         hmm_vec3 pos2 = HMM_Vec3(positions[pi2], positions[pi2 + 1], positions[pi2 + 2]);
 
+        hmm_vec3 n0 = HMM_Vec3(normals[pi0], normals[pi0 + 1], normals[pi0 + 2]);
+        hmm_vec3 n1 = HMM_Vec3(normals[pi1], normals[pi1 + 1], normals[pi1 + 2]);
+        hmm_vec3 n2 = HMM_Vec3(normals[pi2], normals[pi2 + 1], normals[pi2 + 2]);
+
         hmm_vec2 uv0 = HMM_Vec2(uvs[ui0], uvs[ui0 + 1]);
         hmm_vec2 uv1 = HMM_Vec2(uvs[ui1], uvs[ui1 + 1]);
         hmm_vec2 uv2 = HMM_Vec2(uvs[ui2], uvs[ui2 + 1]);
@@ -108,27 +94,56 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
 
         float f = 1.0f / (duv0.X * duv1.Y - duv1.X * duv0.Y);
 
-        hmm_vec3 tangent = HMM_NormalizeVec3(
-            HMM_MultiplyVec3f(
-                HMM_SubtractVec3(
-                    HMM_MultiplyVec3f(edge0, duv1.Y),
-                    HMM_MultiplyVec3f(edge1, duv0.Y)
-                ),
-                f
+        hmm_vec3 tangent = HMM_MultiplyVec3f(
+            HMM_SubtractVec3(
+                HMM_MultiplyVec3f(edge0, duv1.Y),
+                HMM_MultiplyVec3f(edge1, duv0.Y)
+            ),
+            f
+        );
+
+        hmm_vec3 tangent0 = HMM_NormalizeVec3(
+            HMM_SubtractVec3(
+                tangent, 
+                HMM_MultiplyVec3f(
+                    n0, 
+                    HMM_DotVec3(n0, tangent)
+                )
             )
         );
 
-        tangents[pi0]     = tangent.X;
-        tangents[pi0 + 1] = tangent.Y;
-        tangents[pi0 + 2] = tangent.Z;
+        hmm_vec3 tangent1 = HMM_NormalizeVec3(
+            HMM_SubtractVec3(
+                tangent, 
+                HMM_MultiplyVec3f(
+                    n1, 
+                    HMM_DotVec3(n1, tangent)
+                )
+            )
+        );
 
-        tangents[pi1]     = tangent.X;
-        tangents[pi1 + 1] = tangent.Y;
-        tangents[pi1 + 2] = tangent.Z;
+        hmm_vec3 tangent2 = HMM_NormalizeVec3(
+            HMM_SubtractVec3(
+                tangent, 
+                HMM_MultiplyVec3f(
+                    n2, 
+                    HMM_DotVec3(n2, tangent)
+                )
+            )
+        );
 
-        tangents[pi2]     = tangent.X;
-        tangents[pi2 + 1] = tangent.Y;
-        tangents[pi2 + 2] = tangent.Z;
+
+        tangents[pi0]     = tangent0.X;
+        tangents[pi0 + 1] = tangent0.Y;
+        tangents[pi0 + 2] = tangent0.Z;
+
+        tangents[pi1]     = tangent1.X;
+        tangents[pi1 + 1] = tangent1.Y;
+        tangents[pi1 + 2] = tangent1.Z;
+
+        tangents[pi2]     = tangent2.X;
+        tangents[pi2 + 1] = tangent2.Y;
+        tangents[pi2 + 2] = tangent2.Z;
     }
 
     parsed->tangents = (uint8_t *) tangents;
