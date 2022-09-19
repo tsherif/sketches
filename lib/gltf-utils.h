@@ -9,6 +9,10 @@
 typedef struct {
     int32_t colorTexture;
     int32_t normalTexture;
+
+    // R = Metallness, G = Roughness
+    // https://github.com/sbtron/glTF/blob/30de0b365d1566b1bbd8b9c140f9e995d3203226/specification/2.0/README.md#pbrmetallicroughnessmetallicroughnesstexture
+    int32_t metallicRoughnessTexture;
 } GLTF_Material;
 
 typedef struct {
@@ -38,6 +42,7 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
     parsed->indicesByteLength = (int32_t) (parsed->elementCount * sizeof(uint16_t));
     parsed->material.colorTexture = (int32_t) (material->pbr_metallic_roughness.base_color_texture.texture->image - imageBase);
     parsed->material.normalTexture = (int32_t) (material->normal_texture.texture->image - imageBase);
+    parsed->material.metallicRoughnessTexture = (int32_t) (material->pbr_metallic_roughness.metallic_roughness_texture.texture->image - imageBase);
 
     for (int32_t i = 0; i < primitive->attributes_count; ++i) {
         cgltf_attribute* attribute = primitive->attributes + i;
