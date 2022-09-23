@@ -147,20 +147,20 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     hmm_vec3 lightDirection = { 0.0f, 0.0f, 1.0f };
     hmm_vec3 headlightPosition = { 5.0f, 5.0f, 0.0f };
 
-    float sceneUniformData[32] = { 0 };
-    memcpy(sceneUniformData, &projMatrix, sizeof(projMatrix));
-    memcpy(sceneUniformData + 16, &eyePosition, sizeof(eyePosition));
-    memcpy(sceneUniformData + 20, &lightPosition, sizeof(lightPosition));
-    memcpy(sceneUniformData + 24, &lightDirection, sizeof(lightDirection));
-    memcpy(sceneUniformData + 28, &headlightPosition, sizeof(headlightPosition));
-
-    GLuint sceneUniformBuffer = 0;
-    glGenBuffers(1, &sceneUniformBuffer);
-    glBindBufferBase(GL_UNIFORM_BUFFER, 0, sceneUniformBuffer);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(sceneUniformData), sceneUniformData, GL_STATIC_DRAW);
-
+    GLuint projLocation = glGetUniformLocation(program, "proj");
     GLuint viewLocation = glGetUniformLocation(program, "view");
     GLuint offsetLocation = glGetUniformLocation(program, "offset");
+    GLuint eyeLocation = glGetUniformLocation(program, "eyePosition");
+    GLuint lightLocation0 = glGetUniformLocation(program, "lightPositions[0]");
+    GLuint lightLocation1 = glGetUniformLocation(program, "lightPositions[1]");
+    GLuint lightLocation2 = glGetUniformLocation(program, "lightPositions[2]");
+    GLuint lightLocation3 = glGetUniformLocation(program, "lightPositions[3]");
+
+    glUniformMatrix4fv(projLocation, 1, GL_FALSE, (const GLfloat *) &projMatrix);
+    glUniform3f(lightLocation0, -10.0f,  10.0f, 10.0f);
+    glUniform3f(lightLocation1, 10.0f,  10.0f, 10.0f);
+    glUniform3f(lightLocation2, -10.0f, -10.0f, 10.0f);
+    glUniform3f(lightLocation3, 10.0f, -10.0f, 10.0f);
 
     ShowWindow(window, showWindow);
     HDC deviceContext = GetDC(window);
@@ -216,6 +216,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
 
         viewMatrix = HMM_LookAt(eyePosition, eyeTarget, eyeUp);
         glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &viewMatrix);
+        glUniform3fv(eyeLocation, 1, (const GLfloat *) &eyePosition);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         for (int32_t row = 0; row < numRows; ++row) {

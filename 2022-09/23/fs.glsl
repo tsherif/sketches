@@ -1,10 +1,9 @@
 #version 440
-layout(std140, column_major) uniform SceneUniforms {
-    mat4 proj;
-    vec4 eyePosition;
-    vec4 lightPosition;
-    vec4 lightDirection;
-};
+
+#define NUM_LIGHTS 4
+#define LIGHT_COLOR vec3(0.3)
+uniform vec3 eyePosition;
+uniform vec3 lightPositions[NUM_LIGHTS];
 
 in vec3 vPosition;
 in vec3 vNormal;
@@ -16,13 +15,20 @@ void main() {
 
     vec3 normal = normalize(vNormal);
     vec3 eyeVec = normalize(eyePosition.xyz - vPosition);
-    vec3 lightVec = normalize(lightPosition.xyz - vPosition);
-    vec3 halfway = normalize(eyeVec + lightVec);
+    vec3 diffuse = vec3(0.0);
+    vec3 specular = vec3(0.0);
+    vec3 ambient = vec3(0.0);
+
+    for (int i = 0; i < NUM_LIGHTS; ++i) {
+        vec3 lightPosition = lightPositions[i];
+        vec3 lightVec = normalize(lightPosition - vPosition);
+        vec3 halfway = normalize(eyeVec + lightVec);
+
+        diffuse += LIGHT_COLOR * max(dot(lightVec, normal), 0.0);
+        specular += LIGHT_COLOR * pow(max(dot(halfway, normal), 0.0), 100.0);
+    }
+   
+    ambient += 0.01;
     
-    float diffuse = max(dot(lightVec, normal), 0.0);
-    float highlight = pow(max(dot(halfway, normal), 0.0), 100.0);
-    float directionalDiffuse = max(dot(normalize(-lightDirection.xyz), normal), 0.0);;
-    float ambient = 0.1;
-    
-    fragColor = vec4(color * (diffuse + directionalDiffuse + highlight + ambient), 1.0);
+    fragColor = vec4(color * (diffuse + specular + ambient), 1.0);
 };
