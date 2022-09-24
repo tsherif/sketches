@@ -2,7 +2,7 @@
 
 #define PI 3.14159265359
 #define NUM_LIGHTS 4
-#define LIGHT_COLOR vec3(40.0)
+#define LIGHT_COLOR vec3(30.0)
 
 uniform sampler2D colorMap;
 uniform sampler2D normalMap;
@@ -84,7 +84,7 @@ void main() {
         light += (kD * materialColor / PI + specular) * LIGHT_COLOR * nDotL; 
     }
     
-    ambient += 0.01 * materialColor;
+    // ambient += 0.01 * materialColor;
     light += ambient;
 
     fragColor = vec4(light + ambient, 1.0);

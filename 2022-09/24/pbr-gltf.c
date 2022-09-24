@@ -196,7 +196,7 @@ hmm_mat4 parseTransform(cgltf_node* node) {
 int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int32_t showWindow) {
     
     CreateOpenGLWindowArgs args = { 0 };
-    args.title = "GLTF Demo"; 
+    args.title = "PBR GLTF Demo"; 
     args.majorVersion = SOGL_MAJOR_VERSION; 
     args.minorVersion = SOGL_MINOR_VERSION;
     args.width = WIDTH;
@@ -295,10 +295,10 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     GLuint mrmLocation = glGetUniformLocation(program, "metallicRoughnessMap");
 
     glUniformMatrix4fv(projLocation, 1, GL_FALSE, (const GLfloat *) &projMatrix);
-    glUniform3f(lightLocation0, -20.0f,  20.0f, 20.0f);
-    glUniform3f(lightLocation1, 20.0f,  20.0f, -20.0f);
-    glUniform3f(lightLocation2, -20.0f, -20.0f, 20.0f);
-    glUniform3f(lightLocation3, 20.0f, -20.0f, -20.0f);
+    glUniform3f(lightLocation0, 5.0f,  10.0f, 10.0f);
+    glUniform3f(lightLocation1, -5.0f,  10.0f, -10.0f);
+    glUniform3f(lightLocation2, 0.0f, 4.0f, 10.0f);
+    glUniform3f(lightLocation3, 0.0f, 4.0f, -10.0f);
     glUniform1i(texLocation, 0);
     glUniform1i(nmLocation, 1);
     glUniform1i(mrmLocation, 2);
@@ -308,7 +308,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     MSG message = { 0 };
 
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     bool running = true;
 
     while (running) {
