@@ -87,7 +87,7 @@ void main() {
         light += (kD * materialColor / PI + specular) * LIGHT_COLOR * nDotL; 
     }
     
-    // ambient += 0.01 * materialColor;
+    ambient += 0.01 * materialColor;
     light += ambient;
 
     fragColor = vec4(light + ambient, 1.0);
