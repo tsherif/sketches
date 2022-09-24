@@ -295,10 +295,10 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     GLuint mrmLocation = glGetUniformLocation(program, "metallicRoughnessMap");
 
     glUniformMatrix4fv(projLocation, 1, GL_FALSE, (const GLfloat *) &projMatrix);
-    glUniform3f(lightLocation0, 5.0f,  10.0f, 10.0f);
-    glUniform3f(lightLocation1, -5.0f,  10.0f, -10.0f);
-    glUniform3f(lightLocation2, 0.0f, 4.0f, 10.0f);
-    glUniform3f(lightLocation3, 0.0f, 4.0f, -10.0f);
+    glUniform3f(lightLocation0, 5.0f,  10.0f, 5.0f);
+    glUniform3f(lightLocation1, -5.0f,  10.0f, 5.0f);
+    glUniform3f(lightLocation2, 5.0f, 10.0f, -5.0f);
+    glUniform3f(lightLocation3, -5.0f, 10.0f, -5.0f);
     glUniform1i(texLocation, 0);
     glUniform1i(nmLocation, 1);
     glUniform1i(mrmLocation, 2);

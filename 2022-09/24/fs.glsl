@@ -2,7 +2,7 @@
 
 #define PI 3.14159265359
 #define NUM_LIGHTS 4
-#define LIGHT_COLOR vec3(30.0)
+#define LIGHT_COLOR vec3(150.0)
 
 uniform sampler2D colorMap;
 uniform sampler2D normalMap;
@@ -53,8 +53,11 @@ vec3 fresnelSchlick(float cosTheta, vec3 f0) {
 
 void main() {
     vec3 materialColor = texture(colorMap, vUV).rgb;
+    materialColor = pow(materialColor, vec3(2.2));
+
     vec3 tangentNormal = texture(normalMap, vUV).xyz * 2.0 - 1.0;
     vec2 metallicRoughness = texture(metallicRoughnessMap, vUV).xy;
+    
     float metalness = metallicRoughness.x;
     float roughness = metallicRoughness.y;
     vec3 tangentEyeVec = normalize(vTangentEyeVec);
