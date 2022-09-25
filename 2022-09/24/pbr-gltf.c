@@ -143,9 +143,12 @@ void initMeshBuffers(Object* object) {
     glBindVertexArray(0);
 }
 
-GLuint createTexture(const char* filePath) {
+GLuint createTexture(const char* filePath, bool srgb) {
     int32_t width, height, channels;
     uint8_t* data = stbi_load(filePath, &width, &height, &channels, 0);
+
+    GLuint rgbFormat = srgb ? GL_SRGB8 : GL_RGB;
+    GLuint rgbaFormat = srgb ? GL_SRGB8_ALPHA8 : GL_RGBA;
 
     GLuint texture = 0;
     glGenTextures(1, &texture);
@@ -157,6 +160,7 @@ GLuint createTexture(const char* filePath) {
         .width = width,
         .height = height,
         .format = channels == 3 ? GL_RGB : GL_RGBA,
+        .internalFormat = channels == 3 ? rgbFormat : rgbaFormat,
         .type = GL_UNSIGNED_BYTE
     });
 
@@ -242,12 +246,6 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->buffers[0].uri);
     loadBinFile(filePath, &bufferData);
 
-    for (int32_t i = 0; i < gltf_data->images_count; ++i) {
-        snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[i].uri);
-        textures.textures[i] = createTexture(filePath);
-        ++textures.count; 
-    }
-
 
     for (int32_t i = 0; i < gltf_data->nodes_count; ++i) {
         Object* object = objects.objects + i;
@@ -255,6 +253,25 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         parseGLTF(node->mesh, gltf_data->images, &bufferData, &object->mesh);
         initMeshBuffers(object);
         object->transform = parseTransform(node);
+        
+        int32_t colorTextureIndex = object->mesh.material.colorTexture;
+        int32_t normalTextureIndex = object->mesh.material.normalTexture;
+        int32_t metalicRoughnessTextureIndex = object->mesh.material.metallicRoughnessTexture;
+        if (!textures.textures[colorTextureIndex]) {
+            snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[colorTextureIndex].uri);
+            textures.textures[colorTextureIndex] = createTexture(filePath, true);
+        }
+
+        if (!textures.textures[normalTextureIndex]) {
+            snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[normalTextureIndex].uri);
+            textures.textures[normalTextureIndex] = createTexture(filePath, false);
+        }
+
+        if (!textures.textures[metalicRoughnessTextureIndex]) {
+            snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[metalicRoughnessTextureIndex].uri);
+            textures.textures[metalicRoughnessTextureIndex] = createTexture(filePath, false);
+        }
+
         ++objects.count;
     }
 

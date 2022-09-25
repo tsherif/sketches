@@ -70,13 +70,14 @@ typedef struct {
     int32_t width;
     int32_t height;
     GLenum format;
+    GLenum internalFormat;
     GLenum type;
 } TextureData2DOpts;
 
 void textureData2D(TextureData2DOpts* opts) {
     glActiveTexture(GL_TEXTURE0 + opts->textureIndex);
     glBindTexture(GL_TEXTURE_2D, opts->texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, opts->format, opts->width, opts->height, 0, opts->format, opts->type, opts->data);
+    glTexImage2D(GL_TEXTURE_2D, 0, opts->internalFormat, opts->width, opts->height, 0, opts->format, opts->type, opts->data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
