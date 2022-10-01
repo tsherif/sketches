@@ -70,16 +70,16 @@ void main() {
     vec3 light = vec3(0.0);
     for (int i = 0; i < NUM_LIGHTS; ++i) {
         vec3 lightVec = normalize(vTangentLightVecs[i]);
-        vec3 halfway = normalize(vTangentEyeVec + lightVec);
+        vec3 halfway = normalize(tangentEyeVec + lightVec);
 
         float ndf = distributionGGX(tangentNormal, halfway, roughness);        
-        float g = geometrySmith(tangentNormal, vTangentEyeVec, lightVec, roughness);      
-        vec3 f = fresnelSchlick(max(dot(halfway, vTangentEyeVec), 0.0), f0);       
+        float g = geometrySmith(tangentNormal, tangentEyeVec, lightVec, roughness);      
+        vec3 f = fresnelSchlick(max(dot(halfway, tangentEyeVec), 0.0), f0);       
         vec3 kS = f;
         vec3 kD = vec3(1.0) - kS;
         kD *= 1.0 - metalness;     
         vec3 numerator = ndf * g * f;
-        float denominator = 4.0 * max(dot(tangentNormal, vTangentEyeVec), 0.0) * max(dot(tangentNormal, lightVec), 0.0) + 0.0001;
+        float denominator = 4.0 * max(dot(tangentNormal, tangentEyeVec), 0.0) * max(dot(tangentNormal, lightVec), 0.0) + 0.0001;
         vec3 specular = numerator / denominator;  
         float nDotL = max(dot(tangentNormal, lightVec), 0.0);                
         light += (kD * materialColor / PI + specular) * LIGHT_COLOR * nDotL; 
@@ -89,6 +89,6 @@ void main() {
     light += ambient;
 
     fragColor = vec4(light + ambient, 1.0);
-    fragColor.rgb = fragColor.rgb / (fragColor.rgb + vec3(1.0));
+    // fragColor.rgb = fragColor.rgb / (fragColor.rgb + vec3(1.0));
     fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));
 };
