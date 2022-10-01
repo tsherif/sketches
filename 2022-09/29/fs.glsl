@@ -89,6 +89,6 @@ void main() {
     light += ambient;
 
     fragColor = vec4(light + ambient, 1.0);
-    // fragColor.rgb = fragColor.rgb / (fragColor.rgb + vec3(1.0));
+    fragColor.rgb = fragColor.rgb / (fragColor.rgb + vec3(1.0));
     fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));
 };
