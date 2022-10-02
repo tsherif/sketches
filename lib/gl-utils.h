@@ -22,14 +22,18 @@ GLuint createProgram(const char* vsSource, const char* fsSource, void (*logFn)(c
 
     if (result != GL_TRUE) {
         if (logFn) {
-            logFn("Program failed to link!\n");
-            glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &result);
             char errorLog[1024];
+            logFn("Program failed to link!\n");
+            glGetProgramInfoLog(program, 1024, NULL, errorLog);
+            logFn(errorLog);
+
+            glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &result);
             if (result != GL_TRUE) {
                 logFn("Vertex shader failed to compile!\n");
                 glGetShaderInfoLog(vertexShader, 1024, NULL, errorLog);
                 logFn(errorLog);
             }
+            
             glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &result);
             if (result != GL_TRUE) {
                 logFn("Fragment shader failed to compile!\n");
