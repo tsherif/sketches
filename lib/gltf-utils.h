@@ -96,12 +96,14 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
 
         float f = 1.0f / (duv0.X * duv1.Y - duv1.X * duv0.Y);
 
-        hmm_vec3 tangent = HMM_MultiplyVec3f(
-            HMM_SubtractVec3(
-                HMM_MultiplyVec3f(edge0, duv1.Y),
-                HMM_MultiplyVec3f(edge1, duv0.Y)
-            ),
-            f
+        hmm_vec3 tangent = HMM_NormalizeVec3(
+            HMM_MultiplyVec3f(
+                HMM_SubtractVec3(
+                    HMM_MultiplyVec3f(edge0, duv1.Y),
+                    HMM_MultiplyVec3f(edge1, duv0.Y)
+                ),
+                f
+            )
         );
 
         tangents[pi0]     += tangent.X;
