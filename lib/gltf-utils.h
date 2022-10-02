@@ -137,6 +137,8 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
             )
         );
 
+        // TODO(Tarek): This is incorrect. I'm only taking the last calculated tangent.
+        // I should be averaging them.
 
         tangents[pi0]     = tangent0.X;
         tangents[pi0 + 1] = tangent0.Y;
