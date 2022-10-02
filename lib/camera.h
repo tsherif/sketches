@@ -1,10 +1,13 @@
 // Assumes HandmadeMath has been included
+#include "utils.h"
 
 typedef struct {
     hmm_vec3 position;
     hmm_vec3 target;
     hmm_vec3 up;
     hmm_mat4 matrix;
+    float minZoom;
+    float maxZoom;
 } Camera;
 
 void camera_orbit(Camera* camera, float dx, float dy) {
@@ -37,13 +40,19 @@ void camera_pan(Camera* camera, float dx, float dy) {
     camera->target = HMM_AddVec3(camera->target, delta);
 }
 
-void camera_zoom(Camera* camera, float zoom) {
+void camera_zoom(Camera* camera, float dz) {
+    hmm_vec3 lookVec = HMM_SubtractVec3(camera->position, camera->target);
+    hmm_vec3 lookDir = HMM_NormalizeVec3(lookVec);
+    float zoom = HMM_LengthVec3(lookVec) + dz;
+
+    if (camera->maxZoom > 0) {
+        zoom = clamp(zoom, camera->minZoom, camera->maxZoom);
+    }
+
     camera->position = 
         HMM_AddVec3(
             HMM_MultiplyVec3f(
-                HMM_NormalizeVec3(
-                    HMM_SubtractVec3(camera->position, camera->target)
-                ), 
+                lookDir, 
                 zoom
             ), 
             camera->target

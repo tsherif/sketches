@@ -297,12 +297,11 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     Camera camera = {
         .position = { 0.0f, 4.0f, 15.0f },
         .target = { 0.0f, 4.0f, 0.0f },
-        .up = { 0.0f, 1.0f, 0.0f }
+        .up = { 0.0f, 1.0f, 0.0f },
+        .minZoom = 2.0f,
+        .maxZoom = 50.0f
     };
     camera_buildMatrix(&camera);
-    float zoom = HMM_LengthVec3(HMM_SubtractVec3(camera.position, camera.target));
-    float minZoom = zoom * 0.1f;
-    float maxZoom = zoom * 10.0f;
 
     GLuint projLocation = glGetUniformLocation(program, "proj");
     GLuint viewLocation = glGetUniformLocation(program, "view");
@@ -370,18 +369,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         }
 
         if (mouse.wheelDelta != 0.0f) {
-            zoom -= mouse.wheelDelta * ZOOM_SCALE;
-
-            if (zoom < minZoom) {
-                zoom = minZoom;
-            }
-
-            if (zoom > maxZoom) {
-                zoom = maxZoom;
-            }
-
-            camera_zoom(&camera, zoom);
-        
+            camera_zoom(&camera, -mouse.wheelDelta * ZOOM_SCALE);
             mouse.wheelDelta = 0.0f;
         }
 
