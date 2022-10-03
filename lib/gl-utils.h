@@ -54,7 +54,7 @@ GLuint createProgram(const char* vsSource, const char* fsSource, void (*logFn)(c
 typedef struct {
     GLuint vbo;
     GLuint attributeIndex;
-    uint8_t* data;
+    float* data;
     int32_t dataByteLength;
     GLenum type;
     GLint vectorSize;

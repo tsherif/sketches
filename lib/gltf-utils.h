@@ -18,16 +18,15 @@ typedef struct {
 typedef struct {
     Buffer buffer;
     GLTF_Material material; 
-    uint8_t* positions; 
-    uint8_t* normals; 
-    uint8_t* tangents;
-    uint8_t* uvs; 
-    uint8_t* indices;
-    int32_t positionsByteLength;
-    int32_t normalsByteLength; 
-    int32_t tangentsByteLength; 
-    int32_t uvsByteLength;
+    float* positions; 
+    float* normals; 
+    float* tangents;
+    float* uvs; 
+    uint16_t* indices;
+    int32_t vec3ArrayByteLength;
+    int32_t vec2ArrayByteLength; 
     int32_t indicesByteLength;
+    int32_t vertexCount;
     int32_t elementCount;
 } GLTF_Mesh;
 
@@ -37,7 +36,7 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
     cgltf_material* material = primitive->material;
 
     parsed->buffer = *buffer;
-    parsed->indices = buffer->data + indicesAccessor->offset + indicesAccessor->buffer_view->offset;
+    parsed->indices = (uint16_t *) (buffer->data + indicesAccessor->offset + indicesAccessor->buffer_view->offset);
     parsed->elementCount = (int32_t) indicesAccessor->count; 
     parsed->indicesByteLength = (int32_t) (parsed->elementCount * sizeof(uint16_t));
     parsed->material.colorTexture = (int32_t) (material->pbr_metallic_roughness.base_color_texture.texture->image - imageBase);
@@ -46,29 +45,31 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
 
     for (int32_t i = 0; i < primitive->attributes_count; ++i) {
         cgltf_attribute* attribute = primitive->attributes + i;
+        parsed->vertexCount = (int32_t) attribute->data->count;
 
+        float* attributeBuffer = (float *) (buffer->data + attribute->data->offset + attribute->data->buffer_view->offset);
         if (strEquals(attribute->name, "POSITION", sizeof("POSITION"))) {
-            parsed->positions = buffer->data + attribute->data->offset + attribute->data->buffer_view->offset; 
-            parsed->positionsByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
+            parsed->positions = attributeBuffer;
         } else if (strEquals(attribute->name, "NORMAL", sizeof("NORMAL"))) {
-            parsed->normals = buffer->data + attribute->data->offset + attribute->data->buffer_view->offset; 
-            parsed->normalsByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
+            parsed->normals = attributeBuffer; 
         } else if (strEquals(attribute->name, "TEXCOORD_0", sizeof("TEXCOORD_0"))) {
-            parsed->uvs = buffer->data + attribute->data->offset + attribute->data->buffer_view->offset; 
-            parsed->uvsByteLength = (int32_t) (attribute->data->count * attribute->data->stride);
+            parsed->uvs = attributeBuffer; 
         }
     }
 
-    float* positions = (float *) parsed->positions;
-    float* normals = (float *) parsed->normals;
-    float* uvs = (float *) parsed->uvs;
+    parsed->vec3ArrayByteLength = parsed->vertexCount * 3 * sizeof(float);
+    parsed->vec2ArrayByteLength = parsed->vertexCount * 2 * sizeof(float);
+
+    float* positions = parsed->positions;
+    float* normals = parsed->normals;
+    float* uvs = parsed->uvs;
     uint16_t* indices = (uint16_t *) parsed->indices;
-    int32_t count = parsed->elementCount;
-    int32_t vertexCount = parsed->positionsByteLength / (3 * sizeof(float));
+    int32_t elementCount = parsed->elementCount;
+    int32_t vertexCount = parsed->vertexCount;
 
     float* tangents = (float *) calloc(vertexCount, 3 * sizeof(float));
     
-    for (int32_t i = 0; i < count; i += 3) {
+    for (int32_t i = 0; i < elementCount; i += 3) {
         int32_t i0 = indices[i];
         int32_t i1 = indices[i + 1];
         int32_t i2 = indices[i + 2];
@@ -141,8 +142,7 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
         tangents[ti + 2] = orthogonalTangent.Z;
     }
 
-    parsed->tangents = (uint8_t *) tangents;
-    parsed->tangentsByteLength = parsed->normalsByteLength;
+    parsed->tangents = tangents;
 }
 
 #endif
