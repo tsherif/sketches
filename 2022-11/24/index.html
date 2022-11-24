@@ -68,8 +68,11 @@
             vec2 pos = vec2(vPosition.x * aspect, vPosition.y);
             float a = atan(pos.y, pos.x) + PI;
             float r = length(pos);
-            float f = abs(mod(r * 20.0, TAU) - a);
-            vec4 color = vec4(0.0, 0.0, f, 1.0);
+            float rnorm = abs(mod(r * 30.0, TAU));
+            float aminus = a - TAU;
+            float aplus = a + TAU;
+            float f = min(min(abs(rnorm - a), abs(rnorm - aminus)), abs(rnorm - aplus));
+            vec4 color = vec4(0.5 - f, 0.0, f, 1.0);
 
             gl_FragColor = color;
         }
