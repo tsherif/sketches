@@ -2,18 +2,14 @@
   "name": "27b",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "watch": "npm-watch",
-    "build": "tsc index.ts"
+    "watch": "chokidar index.ts -p -c tsc",
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",
-  "watch": {
-    "build": "index.ts"
-  },
   "devDependencies": {
-    "npm-watch": "^0.11.0",
+    "chokidar-cli": "^3.0.0",
     "typescript": "^4.9.4"
   }
 }
