@@ -7,10 +7,15 @@
     if (!gl) {
         return;
     }
-
+    
     const vsShader = gl.createShader(gl.VERTEX_SHADER);
     const fsShader = gl.createShader(gl.FRAGMENT_SHADER);
     const program = gl.createProgram();
+    const quadBuffer = gl.createBuffer();
+
+    if (!vsShader || !fsShader || !program || !quadBuffer) {
+        return;
+    }
 
     const [vsSource, fsSource] = await Promise.all([
         fetch("./quad.vert").then(res => res.text()),
@@ -41,7 +46,6 @@
         1.0, 1.0
     ]);
 
-    const quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, quadPositions, gl.STATIC_DRAW);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);

@@ -1,7 +1,17 @@
 {
     "compilerOptions": {
         "target": "ES2019",
-        "sourceMap": true
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "strict": true,
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "exactOptionalPropertyTypes": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true
     },
     "files": [
         "index.ts"
