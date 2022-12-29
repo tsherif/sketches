@@ -32,7 +32,7 @@
     gl.uniform2fv(
         gl.getUniformLocation(program, "dimensions"),
         new Float32Array([canvas.width, canvas.height])
-    )
+    );
 
     const quadPositions = new Float32Array([
         -1.0, -1.0,
