@@ -1,0 +1,16 @@
+{
+  "name": "29",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "watch": "chokidar index.ts -p -c \"npm run build\"",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0",
+    "typescript": "^4.9.4"
+  }
+}
