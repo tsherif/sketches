@@ -10,10 +10,11 @@
 <script>
     (async () => {
         const wasm = await WebAssembly.instantiateStreaming(fetch("./index.wasm"), {});
-        const { add, abs, fact } = wasm.instance.exports;
+        const { add, abs, fact, fib } = wasm.instance.exports;
         console.log(add(3, 5));
         console.log(abs(5), abs(-5));
         console.log(fact(5), fact(4));
+        console.log(fib(0), fib(1), fib(2), fib(3), fib(4), fib(5), fib(6), fib(7));
     })();
 </script>
 </body>

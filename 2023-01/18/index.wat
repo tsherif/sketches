@@ -24,7 +24,7 @@
         i32.const 1
         local.set $result
 
-        (loop $loop
+        loop $loop
             local.get $result
             local.get $x
             i32.mul
@@ -37,9 +37,46 @@
 
             i32.const 0
             i32.gt_s
-            (br_if $loop)
-        )
+            br_if $loop
+        end
 
         local.get $result
+    )
+
+    (func (export "fib") (param $n i32) (result i32)
+        (local $prev i32)
+        (local $curr i32)
+        (local $i i32)
+        i32.const 1
+        local.tee $prev
+        local.set $curr
+        i32.const 1
+        local.set $i
+
+        block $break
+        loop $loop
+            local.get $i
+            local.get $n
+            i32.ge_s
+
+            br_if $break
+
+            local.get $prev
+            local.get $curr
+            i32.add
+            local.get $curr
+            local.set $prev
+            local.set $curr
+            
+            local.get $i
+            i32.const 1
+            i32.add
+            local.set $i
+
+            br $loop
+        end
+        end
+
+        local.get $curr
     )
 )
