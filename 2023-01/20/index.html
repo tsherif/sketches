@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Balls</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(async () => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const memory = new WebAssembly.Memory({ initial: 1});
+    const balls = new Float32Array(memory.buffer);
+
+    const NUM_BALLS = Math.floor(balls.length / 5);
+    const colors = new Uint8Array(NUM_BALLS * 3);
+
+    for (let i = 0; i < NUM_BALLS; i++) {
+        const bi = i * 5;
+        balls[bi]     = Math.random() * canvas.width;
+        balls[bi + 1] = Math.random() * canvas.height;
+        balls[bi + 2] = Math.random() * 4 + 1;
+        balls[bi + 3] = Math.random() * 4 - 2;
+        balls[bi + 4] = Math.random() * 4 - 2;
+
+        const ci = i * 3;
+        colors[ci]     = Math.floor(Math.random() * 256);
+        colors[ci + 1] = Math.floor(Math.random() * 256);
+        colors[ci + 2] = Math.floor(Math.random() * 256);
+    }
+
+    const wasm = await WebAssembly.instantiateStreaming(fetch("./index.wasm"), {
+        env: {
+            memory
+        }
+    });
+
+    const { simulate } = wasm.instance.exports; 
+
+    requestAnimationFrame(function draw() {
+        requestAnimationFrame(draw);
+
+        simulate(NUM_BALLS, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < NUM_BALLS; i++) {
+            const bi = i * 5;
+            const x = balls[bi];
+            const y = balls[bi + 1];
+            const r = balls[bi + 2];
+
+            const ci = i * 3;
+            ctx.fillStyle = `rgb(${colors[ci]},${colors[ci + 1]},${colors[ci + 2]})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+})();
+</script>
+</body>
+</html>
