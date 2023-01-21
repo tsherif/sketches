@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM SIMD</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<script>
+(async () => {
+
+    const memory = new WebAssembly.Memory({ initial: 1});
+    const args = new Float32Array(memory.buffer);
+
+    for (let i = 0; i < 8; ++i) {
+        args[i] = i; 
+    }
+
+    const wasm = await WebAssembly.instantiateStreaming(fetch("./index.wasm"), {
+        env: {
+            memory
+        }
+    });
+
+    const { simdAddVec4 } = wasm.instance.exports; 
+    simdAddVec4();
+    console.log(Array.from(args.subarray(0, 4)));
+    console.log(Array.from(args.subarray(4, 8)));
+    console.log(Array.from(args.subarray(8, 12)));
+
+})();
+</script>
+</body>
+</html>
