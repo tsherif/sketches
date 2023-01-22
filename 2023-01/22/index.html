@@ -16,7 +16,7 @@
 <body>
 <canvas id="canvas"></canvas>
 <script>
-async function instanceWasm(resp, importObect) {
+async function instantiateWasm(resp, importObect) {
     try {
         return await WebAssembly.instantiateStreaming(resp, importObect);
     } catch (e) {
@@ -64,7 +64,7 @@ async function instanceWasm(resp, importObect) {
         colors[ci + 2] = Math.floor(Math.random() * 256);
     }
 
-    const wasm = await instanceWasm(fetch("./index.wasm"), {
+    const wasm = await instantiateWasm(fetch("./index.wasm"), {
         env: {
             memory,
             velocityByteOffset: VELOCITY_OFFSET * Float32Array.BYTES_PER_ELEMENT,
