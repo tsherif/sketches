@@ -30,12 +30,14 @@
         }
     });
 
-    const { simdAddVec4 } = wasm.instance.exports; 
+    const { simdAddVec4, simdAddVec4args } = wasm.instance.exports; 
     simdAddVec4();
     console.log(Array.from(args.subarray(0, 4)));
     console.log(Array.from(args.subarray(4, 8)));
     console.log(Array.from(args.subarray(8, 12)));
 
+    simdAddVec4args(1, 2, 3, 4, 5, 6, 7, 8);
+    console.log(Array.from(args.subarray(0, 4)));
 })();
 </script>
 </body>

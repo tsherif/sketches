@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMD WASM Balls</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(async () => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const memory = new WebAssembly.Memory({ initial: 1});
+    const balls = new Float32Array(memory.buffer);
+
+    const NUM_BALLS = Math.floor(balls.length / 5);
+    console.log(NUM_BALLS);
+    const colors = new Uint8Array(NUM_BALLS * 3);
+
+    const VELOCITY_OFFSET = 2 * NUM_BALLS;
+    const RADIUS_OFFSET = 4 * NUM_BALLS;
+
+    for (let i = 0; i < NUM_BALLS; i++) {
+        const pi = i * 2;
+        const vi = VELOCITY_OFFSET + i * 2;
+        const ri = RADIUS_OFFSET + i;
+        
+        // position vec2
+        balls[pi]     = Math.random() * canvas.width;
+        balls[pi + 1] = Math.random() * canvas.height;
+        
+        // position vec2
+        balls[vi] = Math.random() * 4 - 2;
+        balls[vi + 1] = Math.random() * 4 - 2;
+        
+        
+        // radius float
+        balls[ri] =  Math.random() * 4 + 1;
+
+        const ci = i * 3;
+        colors[ci]     = Math.floor(Math.random() * 256);
+        colors[ci + 1] = Math.floor(Math.random() * 256);
+        colors[ci + 2] = Math.floor(Math.random() * 256);
+    }
+
+    const wasm = await WebAssembly.instantiateStreaming(fetch("./index.wasm"), {
+        env: {
+            memory,
+            velocityByteOffset: VELOCITY_OFFSET * Float32Array.BYTES_PER_ELEMENT,
+            radiusByteOffset: RADIUS_OFFSET * Float32Array.BYTES_PER_ELEMENT,
+        }
+    });
+
+    const { simulate } = wasm.instance.exports; 
+
+    requestAnimationFrame(function draw() {
+        requestAnimationFrame(draw);
+
+        simulate(NUM_BALLS, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < NUM_BALLS; i++) {
+            const pi = i * 2;
+            const ri = RADIUS_OFFSET + i;
+            const x = balls[pi];
+            const y = balls[pi + 1];
+            const r = balls[ri];
+
+            const ci = i * 3;
+            ctx.fillStyle = `rgb(${colors[ci]},${colors[ci + 1]},${colors[ci + 2]})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+})();
+</script>
+</body>
+</html>
