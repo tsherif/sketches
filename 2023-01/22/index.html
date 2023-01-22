@@ -66,38 +66,6 @@
 
     const { simulate } = wasm.instance.exports; 
 
-    function jsSimulate() {
-        for (let i = 0; i < NUM_BALLS; i++) {
-            const pi = i * 2;
-            const vi = VELOCITY_OFFSET + pi;
-            const ri = RADIUS_OFFSET + pi;
-
-            let x = balls[pi];
-            let y = balls[pi + 1];
-            let vx = balls[vi];
-            let vy = balls[vi + 1];
-            let r = balls[ri];
-
-            x += vx;
-            y += vy;
-
-            const xOutOfBounds = Number(Boolean(x < r || x > canvas.width - r));
-            const yOutOfBounds = Number(Boolean(y < r || y > canvas.height - r));
-
-            x = Math.min(Math.max(r, x), canvas.width - r);
-            y = Math.min(Math.max(r, y), canvas.height - r);
-
-
-            vx *= xOutOfBounds * -2 + 1;
-            vy *= yOutOfBounds * -2 + 1;
-
-            balls[pi] = x;
-            balls[pi + 1] = y;
-            balls[vi] = vx;
-            balls[vi + 1] = vy;
-        }
-    }
-
     requestAnimationFrame(function draw() {
         requestAnimationFrame(draw);
 
