@@ -45,7 +45,7 @@
         balls[vi + 1] = Math.random() * 4 - 2;
         
         
-        // radius vec2
+        // radius vec2 (repeated to simplify simd ops)
         const r = Math.random() * 4 + 1;
         balls[ri] = r;
         balls[ri + 1] = r;
