@@ -16,6 +16,14 @@
 <body>
 <canvas id="canvas"></canvas>
 <script>
+async function instanceWasm(resp, importObect) {
+    try {
+        return await WebAssembly.instantiateStreaming(resp, importObect);
+    } catch (e) {
+        return null;
+    }
+}
+
 (async () => {
     const canvas = document.getElementById("canvas");
     canvas.width = window.innerWidth;
@@ -56,13 +64,17 @@
         colors[ci + 2] = Math.floor(Math.random() * 256);
     }
 
-    const wasm = await WebAssembly.instantiateStreaming(fetch("./index.wasm"), {
+    const wasm = await instanceWasm(fetch("./index.wasm"), {
         env: {
             memory,
             velocityByteOffset: VELOCITY_OFFSET * Float32Array.BYTES_PER_ELEMENT,
             radiusByteOffset: RADIUS_OFFSET * Float32Array.BYTES_PER_ELEMENT,
         }
     });
+
+    if (!wasm) {
+        document.body.innerHTML = "WASM instantiation failed. Does your browser support <a href=\"https://webassembly.org/roadmap/\">WASM SIMD</a>?"
+    }
 
     const { simulate } = wasm.instance.exports; 
 
