@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMD WASM Balls</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        #js, #wasm, #simd {
+            position: absolute;
+            left: 10px;
+            background-color: white;
+            color: black;
+            padding: 10px;
+        }
+
+        #js {
+            top: 10px;
+        }
+
+        #wasm {
+            top: 60px;
+        }
+
+        #simd {
+            top: 110px;
+        }
+    </style>
+</head>
+<body>
+<div id="js"></div>
+<div id="wasm"></div>
+<div id="simd"></div>
+<canvas id="canvas"></canvas>
+<script>
+async function instantiateWasm(resp, importObect) {
+    try {
+        return await WebAssembly.instantiateStreaming(resp, importObect);
+    } catch (e) {
+        return null;
+    }
+}
+
+(async () => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const memory = new WebAssembly.Memory({ initial: 1});
+    const balls = new Float32Array(memory.buffer);
+
+    const NUM_BALLS = Math.floor(balls.length / 6);
+    const colors = new Uint8Array(NUM_BALLS * 3);
+
+    const VELOCITY_OFFSET = 2 * NUM_BALLS;
+    const RADIUS_OFFSET = 4 * NUM_BALLS;
+
+    for (let i = 0; i < NUM_BALLS; i++) {
+        const pi = i * 2;
+        const vi = VELOCITY_OFFSET + pi;
+        const ri = RADIUS_OFFSET + pi;
+        
+        // position vec2
+        balls[pi]     = Math.random() * canvas.width;
+        balls[pi + 1] = Math.random() * canvas.height;
+        
+        // position vec2
+        balls[vi] = Math.random() * 4 - 2;
+        balls[vi + 1] = Math.random() * 4 - 2;
+        
+        
+        // radius vec2 (repeated to simplify simd ops)
+        const r = Math.random() * 4 + 1;
+        balls[ri] = r;
+        balls[ri + 1] = r;
+
+        const ci = i * 3;
+        colors[ci]     = Math.floor(Math.random() * 256);
+        colors[ci + 1] = Math.floor(Math.random() * 256);
+        colors[ci + 2] = Math.floor(Math.random() * 256);
+    }
+
+    const wasm = await instantiateWasm(fetch("./index.wasm"), {
+        env: {
+            memory,
+            velocityByteOffset: VELOCITY_OFFSET * Float32Array.BYTES_PER_ELEMENT,
+            radiusByteOffset: RADIUS_OFFSET * Float32Array.BYTES_PER_ELEMENT,
+        }
+    });
+
+    if (!wasm) {
+        document.body.innerHTML = "WASM instantiation failed. Does your browser support <a href=\"https://webassembly.org/roadmap/\">WASM SIMD</a>?"
+    }
+
+    function simulateJS(numBalls, width, height) {
+        for (let i = 0; i < numBalls; i++) {
+            const pi = i * 2;
+            const vi = VELOCITY_OFFSET + pi;
+            const ri = RADIUS_OFFSET + pi;
+
+            let x = balls[pi];
+            let y = balls[pi + 1];
+            let vx = balls[vi];
+            let vy = balls[vi + 1];
+            let r = balls[ri];
+
+            x += vx;
+            y += vy;
+
+            if (x < r) {
+                x = r;
+                vx *= -1;
+            }
+
+            if (x > width - r) {
+                x = width - r;
+                vx *= -1;
+            }
+
+            if (y < r) {
+                y = r;
+                vy *= -1;
+            }
+
+            if (y > height - r) {
+                y = height - r;
+                vy *= -1;
+            }
+
+            balls[pi] = x;
+            balls[pi + 1] = y;
+            balls[vi] = vx;
+            balls[vi + 1] = vy;
+        }
+    }
+
+    const { simulateWASM, simulateSIMD } = wasm.instance.exports; 
+    
+    const NUM_ITERATIONS = 10000;
+    let startTime = performance.now();
+    for (let i = 0; i < NUM_ITERATIONS; ++i) {
+        simulateJS(NUM_BALLS, canvas.width, canvas.height);
+    }
+    const jsTime = performance.now() - startTime;
+
+    startTime = performance.now();
+    for (let i = 0; i < NUM_ITERATIONS; ++i) {
+        simulateWASM(NUM_BALLS, canvas.width, canvas.height);
+    }
+    const wasmTime = performance.now() - startTime;
+
+    startTime = performance.now();
+    for (let i = 0; i < NUM_ITERATIONS; ++i) {
+        simulateSIMD(NUM_BALLS, canvas.width, canvas.height);
+    }
+    const simdTime = performance.now() - startTime;
+
+    document.getElementById("js").innerText = `JS time (${NUM_ITERATIONS} iterations): ${jsTime.toFixed(1)}ms`;
+    document.getElementById("wasm").innerText = `WASM time (${NUM_ITERATIONS} iterations): ${wasmTime.toFixed(1)}ms`;
+    document.getElementById("simd").innerText = `WASM SIMD time (${NUM_ITERATIONS} iterations): ${simdTime.toFixed(1)}ms`;
+
+    requestAnimationFrame(function draw() {
+        requestAnimationFrame(draw);
+
+        simulateJS(NUM_BALLS, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < NUM_BALLS; i++) {
+            const pi = i * 2;
+            const ri = RADIUS_OFFSET + pi;
+            const x = balls[pi];
+            const y = balls[pi + 1];
+            const r = balls[ri];
+
+            const ci = i * 3;
+            ctx.fillStyle = `rgb(${colors[ci]},${colors[ci + 1]},${colors[ci + 2]})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+})();
+</script>
+</body>
+</html>
