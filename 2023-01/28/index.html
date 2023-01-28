@@ -40,16 +40,10 @@
     }
 
     const simWorker = new Worker("./sim-worker.js");
-    simWorker.postMessage({
-        start: 0,
-        end: NUM_BALLS,
-        buffer
-    });
-    simWorker.addEventListener("message", message => {
-        console.log("GOT WORKER MESSAGE");
-    })
 
     requestAnimationFrame(function loop() {
+        requestAnimationFrame(loop);
+
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -64,7 +58,15 @@
             ctx.beginPath();
             ctx.arc(x, y, r, 0, 2 * Math.PI);
             ctx.fill();
-        } 
+        }
+
+        simWorker.postMessage({
+            start: 0,
+            end: NUM_BALLS,
+            buffer,
+            width: canvas.width,
+            height: canvas.height
+        });
     });
 </script>
     
