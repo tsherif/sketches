@@ -5,10 +5,67 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ShareArrayBuffer Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
 </head>
 <body>
+<canvas id="canvas"></canvas>
 <script>
-    const arr = new SharedArrayBuffer(128);
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const NUM_BALLS = 10000;
+    const BYTE_SIZE = NUM_BALLS * 5 * Float32Array.BYTES_PER_ELEMENT;
+    const buffer = new SharedArrayBuffer(BYTE_SIZE);
+    const balls = new Float32Array(buffer);
+    const colors = new Array(NUM_BALLS);
+
+    for (let i = 0; i < NUM_BALLS; ++i) {
+        const bi = i * 5;
+        
+        balls[bi]     = Math.random() * canvas.width;
+        balls[bi + 1] = Math.random() * canvas.height;
+        balls[bi + 2] = Math.random() * 4 - 2;
+        balls[bi + 3] = Math.random() * 4 - 2;
+        balls[bi + 4] = Math.random() * 4 + 1;
+
+        colors[i] = `rgb(${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)})`
+    }
+
+    const simWorker = new Worker("./sim-worker.js");
+    simWorker.postMessage({
+        start: 0,
+        end: NUM_BALLS,
+        buffer
+    });
+    simWorker.addEventListener("message", message => {
+        console.log("GOT WORKER MESSAGE");
+    })
+
+    requestAnimationFrame(function loop() {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const x = balls[bi];
+            const y = balls[bi + 1];
+            const r = balls[bi + 4];
+            const c = colors[i];
+
+            ctx.fillStyle = c;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.fill();
+        } 
+    });
 </script>
     
 </body>
