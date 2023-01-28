@@ -39,7 +39,14 @@
         colors[i] = `rgb(${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)})`
     }
 
-    const simWorker = new Worker("./sim-worker.js");
+    const NUM_WORKERS = 4;
+    const BALLS_PER_WORKER = Math.ceil(NUM_BALLS / NUM_WORKERS);
+    const threads = new Array(NUM_WORKERS).fill(null).map((_, i) => ({
+        worker: new Worker("./sim-worker.js"),
+        start: i * BALLS_PER_WORKER,
+        end: Math.min(NUM_BALLS, (i + 1) * BALLS_PER_WORKER)
+    }))
+
 
     requestAnimationFrame(function loop() {
         requestAnimationFrame(loop);
@@ -60,13 +67,17 @@
             ctx.fill();
         }
 
-        simWorker.postMessage({
-            start: 0,
-            end: NUM_BALLS,
-            buffer,
-            width: canvas.width,
-            height: canvas.height
-        });
+        threads.forEach(t => {
+            const { start, end, worker } = t;
+            const { width, height } = canvas;
+            worker.postMessage({
+                start,
+                end,
+                buffer,
+                width,
+                height
+            });
+        })
     });
 </script>
     
