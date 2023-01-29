@@ -1,0 +1,14 @@
+{
+  "name": "28",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "simple-live-server -p --header=Cross-Origin-Opener-Policy:same-origin --header=Cross-Origin-Embedder-Policy:require-corp --watch=*.html,*.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "simple-live-server": "^0.2.0"
+  }
+}
