@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collision Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+    </style>
+    <script src="../../lib/gl-matrix.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const NUM_BALLS = 200;
+    const balls = new Float32Array(NUM_BALLS * 5);
+    const colors = new Array(NUM_BALLS);
+
+    for (let i = 0; i < NUM_BALLS; ++i) {
+        const bi = i * 5;
+        
+        balls[bi]     = Math.random() * canvas.width;
+        balls[bi + 1] = Math.random() * canvas.height;
+        balls[bi + 2] = Math.random() * 2 - 1;
+        balls[bi + 3] = Math.random() * 2 - 1;
+        balls[bi + 4] = Math.random() * 15 + 5;
+
+        colors[i] = `rgb(${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)})`
+    }
+
+    const n = vec2.create();
+    const d = vec2.create();
+    const vProjN = vec2.create();
+    const correction = vec2.create();
+
+    function render() {
+        requestAnimationFrame(render);
+
+        const { width, height } = canvas;
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, width, height);
+
+        for (let i = 0; i <= NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const p1 = balls.subarray(bi, bi + 2);
+            const v1 = balls.subarray(bi + 2, bi + 4);
+            const r1 =  balls[bi + 4];
+
+            vec2.add(p1, p1, v1);
+
+            if (p1[0] < r1) {
+                p1[0] = r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[0] > width - r1) {
+                p1[0] = width - r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[1] < r1) {
+                p1[1] = r1;
+                v1[1] *= -1;
+            }
+
+            if (p1[1] > height - r1) {
+                p1[1] = height - r1;
+                v1[1] *= -1;
+            }
+
+            for (let j = i + 1; j < NUM_BALLS; ++j) {
+                const bi2 = j * 5;
+                const p2 = balls.subarray(bi2, bi2 + 2);
+                const v2 = balls.subarray(bi2 + 2, bi2 + 4);
+                const r2 =  balls[bi2 + 4];
+
+                vec2.sub(d, p1, p2);
+                const l2 = vec2.squaredLength(d);
+                const rSum = r1 + r2;
+
+                if (l2 < rSum * rSum) {
+                    const l = Math.sqrt(l2);
+                    const dl = (rSum - l) * 0.5;
+
+                    // v' = v - 2 * (v . N) * N
+                    vec2.normalize(n, d);
+                    let vDotN = vec2.dot(v1, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v1, v1, vProjN);
+
+                    // Resolve overlap
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p1, p1, correction);
+
+                    // Same for second ball
+                    vec2.negate(n, n);
+                    vDotN = vec2.dot(v2, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v2, v2, vProjN);
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p2, p2, correction);
+                }
+            }
+        }
+
+
+        for (let i = 0; i < NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const x = balls[bi];
+            const y = balls[bi + 1];
+            const r = balls[bi + 4];
+            const c = colors[i];
+
+            ctx.fillStyle = c;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    requestAnimationFrame(render);
+</script>
+    
+</body>
+</html>
