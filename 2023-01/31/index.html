@@ -11,9 +11,22 @@
             margin: 0;
             overflow-y: hidden;
         }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px;
+            color: black;
+            background-color: white;
+        }
     </style>
+    <script src="../../lib/gl-matrix.js"></script>
 </head>
 <body>
+<div id="controls">
+    Use threads: <input id="threads" type="checkbox" checked>
+</div>
 <canvas id="canvas"></canvas>
 <script>
 (async () => {
@@ -29,6 +42,10 @@
         console.error("Sketch requires SharedArrayBuffer");
         return;
     }
+
+    let useThreads = true;
+
+    document.getElementById("threads").addEventListener("change", e => useThreads = e.target.checked);
 
     const canvas = document.getElementById("canvas");
     canvas.width = window.innerWidth;
@@ -84,7 +101,15 @@
     let outputLayer = ballsB;
 
     function render() {
+        if (!useThreads) {
+            requestAnimationFrame(render);
+        }
+
         const { width, height } = canvas;
+
+        if (!useThreads) {
+            simSync(outputLayer, width, height)
+        }
 
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, width, height);
@@ -102,28 +127,101 @@
             ctx.fill();
         }
 
-        if (inputLayer === ballsA) {
-            inputLayer = ballsB;
-            outputLayer = ballsA;
-        } else {
-            inputLayer = ballsA;
-            outputLayer = ballsB;
-        }
 
-        activeThreads = NUM_THREADS;
-        threads.forEach(t => {
-            const { start, end, worker } = t;
-            const { width, height } = canvas;
-            worker.postMessage({
-                start,
-                end,
-                width,
-                height,
-                input: inputLayer,
-                output: outputLayer,
-                numBalls: NUM_BALLS
-            });
-        })
+        if (useThreads) {
+            if (inputLayer === ballsA) {
+                inputLayer = ballsB;
+                outputLayer = ballsA;
+            } else {
+                inputLayer = ballsA;
+                outputLayer = ballsB;
+            }
+
+            activeThreads = NUM_THREADS;
+            threads.forEach(t => {
+                const { start, end, worker } = t;
+                const { width, height } = canvas;
+                worker.postMessage({
+                    start,
+                    end,
+                    width,
+                    height,
+                    input: inputLayer,
+                    output: outputLayer,
+                    numBalls: NUM_BALLS
+                });
+            })
+        }
+    }
+
+    const n = vec2.create();
+    const d = vec2.create();
+    const vProjN = vec2.create();
+    const correction = vec2.create();
+
+    function simSync(balls, width, height) {
+        for (let i = 0; i <= NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const p1 = balls.subarray(bi, bi + 2);
+            const v1 = balls.subarray(bi + 2, bi + 4);
+            const r1 =  balls[bi + 4];
+
+            vec2.add(p1, p1, v1);
+
+            if (p1[0] < r1) {
+                p1[0] = r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[0] > width - r1) {
+                p1[0] = width - r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[1] < r1) {
+                p1[1] = r1;
+                v1[1] *= -1;
+            }
+
+            if (p1[1] > height - r1) {
+                p1[1] = height - r1;
+                v1[1] *= -1;
+            }
+
+            for (let j = i + 1; j < NUM_BALLS; ++j) {
+                const bi2 = j * 5;
+                const p2 = balls.subarray(bi2, bi2 + 2);
+                const v2 = balls.subarray(bi2 + 2, bi2 + 4);
+                const r2 =  balls[bi2 + 4];
+
+                vec2.sub(d, p1, p2);
+                const l2 = vec2.squaredLength(d);
+                const rSum = r1 + r2;
+
+                if (l2 < rSum * rSum) {
+                    const l = Math.sqrt(l2);
+                    const dl = (rSum - l) * 0.5;
+
+                    // v' = v - 2 * (v . N) * N
+                    vec2.normalize(n, d);
+                    let vDotN = vec2.dot(v1, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v1, v1, vProjN);
+
+                    // Resolve overlap
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p1, p1, correction);
+
+                    // Same for second ball
+                    vec2.negate(n, n);
+                    vDotN = vec2.dot(v2, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v2, v2, vProjN);
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p2, p2, correction);
+                }
+            }
+        }
     }
 
     requestAnimationFrame(render);
