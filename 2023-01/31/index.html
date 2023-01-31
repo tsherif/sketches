@@ -20,10 +20,22 @@
             color: black;
             background-color: white;
         }
+
+        #frame-time {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 4px;
+            color: black;
+            background-color: white;
+        }
     </style>
     <script src="../../lib/gl-matrix.js"></script>
 </head>
 <body>
+<div id="frame-time">
+    Frame time: 
+</div>
 <div id="controls">
     Use threads: <input id="threads" type="checkbox" checked>
 </div>
@@ -46,6 +58,8 @@
     let useThreads = true;
 
     document.getElementById("threads").addEventListener("change", e => useThreads = e.target.checked);
+    
+    const frameTimeDiv = document.getElementById("frame-time");
 
     const canvas = document.getElementById("canvas");
     canvas.width = window.innerWidth;
@@ -100,9 +114,24 @@
     let inputLayer = ballsA;
     let outputLayer = ballsB;
 
+    let frameTimeSum = 0;
+    let frameTimeCount = 0;
+    let lastTime = performance.now();
+
     function render() {
         if (!useThreads) {
             requestAnimationFrame(render);
+        }
+
+        const currentTime = performance.now();
+        frameTimeSum += currentTime - lastTime;
+        lastTime = currentTime;
+        ++frameTimeCount;
+
+        if (frameTimeCount === 60) {
+            frameTimeDiv.innerText = `Frame time: ${(frameTimeSum / frameTimeCount).toFixed(1)}ms`
+            frameTimeSum = 0;
+            frameTimeCount = 0;
         }
 
         const { width, height } = canvas;
