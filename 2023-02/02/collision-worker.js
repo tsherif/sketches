@@ -25,10 +25,11 @@ addEventListener("message", message => {
             if (l2 < rSum * rSum) {
                 withMutex(collisions, 0, () => {
                     const count = collisions[1];
-                    if (count < collisions.length) {
-                        collisions[2 + count]     = i;
-                        collisions[2 + count + 1] = j;
-                        collisions[1] += 2;
+                    const lastIndex = count * 2 + 2;
+                    if (lastIndex < collisions.length) {
+                        collisions[lastIndex]     = i;
+                        collisions[lastIndex + 1] = j;
+                        ++collisions[1];
                     }
                 });
             }
