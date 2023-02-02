@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collision Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 4px;
+            color: black;
+            background-color: white;
+        }
+
+        #frame-time {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 4px;
+            color: black;
+            background-color: white;
+        }
+    </style>
+    <script src="../../lib/gl-matrix.js"></script>
+</head>
+<body>
+<div id="frame-time">
+    Frame time: 
+</div>
+<div id="controls">
+    Use threads: <input id="threads" type="checkbox" checked>
+</div>
+<canvas id="canvas"></canvas>
+<script>
+(async () => {
+    if (navigator.serviceWorker) {
+        const registration = await navigator.serviceWorker.register("./sw.js")
+        if (!navigator.serviceWorker.controller) {
+            window.location.reload();
+            return;
+        }
+    }
+
+    if (!window.SharedArrayBuffer) {
+        console.error("Sketch requires SharedArrayBuffer");
+        return;
+    }
+
+    let useThreads = true;
+
+    document.getElementById("threads").addEventListener("change", e => useThreads = e.target.checked);
+    
+    const frameTimeDiv = document.getElementById("frame-time");
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+
+    const NUM_BALLS = 1000;
+    const LAYER_NUM_ELEMENTS = NUM_BALLS * 5;
+    const LAYER_BYTE_SIZE = LAYER_NUM_ELEMENTS * Float32Array.BYTES_PER_ELEMENT;
+    const buffer = new SharedArrayBuffer(NUM_BALLS * 5 * Float32Array.BYTES_PER_ELEMENT);
+    const balls = new Float32Array(buffer);
+    const colors = new Array(NUM_BALLS);
+
+    // Element 1 = lock
+    // Element 2 = count
+    // Every pair of elements represents a collision
+    // TODO: How long does this need to be?
+    const collisionBuffer = new SharedArrayBuffer((2 * NUM_BALLS + 2) * Int32Array.BYTES_PER_ELEMENT);
+    const collisions = new Int32Array(collisionBuffer);
+
+    for (let i = 0; i < NUM_BALLS; ++i) {
+        const bi = i * 5;
+        
+        balls[bi]     = Math.random() * canvas.width;
+        balls[bi + 1] = Math.random() * canvas.height;
+        balls[bi + 2] = Math.random() * 2 - 1;
+        balls[bi + 3] = Math.random() * 2 - 1;
+        balls[bi + 4] = Math.random() * 9 + 1;
+
+        colors[i] = `rgb(${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)})`
+    }
+
+    const NUM_THREADS = 4;
+    const BALLS_PER_THREAD = Math.ceil(NUM_BALLS / NUM_THREADS);
+    let activeThreads = 0;
+
+    const threads = new Array(NUM_THREADS).fill(null).map((_, i) => {
+        const worker = new Worker("./collision-worker.js");
+        worker.addEventListener("message", () => {
+            --activeThreads;
+            if (activeThreads === 0) {
+                requestAnimationFrame(render);
+            }
+            
+        });
+        return {
+            worker,
+            start: i * BALLS_PER_THREAD,
+            end: Math.min(NUM_BALLS, (i + 1) * BALLS_PER_THREAD),
+            balls,
+            numBalls: NUM_BALLS,
+            collisions
+        };        
+    });
+
+    let frameTimeSum = 0;
+    let frameTimeCount = 0;
+    let lastTime = performance.now();
+
+    const n = vec2.create();
+    const d = vec2.create();
+    const vProjN = vec2.create();
+    const correction = vec2.create();
+
+    function render() {
+        if (!useThreads) {
+            requestAnimationFrame(render);
+        }
+
+        const currentTime = performance.now();
+        frameTimeSum += currentTime - lastTime;
+        lastTime = currentTime;
+        ++frameTimeCount;
+
+        if (frameTimeCount === 60) {
+            frameTimeDiv.innerText = `Frame time: ${(frameTimeSum / frameTimeCount).toFixed(1)}ms`
+            frameTimeSum = 0;
+            frameTimeCount = 0;
+        }
+
+        const { width, height } = canvas;
+
+        if (!useThreads) {
+            simSync(outputLayer, width, height)
+        }
+
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, width, height);
+
+        const collisionCount = collisions[1];
+
+        for (let i = 2; i < collisionCount; i += 2) {
+            const index1 = collisions[i];
+            const index2 = collisions[i + 1];
+
+            const bi1 = index1 * 5;
+            const bi2 = index2 * 5;
+
+            const p1 = balls.subarray(bi1, bi1 + 2);
+            const v1 = balls.subarray(bi1 + 2, bi1 + 4);
+            const r1 =  balls[bi1 + 4];
+            
+            const p2 = balls.subarray(bi2, bi2 + 2);
+            const v2 = balls.subarray(bi2 + 2, bi2 + 4);
+            const r2 =  balls[bi2 + 4];
+
+            vec2.sub(d, p1, p2);
+            const l2 = vec2.squaredLength(d);
+            const rSum = r1 + r2;
+
+            if (l2 < rSum * rSum) {
+                const l = Math.sqrt(l2);
+                const dl = (rSum - l) * 0.5;
+
+                // v' = v - 2 * (v . N) * N
+                vec2.normalize(n, d);
+                let vDotN = vec2.dot(v1, n);
+                vec2.scale(vProjN, n, 2 * vDotN);
+                vec2.sub(v1, v1, vProjN);
+
+                // Resolve overlap
+                vec2.scale(correction, n, dl);
+                vec2.add(p1, p1, correction);
+
+                // Same for second ball
+                vec2.negate(n, n);
+                vDotN = vec2.dot(v2, n);
+                vec2.scale(vProjN, n, 2 * vDotN);
+                vec2.sub(v2, v2, vProjN);
+                vec2.scale(correction, n, dl);
+                vec2.add(p2, p2, correction);
+            }
+        }
+
+        collisions[1] = 0;
+
+        for (let i = 0; i < NUM_BALLS; ++i) {
+            const bi = i * 5;
+
+            const p = balls.subarray(bi, bi + 2);
+            const v = balls.subarray(bi + 2, bi + 4);
+            const r = balls[bi + 4];
+        
+            if (p[0] < r) {
+                p[0] = r;
+                v[0] *= -1;
+            }
+
+            if (p[0] > width - r) {
+                p[0] = width - r;
+                v[0] *= -1;
+            }
+
+            if (p[1] < r) {
+                p[1] = r;
+                v[1] *= -1;
+            }
+
+            if (p[1] > height - r) {
+                p[1] = height - r;
+                v[1] *= -1;
+            }
+
+            const x = p[0];
+            const y = p[1];
+            const c = colors[i];
+
+            ctx.fillStyle = c;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+
+        if (useThreads) {
+
+            for (let i = 0; i < NUM_BALLS; ++i) {
+                const bi = i * 5;
+                const p1 = balls.subarray(bi, bi + 2);
+                const v1 = balls.subarray(bi + 2, bi + 4);
+                
+                vec2.add(p1, p1, v1);
+            }
+
+            activeThreads = NUM_THREADS;
+            threads.forEach(t => {
+                const { start, end, worker } = t;
+                worker.postMessage({
+                    start,
+                    end,
+                    balls,
+                    numBalls: NUM_BALLS,
+                    collisions
+                });
+            })
+        }
+    }
+
+    function simSync(balls, width, height) {
+        for (let i = 0; i <= NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const p1 = balls.subarray(bi, bi + 2);
+            const v1 = balls.subarray(bi + 2, bi + 4);
+            const r1 =  balls[bi + 4];
+
+            vec2.add(p1, p1, v1);
+
+            if (p1[0] < r1) {
+                p1[0] = r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[0] > width - r1) {
+                p1[0] = width - r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[1] < r1) {
+                p1[1] = r1;
+                v1[1] *= -1;
+            }
+
+            if (p1[1] > height - r1) {
+                p1[1] = height - r1;
+                v1[1] *= -1;
+            }
+
+            for (let j = i + 1; j < NUM_BALLS; ++j) {
+                const bi2 = j * 5;
+                const p2 = balls.subarray(bi2, bi2 + 2);
+                const v2 = balls.subarray(bi2 + 2, bi2 + 4);
+                const r2 =  balls[bi2 + 4];
+
+                vec2.sub(d, p1, p2);
+                const l2 = vec2.squaredLength(d);
+                const rSum = r1 + r2;
+
+                if (l2 < rSum * rSum) {
+                    const l = Math.sqrt(l2);
+                    const dl = (rSum - l) * 0.5;
+
+                    // v' = v - 2 * (v . N) * N
+                    vec2.normalize(n, d);
+                    let vDotN = vec2.dot(v1, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v1, v1, vProjN);
+
+                    // Resolve overlap
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p1, p1, correction);
+
+                    // Same for second ball
+                    vec2.negate(n, n);
+                    vDotN = vec2.dot(v2, n);
+                    vec2.scale(vProjN, n, 2 * vDotN);
+                    vec2.sub(v2, v2, vProjN);
+                    vec2.scale(correction, n, dl);
+                    vec2.add(p2, p2, correction);
+                }
+            }
+        }
+    }
+
+    requestAnimationFrame(render);
+})();
+</script>
+    
+</body>
+</html>
