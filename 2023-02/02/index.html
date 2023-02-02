@@ -96,6 +96,23 @@
     const BALLS_PER_THREAD = Math.ceil(NUM_BALLS / NUM_THREADS);
     let activeThreads = 0;
 
+    const CROSS_SIZE = NUM_BALLS * (NUM_BALLS - 1) / 2;
+    const TARGET_BATCH_SIZE = Math.ceil(CROSS_SIZE / NUM_THREADS);
+    let batchBoundaries = [0];
+
+    let total = 0;
+    let rowSize = NUM_BALLS - 1;
+    for (let i = 0; i < NUM_BALLS; ++i) {
+        total += rowSize;
+        --rowSize;
+        if (total > TARGET_BATCH_SIZE) {
+            batchBoundaries.push(i);
+            total = 0;
+        }
+    }
+
+    batchBoundaries.push(NUM_BALLS);
+
     const threads = new Array(NUM_THREADS).fill(null).map((_, i) => {
         const worker = new Worker("./collision-worker.js");
         worker.addEventListener("message", () => {
@@ -107,8 +124,8 @@
         });
         return {
             worker,
-            start: i * BALLS_PER_THREAD,
-            end: Math.min(NUM_BALLS, (i + 1) * BALLS_PER_THREAD),
+            start: batchBoundaries[i],
+            end: batchBoundaries[i + 1],
             balls,
             numBalls: NUM_BALLS,
             collisions
@@ -143,7 +160,7 @@
         const { width, height } = canvas;
 
         if (!useThreads) {
-            simSync(outputLayer, width, height)
+            simSync(balls, width, height)
         }
 
         ctx.fillStyle = "black";

@@ -14,7 +14,6 @@ addEventListener("message", message => {
         const r1 = balls[bi + 4];
 
         for (let j = i + 1; j < numBalls; ++j) {
-
             const bi2 = j * 5;
             const p2 = balls.subarray(bi2, bi2 + 2);
             const r2 = balls[bi2 + 4];
