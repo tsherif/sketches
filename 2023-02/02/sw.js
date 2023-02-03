@@ -1,3 +1,9 @@
+/////////////////////////////////////////////////////////////////////////////////////
+// Service worker to set security headers which allow usage of SharedArrayBuffer 
+// and Atomics. Based on this blog post:
+// https://dev.to/stefnotch/enabling-coop-coep-without-touching-the-server-2d3n
+/////////////////////////////////////////////////////////////////////////////////////
+
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
