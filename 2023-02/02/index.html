@@ -76,7 +76,6 @@
     // Element 1 = lock
     // Element 2 = count
     // Every pair of elements represents a collision
-    // TODO: How long does this need to be?
     const collisionBuffer = new SharedArrayBuffer((NUM_BALLS + 2) * Int32Array.BYTES_PER_ELEMENT);
     const collisions = new Int32Array(collisionBuffer);
 
@@ -93,14 +92,12 @@
     }
 
     const NUM_THREADS = 4;
-    const BALLS_PER_THREAD = Math.ceil(NUM_BALLS / NUM_THREADS);
-    let activeThreads = 0;
 
     // Since each element only checks the balls after it in the array,
     // figure out how many elements per thread to keep the workloads
     // roughly even.
-    const CROSS_SIZE = NUM_BALLS * (NUM_BALLS - 1) / 2;
-    const TARGET_BATCH_SIZE = Math.ceil(CROSS_SIZE / NUM_THREADS);
+    const TOTAL_WORKLOAD = NUM_BALLS * (NUM_BALLS - 1) / 2;
+    const TARGET_BATCH_SIZE = Math.ceil(TOTAL_WORKLOAD / NUM_THREADS);
     let batchBoundaries = [0];
 
     let total = 0;
@@ -118,13 +115,6 @@
 
     const threads = new Array(NUM_THREADS).fill(null).map((_, i) => {
         const worker = new Worker("./collision-worker.js");
-        worker.addEventListener("message", () => {
-            --activeThreads;
-            if (activeThreads === 0) {
-                requestAnimationFrame(render);
-            }
-            
-        });
         return {
             worker,
             start: batchBoundaries[i],
@@ -163,14 +153,65 @@
         const { width, height } = canvas;
 
         if (!useThreads) {
-            simSync(balls, width, height)
+            sequentialSim(balls, width, height)
         }
 
         ctx.fillStyle = "black";
         ctx.fillRect(0, 0, width, height);
 
+        for (let i = 0; i < NUM_BALLS; ++i) {
+            const bi = i * 5;
+
+            const [x, y] = balls.subarray(bi, bi + 2);
+            const r = balls[bi + 4];
+            const c = colors[i];
+
+            ctx.fillStyle = c;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+
+        if (useThreads) {
+            parallelSim(balls, width, height).then(() => requestAnimationFrame(render))
+        }
+    }
+
+    function runCollisionThreads() {
+        return new Promise(resolve => {
+            let activeThreads = NUM_THREADS;
+            threads.forEach(t => {
+                const { start, end, worker } = t;
+                worker.onmessage = () => {
+                    --activeThreads;
+                    if (activeThreads === 0) {
+                        resolve();
+                    }
+                };
+                worker.postMessage({
+                    start,
+                    end,
+                    balls,
+                    numBalls: NUM_BALLS,
+                    collisions
+                });
+            })
+        });
+    }
+
+    async function parallelSim(balls, width, height) {
+        for (let i = 0; i < NUM_BALLS; ++i) {
+            const bi = i * 5;
+            const p1 = balls.subarray(bi, bi + 2);
+            const v1 = balls.subarray(bi + 2, bi + 4);
+            
+            vec2.add(p1, p1, v1);
+        }
+
+        await runCollisionThreads();
+
         const collisionCount = collisions[1];
-        console.log(collisionCount);
 
         for (let c = 0; c < collisionCount; ++c) {
             const i = c * 2 + 2;
@@ -244,43 +285,10 @@
                 p[1] = height - r;
                 v[1] *= -1;
             }
-
-            const x = p[0];
-            const y = p[1];
-            const c = colors[i];
-
-            ctx.fillStyle = c;
-            ctx.beginPath();
-            ctx.arc(x, y, r, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-
-
-        if (useThreads) {
-
-            for (let i = 0; i < NUM_BALLS; ++i) {
-                const bi = i * 5;
-                const p1 = balls.subarray(bi, bi + 2);
-                const v1 = balls.subarray(bi + 2, bi + 4);
-                
-                vec2.add(p1, p1, v1);
-            }
-
-            activeThreads = NUM_THREADS;
-            threads.forEach(t => {
-                const { start, end, worker } = t;
-                worker.postMessage({
-                    start,
-                    end,
-                    balls,
-                    numBalls: NUM_BALLS,
-                    collisions
-                });
-            })
         }
     }
 
-    function simSync(balls, width, height) {
+    function sequentialSim(balls, width, height) {
         for (let i = 0; i <= NUM_BALLS; ++i) {
             const bi = i * 5;
             const p1 = balls.subarray(bi, bi + 2);
@@ -288,26 +296,6 @@
             const r1 =  balls[bi + 4];
 
             vec2.add(p1, p1, v1);
-
-            if (p1[0] < r1) {
-                p1[0] = r1;
-                v1[0] *= -1;
-            }
-
-            if (p1[0] > width - r1) {
-                p1[0] = width - r1;
-                v1[0] *= -1;
-            }
-
-            if (p1[1] < r1) {
-                p1[1] = r1;
-                v1[1] *= -1;
-            }
-
-            if (p1[1] > height - r1) {
-                p1[1] = height - r1;
-                v1[1] *= -1;
-            }
 
             for (let j = i + 1; j < NUM_BALLS; ++j) {
                 const bi2 = j * 5;
@@ -341,6 +329,26 @@
                     vec2.scale(correction, n, dl);
                     vec2.add(p2, p2, correction);
                 }
+            }
+
+            if (p1[0] < r1) {
+                p1[0] = r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[0] > width - r1) {
+                p1[0] = width - r1;
+                v1[0] *= -1;
+            }
+
+            if (p1[1] < r1) {
+                p1[1] = r1;
+                v1[1] *= -1;
+            }
+
+            if (p1[1] > height - r1) {
+                p1[1] = height - r1;
+                v1[1] *= -1;
             }
         }
     }
