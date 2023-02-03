@@ -66,18 +66,14 @@
     canvas.height = window.innerHeight;
     const ctx = canvas.getContext("2d");
 
+    ///////////////////////
+    // Initialize balls
+    ///////////////////////
+
     const NUM_BALLS = 1000;
-    const LAYER_NUM_ELEMENTS = NUM_BALLS * 5;
-    const LAYER_BYTE_SIZE = LAYER_NUM_ELEMENTS * Float32Array.BYTES_PER_ELEMENT;
     const buffer = new SharedArrayBuffer(NUM_BALLS * 5 * Float32Array.BYTES_PER_ELEMENT);
     const balls = new Float32Array(buffer);
     const colors = new Array(NUM_BALLS);
-
-    // Element 1 = lock
-    // Element 2 = count
-    // Every pair of elements represents a collision
-    const collisionBuffer = new SharedArrayBuffer((NUM_BALLS + 2) * Int32Array.BYTES_PER_ELEMENT);
-    const collisions = new Int32Array(collisionBuffer);
 
     for (let i = 0; i < NUM_BALLS; ++i) {
         const bi = i * 5;
@@ -91,11 +87,25 @@
         colors[i] = `rgb(${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)},${Math.floor(Math.random() * 256)})`
     }
 
-    const NUM_THREADS = 4;
+    ///////////////////////////////////////////////////
+    // The collisions array is prefixed with a lock
+    // at element 0, and a count of collisions at
+    // element 1. Starting at element 2, the array
+    // contains pairs of indices representing
+    // collisions. 
+    // See worker for how the lock is used.
+    ///////////////////////////////////////////////////
 
+    const collisionBuffer = new SharedArrayBuffer((NUM_BALLS + 2) * Int32Array.BYTES_PER_ELEMENT);
+    const collisions = new Int32Array(collisionBuffer);
+
+    /////////////////////////////////////////////////////////////////////
     // Since each element only checks the balls after it in the array,
     // figure out how many elements per thread to keep the workloads
     // roughly even.
+    /////////////////////////////////////////////////////////////////////
+
+    const NUM_THREADS = 4;
     const TOTAL_WORKLOAD = NUM_BALLS * (NUM_BALLS - 1) / 2;
     const TARGET_BATCH_SIZE = Math.ceil(TOTAL_WORKLOAD / NUM_THREADS);
     let batchBoundaries = [0];
@@ -113,6 +123,10 @@
 
     batchBoundaries.push(NUM_BALLS);
 
+    ///////////////////////
+    // Initialize threads
+    ///////////////////////
+
     const threads = new Array(NUM_THREADS).fill(null).map((_, i) => {
         const worker = new Worker("./collision-worker.js");
         return {
@@ -125,6 +139,10 @@
         };        
     });
 
+    ///////////////////////
+    // Render loop
+    ///////////////////////
+
     let frameTimeSum = 0;
     let frameTimeCount = 0;
     let lastTime = performance.now();
@@ -135,10 +153,6 @@
     const correction = vec2.create();
 
     function render() {
-        if (!useThreads) {
-            requestAnimationFrame(render);
-        }
-
         const currentTime = performance.now();
         frameTimeSum += currentTime - lastTime;
         lastTime = currentTime;
@@ -153,6 +167,7 @@
         const { width, height } = canvas;
 
         if (!useThreads) {
+            requestAnimationFrame(render);
             sequentialSim(balls, width, height)
         }
 
@@ -178,6 +193,13 @@
         }
     }
 
+    requestAnimationFrame(render);
+
+    //////////////////////
+    // Multithreaded sim
+    //////////////////////
+
+    // Utility to wrap worker parallel collision checks in a Promise
     function runCollisionThreads() {
         return new Promise(resolve => {
             let activeThreads = NUM_THREADS;
@@ -201,6 +223,8 @@
     }
 
     async function parallelSim(balls, width, height) {
+
+        // Update positions
         for (let i = 0; i < NUM_BALLS; ++i) {
             const bi = i * 5;
             const p1 = balls.subarray(bi, bi + 2);
@@ -209,8 +233,10 @@
             vec2.add(p1, p1, v1);
         }
 
+        // Run threaded collision test
         await runCollisionThreads();
 
+        // Resolve collisions
         const collisionCount = collisions[1];
 
         for (let c = 0; c < collisionCount; ++c) {
@@ -236,7 +262,8 @@
             if (l2 < rSum * rSum) {
                 const l = Math.sqrt(l2);
                 const dl = (rSum - l) * 0.5;
-
+                   
+                // Update velocity
                 // v' = v - 2 * (v . N) * N
                 vec2.normalize(n, d);
                 let vDotN = vec2.dot(v1, n);
@@ -259,6 +286,7 @@
 
         collisions[1] = 0;
 
+        // Clamp to canvas boundaries
         for (let i = 0; i < NUM_BALLS; ++i) {
             const bi = i * 5;
 
@@ -288,6 +316,10 @@
         }
     }
 
+    /////////////////////////
+    // Single-threaded sim
+    /////////////////////////
+
     function sequentialSim(balls, width, height) {
         for (let i = 0; i <= NUM_BALLS; ++i) {
             const bi = i * 5;
@@ -295,6 +327,7 @@
             const v1 = balls.subarray(bi + 2, bi + 4);
             const r1 =  balls[bi + 4];
 
+            // Update position
             vec2.add(p1, p1, v1);
 
             for (let j = i + 1; j < NUM_BALLS; ++j) {
@@ -303,6 +336,7 @@
                 const v2 = balls.subarray(bi2 + 2, bi2 + 4);
                 const r2 =  balls[bi2 + 4];
 
+                // Check collision
                 vec2.sub(d, p1, p2);
                 const l2 = vec2.squaredLength(d);
                 const rSum = r1 + r2;
@@ -311,6 +345,7 @@
                     const l = Math.sqrt(l2);
                     const dl = (rSum - l) * 0.5;
 
+                    // Update velocity
                     // v' = v - 2 * (v . N) * N
                     vec2.normalize(n, d);
                     let vDotN = vec2.dot(v1, n);
@@ -330,7 +365,8 @@
                     vec2.add(p2, p2, correction);
                 }
             }
-
+        
+            // Clamp to canvas boundaries
             if (p1[0] < r1) {
                 p1[0] = r1;
                 v1[0] *= -1;
@@ -353,7 +389,6 @@
         }
     }
 
-    requestAnimationFrame(render);
 })();
 </script>
     

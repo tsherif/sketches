@@ -18,34 +18,43 @@ addEventListener("message", message => {
             const p2 = balls.subarray(bi2, bi2 + 2);
             const r2 = balls[bi2 + 4];
 
+            // Check collision
             vec2.sub(d, p1, p2);
             const l2 = vec2.squaredLength(d);
             const rSum = r1 + r2;
 
             if (l2 < rSum * rSum) {
-                withMutex(collisions, 0, () => {
-                    const count = collisions[1];
-                    const lastIndex = count * 2 + 2;
-                    if (lastIndex < collisions.length) {
-                        collisions[lastIndex]     = i;
-                        collisions[lastIndex + 1] = j;
-                        ++collisions[1];
-                    }
-                });
+                ///////////////////////////////////////////////////
+                // The collisions array is prefixed with a lock
+                // at element 0, and a count of collisions at
+                // element 1. Starting at element 2, the array
+                // contains pairs of indices representing
+                // collisions.
+                // A 1 at element 0 indicates that the array
+                // is currently locked, while a zero indicates
+                // that it is free.
+                ///////////////////////////////////////////////////
+
+                // Acquire lock
+                while (Atomics.compareExchange(collisions, 0, 0, 1) === 1) {
+                    Atomics.wait(collisions, 0, 1);
+                }
+
+                // Store new collision.
+                const count = collisions[1];
+                const lastIndex = count * 2 + 2;
+                if (lastIndex < collisions.length) {
+                    collisions[lastIndex]     = i;
+                    collisions[lastIndex + 1] = j;
+                    ++collisions[1];
+                }
+
+                // Release lock
+                Atomics.store(collisions, 0, 0);
+                Atomics.notify(collisions, 0);
             }
         }
     }
 
     postMessage("done");
 });
-
-function withMutex(mutexes, index, fn) {
-    while (Atomics.compareExchange(mutexes, index, 0, 1) === 1) {
-        Atomics.wait(mutexes, index, 1);
-    }
-
-    fn();
-
-    Atomics.store(mutexes, index, 0);
-    Atomics.notify(mutexes, index);
-}
