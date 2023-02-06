@@ -210,7 +210,7 @@ HWND createOpenGLWindow(CreateOpenGLWindowArgs* args) {
     // Create real window and rendering context
     /////////////////////////////////////////////
 
-    HWND window = CreateWindow(
+    HWND window = CreateWindowA(
         WIN_CLASS_NAME,
         args->title,
         windowStyle,

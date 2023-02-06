@@ -3,6 +3,8 @@
         "xstring": "cpp",
         "iosfwd": "cpp",
         "xutility": "cpp",
-        "map": "cpp"
+        "map": "cpp",
+        "string": "cpp",
+        "simple-opengl-loader.h": "c"
     }
 }
