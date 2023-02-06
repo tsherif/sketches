@@ -5,6 +5,7 @@
 
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
+#include "../../lib/gl-utils.h"
 #include <string>
 
 LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -45,43 +46,27 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    const char* vsSource = R"GLSL(#version 450
-        layout (location=0) in vec4 position;
-        layout (location=1) in vec3 color;
-        out vec3 vColor;
-        void main() {
-            vColor = color;
-            gl_Position = position;
+    GLuint program = createProgram(
+         R"GLSL(#version 450
+            layout (location=0) in vec4 position;
+            layout (location=1) in vec3 color;
+            out vec3 vColor;
+            void main() {
+                vColor = color;
+                gl_Position = position;
+            }
+        )GLSL",
+        R"GLSL(#version 450
+            in vec3 vColor;
+            out vec4 fragColor;
+            void main() {
+                fragColor = vec4(vColor, 1.0);
+            }
+        )GLSL",
+        [](const char* message) {
+            MessageBoxA(NULL, message, "FAILURE", MB_OK);
         }
-    )GLSL";
-
-    const char* fsSource = R"GLSL(#version 450
-        in vec3 vColor;
-        out vec4 fragColor;
-        void main() {
-            fragColor = vec4(vColor, 1.0);
-        }
-    )GLSL";
-
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vsSource, NULL);
-    glCompileShader(vertexShader);
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fsSource, NULL);
-    glCompileShader(fragmentShader);
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
-
-    GLint result;
-    glGetProgramiv(program, GL_LINK_STATUS, &result);
-
-    if (result != GL_TRUE) {
-        MessageBoxA(NULL, "Program failed to link!", "FAILURE", MB_OK);
-    }
+    );
 
     glUseProgram(program);
 
@@ -97,10 +82,6 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     GLuint positionBuffer;
     glGenBuffers(1, &positionBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(0);
 
     uint8_t colors[] = {
         255, 0, 0,
@@ -110,10 +91,26 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     GLuint colorBuffer;
     glGenBuffers(1, &colorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, colorBuffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(colors), colors, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
-    glEnableVertexAttribArray(1);
+
+    AttributeBufferDataOpts positionOpts = {};
+    positionOpts.attributeIndex = 0;
+    positionOpts.vbo = positionBuffer;
+    positionOpts.data = positions;
+    positionOpts.dataByteLength = sizeof(positions);
+    positionOpts.type = GL_FLOAT;
+    positionOpts.vectorSize = 2;
+    attributeBufferData(&positionOpts);
+
+    AttributeBufferDataOpts colorOpts = {};
+    colorOpts.attributeIndex = 1;
+    colorOpts.vbo = colorBuffer;
+    colorOpts.data = colors;
+    colorOpts.dataByteLength = sizeof(colors);
+    colorOpts.type = GL_UNSIGNED_BYTE;
+    colorOpts.vectorSize = 3;
+    colorOpts.normalized = true;
+    attributeBufferData(&colorOpts);
+
 
     ///////////////////
     // Display window
