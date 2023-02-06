@@ -5,6 +5,7 @@
 
 #include "../../lib/create-opengl-window.h"
 #include "../../lib/simple-opengl-loader.h"
+#include "../../lib/windows-utils.h"
 #include "../../lib/gl-utils.h"
 #include <string>
 
@@ -46,23 +47,16 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
+    Buffer vsSource = {};
+    Buffer fsSource = {};
+
+    loadTextFile("./triangle.vert", &vsSource);
+    loadTextFile("./triangle.frag", &fsSource);
+
+
     GLuint program = createProgram(
-         R"GLSL(#version 450
-            layout (location=0) in vec4 position;
-            layout (location=1) in vec3 color;
-            out vec3 vColor;
-            void main() {
-                vColor = color;
-                gl_Position = position;
-            }
-        )GLSL",
-        R"GLSL(#version 450
-            in vec3 vColor;
-            out vec4 fragColor;
-            void main() {
-                fragColor = vec4(vColor, 1.0);
-            }
-        )GLSL",
+        (const char*) vsSource.data,
+        (const char*) fsSource.data,
         [](const char* message) {
             MessageBoxA(NULL, message, "FAILURE", MB_OK);
         }

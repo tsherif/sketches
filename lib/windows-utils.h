@@ -25,13 +25,13 @@ static bool loadFile(const char* fileName, Buffer* buffer, bool nullTerminate) {
     );
 
     uint8_t* data = 0;
+    LARGE_INTEGER fileSize = { 0 }; 
     
     if (file == INVALID_HANDLE_VALUE) {        
         debugLog("Unable to open file.");
         goto ERROR_NO_RESOURCES;
     }
 
-    LARGE_INTEGER fileSize = { 0 }; 
     if (!GetFileSizeEx(file, &fileSize)) {
         debugLog("Unable to get file size.");
         goto ERROR_FILE_OPENED;
