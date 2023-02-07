@@ -8,6 +8,7 @@
 #include "../../lib/windows-utils.h"
 #include "../../lib/gl-utils.h"
 #include <string>
+#include "program.h"
 #include "object.h"
 
 LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -54,14 +55,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     loadTextFile("./triangle.vert", &vsSource);
     loadTextFile("./triangle.frag", &fsSource);
 
-
-    GLuint program = createProgram(
-        (const char*) vsSource.data,
-        (const char*) fsSource.data,
-        [](const char* message) {
-            MessageBoxA(NULL, message, "FAILURE", MB_OK);
-        }
-    );
+    Program program(reinterpret_cast<const char*>(vsSource.data), reinterpret_cast<const char *>(fsSource.data));
 
     GLuint triangleArray;
     glGenVertexArrays(1, &triangleArray);
