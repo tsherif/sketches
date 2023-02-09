@@ -57,7 +57,7 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     loadTextFile("./triangle.vert", &vsSource);
     loadTextFile("./triangle.frag", &fsSource);
 
-    Program program(reinterpret_cast<const char*>(vsSource.data), reinterpret_cast<const char *>(fsSource.data));
+    Program program(vsSource.cdata, fsSource.cdata);
 
     float positions[] = {
         -0.5, -0.5,

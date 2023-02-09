@@ -7,7 +7,11 @@
 #include <string.h>
 
 typedef struct {
-    uint8_t* data;
+    union {
+        void* data;
+        uint8_t* u8data;
+        char* cdata;
+    };
     uint32_t size;
 } DataBuffer;
 
@@ -25,14 +29,14 @@ bool wavToSound(DataBuffer* soundData, DataBuffer* sound) {
     uint32_t chunkSize = 0;
     uint32_t fileFormat = 0;
 
-    chunkType = *(uint32_t *) soundData->data;
+    chunkType = *(uint32_t *) soundData->u8data;
     offset +=  2 * sizeof(uint32_t);
 
     if (chunkType != 0x46464952) { // "RIFF" little-endian
         return false;
     }
 
-    fileFormat = *(uint32_t *) (soundData->data + offset);
+    fileFormat = *(uint32_t *) (soundData->u8data + offset);
     offset += sizeof(uint32_t);
 
     if (fileFormat != 0x45564157) { // "WAVE" little-endian
@@ -40,10 +44,10 @@ bool wavToSound(DataBuffer* soundData, DataBuffer* sound) {
     }
 
     while (offset + 2 * sizeof(uint32_t) < soundData->size) {
-        chunkType = *(uint32_t *) (soundData->data + offset);
+        chunkType = *(uint32_t *) (soundData->u8data + offset);
         offset +=  sizeof(uint32_t);
 
-        chunkSize = *(uint32_t *) (soundData->data + offset);
+        chunkSize = *(uint32_t *) (soundData->u8data + offset);
         offset +=  sizeof(uint32_t);
 
         if (offset + chunkSize > soundData->size) {
@@ -53,7 +57,7 @@ bool wavToSound(DataBuffer* soundData, DataBuffer* sound) {
         if (chunkType == 0x61746164) { // "data" little-endian
             sound->size = chunkSize;
             sound->data = (uint8_t *) malloc(chunkSize);
-            memcpy(sound->data, soundData->data + offset, chunkSize);
+            memcpy(sound->data, soundData->u8data + offset, chunkSize);
             break;
         }
 
