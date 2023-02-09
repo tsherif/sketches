@@ -13,7 +13,7 @@ void debugLog(const char* message) {
     OutputDebugStringA("\n"); 
 }
 
-static bool loadFile(const char* fileName, Buffer* buffer, bool nullTerminate) {
+static bool loadFile(const char* fileName, DataBuffer* buffer, bool nullTerminate) {
     HANDLE file = CreateFileA(
       fileName,
       GENERIC_READ,
@@ -90,11 +90,11 @@ static bool loadFile(const char* fileName, Buffer* buffer, bool nullTerminate) {
     return false;
 }
 
-bool loadBinFile(const char* fileName, Buffer* buffer) {
+bool loadBinFile(const char* fileName, DataBuffer* buffer) {
     return loadFile(fileName, buffer, false);
 }
 
-bool loadTextFile(const char* fileName, Buffer* buffer) {
+bool loadTextFile(const char* fileName, DataBuffer* buffer) {
     return loadFile(fileName, buffer, true);
 }
 

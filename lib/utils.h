@@ -9,7 +9,7 @@
 typedef struct {
     uint8_t* data;
     uint32_t size;
-} Buffer;
+} DataBuffer;
 
 typedef struct {
     uint8_t* data;
@@ -19,7 +19,7 @@ typedef struct {
 } Image;
 
 // TODO(Tarek): Check format. Should be 2-channel 44.1kHz
-bool wavToSound(Buffer* soundData, Buffer* sound) {
+bool wavToSound(DataBuffer* soundData, DataBuffer* sound) {
     int32_t offset = 0;
     uint32_t chunkType = 0;
     uint32_t chunkSize = 0;

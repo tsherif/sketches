@@ -5,6 +5,8 @@
         "xutility": "cpp",
         "map": "cpp",
         "string": "cpp",
-        "simple-opengl-loader.h": "c"
+        "simple-opengl-loader.h": "c",
+        "array": "cpp",
+        "vector": "cpp"
     }
 }
