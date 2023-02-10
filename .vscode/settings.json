@@ -7,6 +7,8 @@
         "string": "cpp",
         "simple-opengl-loader.h": "c",
         "array": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "functional": "cpp",
+        "string.h": "c"
     }
 }

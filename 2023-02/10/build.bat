@@ -1,0 +1,2 @@
+cl /std:c11 /DSOGL_MAJOR_VERSION=4 /DSOGL_MINOR_VERSION=5 /W4 /WX /wd4100 /wd5105 /wd4201 /wd4100 /Zi /RTCsu /EHsc main.c program.c object.c buffer.c vertex-array.c ../../lib/gl-utils.c user32.lib gdi32.lib opengl32.lib
+ 
