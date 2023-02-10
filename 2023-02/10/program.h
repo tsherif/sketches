@@ -7,7 +7,13 @@ typedef struct {
     GLuint handle;
 } Program;
 
-Program Program_create(const char* vsSource, const char* fsSource, void logFn(const char*));
+typedef struct {
+    const char* vsSource;
+    const char* fsSource;
+    void (*logFn)(const char*);
+} Program_CreateOptions;
+
+Program Program_create(Program_CreateOptions* options);
 void Program_bind(Program* program);
 
 #endif

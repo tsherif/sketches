@@ -9,8 +9,16 @@ typedef struct {
     GLuint handle;
 } VertexArray;
 
+typedef struct {
+    GLuint index;
+    Buffer* buffer;
+    GLuint type;
+    uint32_t vecSize;
+    bool normalized;
+} VertexArray_VertexBufferOptions;
+
 VertexArray VertexArray_create(void);
-void VertexArray_vertexBuffer(VertexArray* vertexArray, GLuint index, Buffer* buffer, GLuint type, uint32_t vecSize, bool normalized);
+void VertexArray_vertexBuffer(VertexArray* vertexArray, VertexArray_VertexBufferOptions* options);
 void VertexArray_bind(VertexArray* vertexArray);
 
 #endif

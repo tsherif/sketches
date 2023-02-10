@@ -24,15 +24,15 @@ LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     return DefWindowProc(window, message, wParam, lParam);
 }
 
-int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showWindow) {
-    CreateOpenGLWindowArgs windowArgs = { 0 };
-    windowArgs.title = "OpenGL C++"; 
-    windowArgs.majorVersion = SOGL_MAJOR_VERSION; 
-    windowArgs.minorVersion = SOGL_MINOR_VERSION;
-    windowArgs.winCallback = winProc;
-    windowArgs.width = 800;
-    windowArgs.height = 800;
-    HWND window = createOpenGLWindow(&windowArgs);
+int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, int showWindow) {    
+    HWND window = createOpenGLWindow(&(CreateOpenGLWindowArgs) {
+        .title = "OpenGL C++", 
+        .majorVersion = SOGL_MAJOR_VERSION, 
+        .minorVersion = SOGL_MINOR_VERSION,
+        .winCallback = winProc,
+        .width = 800,
+        .height = 800
+    });
     
     if (!sogl_loadOpenGL()) {
         const char **failures = sogl_getFailures();
@@ -56,7 +56,10 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     loadTextFile("./triangle.vert", &vsSource);
     loadTextFile("./triangle.frag", &fsSource);
 
-    Program program = Program_create(vsSource.cdata, fsSource.cdata, 0);
+    Program program = Program_create(&(Program_CreateOptions) {
+        .vsSource = vsSource.cdata, 
+        .fsSource = fsSource.cdata
+    });
 
     float positions[] = {
         -0.5, -0.5,
@@ -77,8 +80,20 @@ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine, 
     Buffer_data(&colorBuffer, colors, sizeof(colors));
    
     VertexArray triangleArray = VertexArray_create();
-    VertexArray_vertexBuffer(&triangleArray, 0, &positionBuffer, GL_FLOAT, 2, false);
-    VertexArray_vertexBuffer(&triangleArray, 1, &colorBuffer, GL_UNSIGNED_BYTE, 3, true);
+    VertexArray_vertexBuffer(&triangleArray, &(VertexArray_VertexBufferOptions) {
+        .index = 0,
+        .buffer = &positionBuffer,
+        .type = GL_FLOAT,
+        .vecSize = 2
+    });
+
+    VertexArray_vertexBuffer(&triangleArray, &(VertexArray_VertexBufferOptions) {
+        .index = 1,
+        .buffer = &colorBuffer,
+        .type = GL_UNSIGNED_BYTE,
+        .vecSize = 3,
+        .normalized = true
+    });
 
     Object triangle = Object_create(&triangleArray, &program, 3);
 

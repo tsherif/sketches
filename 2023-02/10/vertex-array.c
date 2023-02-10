@@ -7,11 +7,11 @@ VertexArray VertexArray_create(void) {
     return vertexArray;
 }
 
-void VertexArray_vertexBuffer(VertexArray* vertexArray, GLuint index, Buffer* buffer, GLuint type, uint32_t vecSize, bool normalized) {
+void VertexArray_vertexBuffer(VertexArray* vertexArray, VertexArray_VertexBufferOptions* options) {
     VertexArray_bind(vertexArray);
-    Buffer_bind(buffer);
-    glVertexAttribPointer(index, vecSize, type, normalized, 0, NULL);
-    glEnableVertexAttribArray(index);
+    Buffer_bind(options->buffer);
+    glVertexAttribPointer(options->index, options->vecSize, options->type, options->normalized, 0, NULL);
+    glEnableVertexAttribArray(options->index);
 }
 
 void VertexArray_bind(VertexArray* vertexArray) {
