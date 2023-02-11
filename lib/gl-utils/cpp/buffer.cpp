@@ -8,6 +8,7 @@ Buffer& Buffer::init(GLuint b) {
 }
 
 Buffer& Buffer::data(void* data, uint32_t size) {
+    glBindVertexArray(0);
     glBindBuffer(binding, handle);
     glBufferData(binding, size, data, GL_STATIC_DRAW);
     glBindBuffer(binding, 0);

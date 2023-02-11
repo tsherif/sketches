@@ -368,7 +368,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             GLuint normalTexture = textures.textures[object->mesh.material.normalTexture];
             GLuint metalicRoughnessTexture = textures.textures[object->mesh.material.metallicRoughnessTexture];
 
-            glBindVertexArray(object->vao.handle);
+            object->vao.bind();
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, colorTexture);
