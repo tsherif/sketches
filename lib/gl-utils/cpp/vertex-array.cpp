@@ -1,7 +1,9 @@
 #include "vertex-array.h"
 
-VertexArray::VertexArray() {
+VertexArray& VertexArray::init() {
     glGenVertexArrays(1, &handle);
+
+     return *this;
 }
 
 VertexArray& VertexArray::vertexBuffer(GLuint index, Buffer& buffer, GLuint type, uint32_t vecSize, bool normalized) {
@@ -10,6 +12,13 @@ VertexArray& VertexArray::vertexBuffer(GLuint index, Buffer& buffer, GLuint type
     glVertexAttribPointer(index, vecSize, type, normalized, 0, NULL);
     glEnableVertexAttribArray(index);
 
+    return *this;
+}
+
+VertexArray& VertexArray::indexBuffer(Buffer& buffer) {
+    bind();
+    buffer.bind();
+    
     return *this;
 }
 

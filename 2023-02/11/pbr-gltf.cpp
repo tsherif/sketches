@@ -14,6 +14,10 @@
 #include "../../lib/windows-utils.h"
 #include "../../lib/camera.h"
 
+#include "../../lib/gl-utils/cpp/buffer.h"
+#include "../../lib/gl-utils/cpp/program.h"
+#include "../../lib/gl-utils/cpp/vertex-array.h"
+
 #include <windowsx.h>
 #include <stdio.h>
 #include <math.h>
@@ -49,7 +53,7 @@ typedef struct {
 
 typedef struct {
     GLTF_Mesh mesh;
-    GL_Buffers buffers;
+    VertexArray vao;
     hmm_mat4 transform;
 } Object;
 
@@ -93,54 +97,35 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
 }
 
 void initMeshBuffers(Object* object) {
-    glGenVertexArrays(1, &object->buffers.vao);
-    glBindVertexArray(object->buffers.vao);
+    
+    Buffer positionBuffer = Buffer()
+        .init()
+        .data(object->mesh.positions, object->mesh.vec3ArrayByteLength);
 
-    GLuint vbos[5] = { 0 };
-    glGenBuffers(5, vbos);
-    object->buffers.indexBuffer = vbos[0];
-    object->buffers.positionBuffer = vbos[1];
-    object->buffers.normalBuffer = vbos[2];
-    object->buffers.tangentBuffer = vbos[3];
-    object->buffers.uvBuffer = vbos[4];
+    Buffer normalBuffer = Buffer()
+        .init()
+        .data(object->mesh.normals, object->mesh.vec3ArrayByteLength);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, object->buffers.indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, object->mesh.indicesByteLength, object->mesh.indices, GL_STATIC_DRAW);
+    Buffer tangentBuffer = Buffer()
+        .init()
+        .data(object->mesh.tangents, object->mesh.vec3ArrayByteLength);
 
-    AttributeBufferDataOpts opts = {};
-    opts.vbo = object->buffers.positionBuffer;
-    opts.attributeIndex = 0;
-    opts.data = object->mesh.positions;
-    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
-    opts.type = GL_FLOAT;
-    opts.vectorSize = 3;
-    attributeBufferData(&opts);
-
-    opts.vbo = object->buffers.normalBuffer;
-    opts.attributeIndex = 1;
-    opts.data = object->mesh.normals;
-    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
-    opts.type = GL_FLOAT;
-    opts.vectorSize = 3;
-    attributeBufferData(&opts);
-
-    opts.vbo = object->buffers.tangentBuffer;
-    opts.attributeIndex = 2;
-    opts.data = object->mesh.tangents;
-    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
-    opts.type = GL_FLOAT;
-    opts.vectorSize = 3;
-    attributeBufferData(&opts);
-
-    opts.vbo = object->buffers.uvBuffer;
-    opts.attributeIndex = 3;
-    opts.data = object->mesh.uvs;
-    opts.dataByteLength = object->mesh.vec2ArrayByteLength;
-    opts.type = GL_FLOAT;
-    opts.vectorSize = 2;
-    attributeBufferData(&opts);
-
-    glBindVertexArray(0);
+    Buffer uvBuffer = Buffer()
+        .init()
+        .data(object->mesh.uvs, object->mesh.vec2ArrayByteLength);
+    
+    Buffer indexBuffer = Buffer()
+        .init(GL_ELEMENT_ARRAY_BUFFER)
+        .data(object->mesh.indices, object->mesh.indicesByteLength);
+    
+    
+    object->vao = VertexArray()
+        .init()
+        .vertexBuffer(0, positionBuffer, GL_FLOAT, 3)
+        .vertexBuffer(1, normalBuffer, GL_FLOAT, 3)
+        .vertexBuffer(2, tangentBuffer, GL_FLOAT, 3)
+        .vertexBuffer(3, uvBuffer, GL_FLOAT, 2)
+        .indexBuffer(indexBuffer);
 }
 
 GLuint createTexture(const char* filePath, bool srgb) {
@@ -248,7 +233,6 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     DataBuffer bufferData = { 0 };
     snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->buffers[0].uri);
     loadBinFile(filePath, &bufferData);
-
 
     for (int32_t i = 0; i < gltf_data->nodes_count; ++i) {
         Object* object = objects.objects + i;
@@ -384,7 +368,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             GLuint normalTexture = textures.textures[object->mesh.material.normalTexture];
             GLuint metalicRoughnessTexture = textures.textures[object->mesh.material.metallicRoughnessTexture];
 
-            glBindVertexArray(object->buffers.vao);
+            glBindVertexArray(object->vao.handle);
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, colorTexture);

@@ -5,8 +5,8 @@
 
 class Program {
     public:
-    GLuint handle;
-    Program(const char* vsSource, const char* fsSource, void logFn(const char*) = nullptr);
+    GLuint handle = 0;
+    Program& init(const char* vsSource, const char* fsSource, void logFn(const char*) = nullptr);
 };
 
 #endif
