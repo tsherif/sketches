@@ -7,7 +7,7 @@
 #include "../../lib/simple-opengl-loader.h"
 #include "../../lib/cgltf.h"
 #include "../../lib/HandmadeMath.h"
-#include "../../lib/gl-utils/lib/utils.h"
+#include "../../lib/gl-utils.h"
 #include "../../lib/gltf-utils.h"
 #include "../../lib/stb_image.h"
 #include "../../lib/utils.h"
@@ -31,8 +31,10 @@ struct {
     bool leftButtonDown;
     bool rightButtonDown;
 } mouse = {
-    .lastX = -1.0f,
-    .lastY = -1.0f
+    0.0f,
+    0.0f,
+    -1.0f,
+    -1.0f
 };
 
 typedef struct {
@@ -105,41 +107,38 @@ void initMeshBuffers(Object* object) {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, object->buffers.indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, object->mesh.indicesByteLength, object->mesh.indices, GL_STATIC_DRAW);
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.positionBuffer,
-        .attributeIndex = 0,
-        .data = object->mesh.positions,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
+    AttributeBufferDataOpts opts = {};
+    opts.vbo = object->buffers.positionBuffer;
+    opts.attributeIndex = 0;
+    opts.data = object->mesh.positions;
+    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
+    opts.type = GL_FLOAT;
+    opts.vectorSize = 3;
+    attributeBufferData(&opts);
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.normalBuffer,
-        .attributeIndex = 1,
-        .data = object->mesh.normals,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
+    opts.vbo = object->buffers.normalBuffer;
+    opts.attributeIndex = 1;
+    opts.data = object->mesh.normals;
+    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
+    opts.type = GL_FLOAT;
+    opts.vectorSize = 3;
+    attributeBufferData(&opts);
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.tangentBuffer,
-        .attributeIndex = 2,
-        .data = object->mesh.tangents,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
+    opts.vbo = object->buffers.tangentBuffer;
+    opts.attributeIndex = 2;
+    opts.data = object->mesh.tangents;
+    opts.dataByteLength = object->mesh.vec3ArrayByteLength;
+    opts.type = GL_FLOAT;
+    opts.vectorSize = 3;
+    attributeBufferData(&opts);
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.uvBuffer,
-        .attributeIndex = 3,
-        .data = object->mesh.uvs,
-        .dataByteLength = object->mesh.vec2ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 2
-    });
+    opts.vbo = object->buffers.uvBuffer;
+    opts.attributeIndex = 3;
+    opts.data = object->mesh.uvs;
+    opts.dataByteLength = object->mesh.vec2ArrayByteLength;
+    opts.type = GL_FLOAT;
+    opts.vectorSize = 2;
+    attributeBufferData(&opts);
 
     glBindVertexArray(0);
 }
@@ -154,16 +153,16 @@ GLuint createTexture(const char* filePath, bool srgb) {
     GLuint texture = 0;
     glGenTextures(1, &texture);
 
-    textureData2D(& (TextureData2DOpts) {
-        .texture = texture,
-        .textureIndex = 0,
-        .data = data,
-        .width = width,
-        .height = height,
-        .format = channels == 3 ? GL_RGB : GL_RGBA,
-        .internalFormat = channels == 3 ? rgbFormat : rgbaFormat,
-        .type = GL_UNSIGNED_BYTE
-    });
+    TextureData2DOpts opts = {};
+    opts.texture = texture;
+    opts.textureIndex = 0;
+    opts.data = data;
+    opts.width = width;
+    opts.height = height;
+    opts.format = channels == 3 ? GL_RGB : GL_RGBA;
+    opts.internalFormat = channels == 3 ? rgbFormat : rgbaFormat;
+    opts.type = GL_UNSIGNED_BYTE;
+    textureData2D(&opts);
 
     stbi_image_free(data);
 
@@ -230,7 +229,8 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
 
     snprintf(filePath, 1024, "%s/AntiqueCamera.gltf", MODEL_DIR);
     
-    if (cgltf_parse_file(& (cgltf_options) { 0 }, filePath, &gltf_data) != cgltf_result_success) {
+    cgltf_options opts = {};
+    if (cgltf_parse_file(&opts, filePath, &gltf_data) != cgltf_result_success) {
         OutputDebugStringA("Failed to load model.\n");
         return 1;
     }
@@ -294,13 +294,12 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
 
     hmm_mat4 projMatrix = HMM_Perspective(60.0f, (float) WIDTH / HEIGHT, 1.0f, 100.0f);
 
-    Camera camera = {
-        .position = { 0.0f, 4.0f, 15.0f },
-        .target = { 0.0f, 4.0f, 0.0f },
-        .up = { 0.0f, 1.0f, 0.0f },
-        .minZoom = 2.0f,
-        .maxZoom = 50.0f
-    };
+    Camera camera = {};
+    camera.position = { 0.0f, 4.0f, 15.0f };
+    camera.target = { 0.0f, 4.0f, 0.0f };
+    camera.up = { 0.0f, 1.0f, 0.0f };
+    camera.minZoom = 2.0f;
+    camera.maxZoom = 50.0f;
     camera_buildMatrix(&camera);
 
     GLuint projLocation = glGetUniformLocation(program, "proj");

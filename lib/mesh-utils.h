@@ -95,10 +95,10 @@ void createSphere(BasicMesh* mesh) {
     float longStep = 2.0f * (float) M_PI / longBands;
     mesh->vertexCount = longBands * latBands * 4;
     mesh->elementCount = longBands * latBands * 6;
-    mesh->positions = malloc(mesh->vertexCount * 3 * sizeof(float));
-    mesh->normals = malloc(mesh->vertexCount * 3 * sizeof(float));
-    mesh->uvs = malloc(mesh->vertexCount * 2 * sizeof(float));
-    mesh->indices = malloc(mesh->elementCount * sizeof(uint16_t));
+    mesh->positions = (float *) malloc(mesh->vertexCount * 3 * sizeof(float));
+    mesh->normals = (float *) malloc(mesh->vertexCount * 3 * sizeof(float));
+    mesh->uvs = (float *) malloc(mesh->vertexCount * 2 * sizeof(float));
+    mesh->indices = (uint16_t *) malloc(mesh->elementCount * sizeof(uint16_t));
     uint16_t k = 0; 
     int32_t l = 0;
     

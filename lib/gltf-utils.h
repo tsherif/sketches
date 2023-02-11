@@ -6,6 +6,11 @@
 // Note: Assumes cgltf and HandmadeMath are already included.
 #include "utils.h"
 #include "gl-utils.h"
+#include "mesh-utils.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
     int32_t colorTexture;
@@ -17,7 +22,7 @@ typedef struct {
 } GLTF_Material;
 
 typedef struct {
-    Buffer buffer;
+    DataBuffer buffer;
     GLTF_Material material; 
     float* positions; 
     float* normals; 
@@ -31,13 +36,13 @@ typedef struct {
     int32_t elementCount;
 } GLTF_Mesh;
 
-void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Mesh* parsed) {
+void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, DataBuffer* buffer, GLTF_Mesh* parsed) {
     cgltf_primitive* primitive = mesh->primitives;
     cgltf_accessor* indicesAccessor = primitive->indices;
     cgltf_material* material = primitive->material;
 
     parsed->buffer = *buffer;
-    parsed->indices = (uint16_t *) (buffer->data + indicesAccessor->offset + indicesAccessor->buffer_view->offset);
+    parsed->indices = (uint16_t *) (buffer->u8data + indicesAccessor->offset + indicesAccessor->buffer_view->offset);
     parsed->elementCount = (int32_t) indicesAccessor->count; 
     parsed->indicesByteLength = (int32_t) (parsed->elementCount * sizeof(uint16_t));
     parsed->material.colorTexture = (int32_t) (material->pbr_metallic_roughness.base_color_texture.texture->image - imageBase);
@@ -48,7 +53,7 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
         cgltf_attribute* attribute = primitive->attributes + i;
         parsed->vertexCount = (int32_t) attribute->data->count;
 
-        float* attributeBuffer = (float *) (buffer->data + attribute->data->offset + attribute->data->buffer_view->offset);
+        float* attributeBuffer = (float *) (buffer->u8data + attribute->data->offset + attribute->data->buffer_view->offset);
         if (strEquals(attribute->name, "POSITION", sizeof("POSITION"))) {
             parsed->positions = attributeBuffer;
         } else if (strEquals(attribute->name, "NORMAL", sizeof("NORMAL"))) {
@@ -79,5 +84,9 @@ void parseGLTF(cgltf_mesh* mesh, cgltf_image* imageBase, Buffer* buffer, GLTF_Me
         parsed->tangents
     );
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

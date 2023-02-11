@@ -9,6 +9,7 @@
         "array": "cpp",
         "vector": "cpp",
         "functional": "cpp",
-        "string.h": "c"
+        "string.h": "c",
+        "gl-utils.h": "c"
     }
 }
