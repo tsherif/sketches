@@ -99,22 +99,27 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
 void initMeshBuffers(Object* object) {
     
     Buffer positionBuffer = Buffer()
+        .init()
         .data(object->mesh.positions, object->mesh.vec3ArrayByteLength);
 
     Buffer normalBuffer = Buffer()
+        .init()
         .data(object->mesh.normals, object->mesh.vec3ArrayByteLength);
 
     Buffer tangentBuffer = Buffer()
+        .init()
         .data(object->mesh.tangents, object->mesh.vec3ArrayByteLength);
 
     Buffer uvBuffer = Buffer()
+        .init()
         .data(object->mesh.uvs, object->mesh.vec2ArrayByteLength);
     
-    Buffer indexBuffer = Buffer(GL_ELEMENT_ARRAY_BUFFER)
+    Buffer indexBuffer = Buffer()
+        .init(GL_ELEMENT_ARRAY_BUFFER)
         .data(object->mesh.indices, object->mesh.indicesByteLength);
     
     
-    object->vao = VertexArray()
+    object->vao.init()
         .vertexBuffer(0, positionBuffer, GL_FLOAT, 3)
         .vertexBuffer(1, normalBuffer, GL_FLOAT, 3)
         .vertexBuffer(2, tangentBuffer, GL_FLOAT, 3)

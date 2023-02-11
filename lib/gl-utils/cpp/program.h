@@ -6,8 +6,7 @@
 class Program {
     public:
     GLuint handle = 0;
-    Program() = default;
-    Program(const char* vsSource, const char* fsSource, void logFn(const char*) = nullptr);
+    Program& init(const char* vsSource, const char* fsSource, void logFn(const char*) = nullptr);
 };
 
 #endif

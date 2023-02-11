@@ -1,9 +1,9 @@
 #include "vertex-array.h"
 
-VertexArray::VertexArray() {
-    if (glGenVertexArrays) {
-        glGenVertexArrays(1, &handle);
-    }
+VertexArray& VertexArray::init() {
+    glGenVertexArrays(1, &handle);
+
+    return *this;
 }
 
 VertexArray& VertexArray::vertexBuffer(GLuint index, Buffer& buffer, GLuint type, uint32_t vecSize, bool normalized) {

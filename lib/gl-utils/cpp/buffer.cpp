@@ -1,9 +1,10 @@
 #include "buffer.h"
 
-Buffer::Buffer(GLuint b): binding(b) {
-    if (glGenBuffers) {
-        glGenBuffers(1, &handle);
-    }
+Buffer& Buffer::init(GLuint b) {
+    binding = b;
+    glGenBuffers(1, &handle);
+
+    return *this;
 }
 
 Buffer& Buffer::data(void* data, uint32_t size) {
