@@ -10,7 +10,7 @@ class Buffer {
     
     public: 
     GLuint handle = 0;
-    Buffer& init(GLuint binding = GL_ARRAY_BUFFER);
+    Buffer(GLuint binding = GL_ARRAY_BUFFER);
     Buffer& data(void* data, uint32_t size);
     Buffer& bind();
 };
