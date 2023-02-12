@@ -19,8 +19,9 @@
 #include "../../lib/gl-utils/cpp/vertex-array.h"
 
 #include <windowsx.h>
-#include <stdio.h>
-#include <math.h>
+#include <cmath>
+#include <vector>
+#include <map>
 
 #define WIDTH 1024
 #define HEIGHT 1024
@@ -60,18 +61,10 @@ typedef struct {
 #define ORBIT_SCALE 0.1f
 #define PAN_SCALE 0.01f
 #define ZOOM_SCALE 1.0f
-#define MAX_OBJECTS 64
-#define MAX_TEXTURES 128
 
-struct {
-    GLuint textures[MAX_TEXTURES];
-    int32_t count;
-} textures;
+std::vector<Object> objects;
+std::map<uint32_t, GLuint> textures;
 
-struct {
-    Object objects[MAX_OBJECTS];
-    int32_t count;
-} objects;
 
 static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
@@ -96,30 +89,30 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
     return DefWindowProc(window, message, wParam, lParam);
 }
 
-void initMeshBuffers(Object* object) {
+void initMeshBuffers(Object& object) {
     
     Buffer positionBuffer = Buffer()
         .init()
-        .data(object->mesh.positions, object->mesh.vec3ArrayByteLength);
+        .data(object.mesh.positions, object.mesh.vec3ArrayByteLength);
 
     Buffer normalBuffer = Buffer()
         .init()
-        .data(object->mesh.normals, object->mesh.vec3ArrayByteLength);
+        .data(object.mesh.normals, object.mesh.vec3ArrayByteLength);
 
     Buffer tangentBuffer = Buffer()
         .init()
-        .data(object->mesh.tangents, object->mesh.vec3ArrayByteLength);
+        .data(object.mesh.tangents, object.mesh.vec3ArrayByteLength);
 
     Buffer uvBuffer = Buffer()
         .init()
-        .data(object->mesh.uvs, object->mesh.vec2ArrayByteLength);
+        .data(object.mesh.uvs, object.mesh.vec2ArrayByteLength);
     
     Buffer indexBuffer = Buffer()
         .init(GL_ELEMENT_ARRAY_BUFFER)
-        .data(object->mesh.indices, object->mesh.indicesByteLength);
+        .data(object.mesh.indices, object.mesh.indicesByteLength);
     
     
-    object->vao.init()
+    object.vao.init()
         .vertexBuffer(0, positionBuffer, GL_FLOAT, 3)
         .vertexBuffer(1, normalBuffer, GL_FLOAT, 3)
         .vertexBuffer(2, tangentBuffer, GL_FLOAT, 3)
@@ -219,46 +212,36 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         return 1;
     }
 
-    if (gltf_data->nodes_count > MAX_OBJECTS) {
-        OutputDebugStringA("Too many nodes.\n");
-        return 1;
-    }
-
-    if (gltf_data->images_count > MAX_TEXTURES) {
-        OutputDebugStringA("Too many images.\n");
-        return 1;
-    }
-
     DataBuffer bufferData = { 0 };
     snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->buffers[0].uri);
     loadBinFile(filePath, &bufferData);
 
     for (int32_t i = 0; i < gltf_data->nodes_count; ++i) {
-        Object* object = objects.objects + i;
+        Object object =  {};
         cgltf_node* node = gltf_data->nodes + i;
-        parseGLTF(node->mesh, gltf_data->images, &bufferData, &object->mesh);
+        parseGLTF(node->mesh, gltf_data->images, &bufferData, &object.mesh);
         initMeshBuffers(object);
-        object->transform = parseTransform(node);
+        object.transform = parseTransform(node);
         
-        int32_t colorTextureIndex = object->mesh.material.colorTexture;
-        int32_t normalTextureIndex = object->mesh.material.normalTexture;
-        int32_t metalicRoughnessTextureIndex = object->mesh.material.metallicRoughnessTexture;
-        if (!textures.textures[colorTextureIndex]) {
+        int32_t colorTextureIndex = object.mesh.material.colorTexture;
+        int32_t normalTextureIndex = object.mesh.material.normalTexture;
+        int32_t metalicRoughnessTextureIndex = object.mesh.material.metallicRoughnessTexture;
+        if (textures.count(colorTextureIndex) == 0) {
             snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[colorTextureIndex].uri);
-            textures.textures[colorTextureIndex] = createTexture(filePath, true);
+            textures[colorTextureIndex] = createTexture(filePath, true);
         }
 
-        if (!textures.textures[normalTextureIndex]) {
+        if (textures.count(normalTextureIndex) == 0) {
             snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[normalTextureIndex].uri);
-            textures.textures[normalTextureIndex] = createTexture(filePath, false);
+            textures[normalTextureIndex] = createTexture(filePath, false);
         }
 
-        if (!textures.textures[metalicRoughnessTextureIndex]) {
+        if (textures.count(metalicRoughnessTextureIndex) == 0) {
             snprintf(filePath, 1024, "%s/%s", MODEL_DIR, gltf_data->images[metalicRoughnessTextureIndex].uri);
-            textures.textures[metalicRoughnessTextureIndex] = createTexture(filePath, false);
+            textures[metalicRoughnessTextureIndex] = createTexture(filePath, false);
         }
 
-        ++objects.count;
+        objects.push_back(object);
     }
 
     DataBuffer vsSource = { 0 };
@@ -361,13 +344,12 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        for (int32_t i = 0; i < objects.count; ++i) {
-            Object* object = objects.objects + i;
-            GLuint colorTexture = textures.textures[object->mesh.material.colorTexture];
-            GLuint normalTexture = textures.textures[object->mesh.material.normalTexture];
-            GLuint metalicRoughnessTexture = textures.textures[object->mesh.material.metallicRoughnessTexture];
+        for (Object& object: objects) {
+            GLuint colorTexture = textures[object.mesh.material.colorTexture];
+            GLuint normalTexture = textures[object.mesh.material.normalTexture];
+            GLuint metalicRoughnessTexture = textures[object.mesh.material.metallicRoughnessTexture];
 
-            object->vao.bind();
+            object.vao.bind();
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, colorTexture);
@@ -376,8 +358,8 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, metalicRoughnessTexture);
 
-            glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object->transform);
-            glDrawElements(GL_TRIANGLES, object->mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
+            glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object.transform);
+            glDrawElements(GL_TRIANGLES, object.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
         }
 
         SwapBuffers(deviceContext);            
