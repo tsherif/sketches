@@ -242,14 +242,6 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     DataBuffer fsSource = { 0 };
     loadTextFile("fs.glsl", &fsSource);
 
-    GLuint program = createProgram(vsSource.cdata, fsSource.cdata, OutputDebugStringA);
-
-    if (!program) {
-        return 1;
-    }
-
-    glUseProgram(program);
-
     hmm_mat4 projMatrix = HMM_Perspective(60.0f, (float) WIDTH / HEIGHT, 1.0f, 100.0f);
 
     Camera camera = {};
@@ -260,26 +252,21 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     camera.maxZoom = 50.0f;
     camera_buildMatrix(&camera);
 
-    GLuint projLocation = glGetUniformLocation(program, "proj");
-    GLuint viewLocation = glGetUniformLocation(program, "view");
-    GLuint worldLocation = glGetUniformLocation(program, "world");
-    GLuint eyeLocation = glGetUniformLocation(program, "eyePosition");
-    GLuint lightLocation0 = glGetUniformLocation(program, "lightPositions[0]");
-    GLuint lightLocation1 = glGetUniformLocation(program, "lightPositions[1]");
-    GLuint lightLocation2 = glGetUniformLocation(program, "lightPositions[2]");
-    GLuint lightLocation3 = glGetUniformLocation(program, "lightPositions[3]");
-    GLuint texLocation = glGetUniformLocation(program, "colorMap");
-    GLuint nmLocation = glGetUniformLocation(program, "normalMap");
-    GLuint mrmLocation = glGetUniformLocation(program, "metallicRoughnessMap");
+    float light0[] = { 5.0f,  10.0f, 5.0f };
+    float light1[] = { -5.0f,  10.0f, 5.0f };
+    float light2[] = { 5.0f, 10.0f, -5.0f };
+    float light3[] = { -5.0f, 10.0f, -5.0f };
 
-    glUniformMatrix4fv(projLocation, 1, GL_FALSE, (const GLfloat *) &projMatrix);
-    glUniform3f(lightLocation0, 5.0f,  10.0f, 5.0f);
-    glUniform3f(lightLocation1, -5.0f,  10.0f, 5.0f);
-    glUniform3f(lightLocation2, 5.0f, 10.0f, -5.0f);
-    glUniform3f(lightLocation3, -5.0f, 10.0f, -5.0f);
-    glUniform1i(texLocation, 0);
-    glUniform1i(nmLocation, 1);
-    glUniform1i(mrmLocation, 2);
+    Program program = Program()
+    .init(vsSource.cdata, fsSource.cdata, OutputDebugStringA)
+    .setMat4Uniform("proj", (const GLfloat *) &projMatrix)
+    .setVec3Uniform("lightPositions[0]", light0)
+    .setVec3Uniform("lightPositions[1]", light1)
+    .setVec3Uniform("lightPositions[2]", light2)
+    .setVec3Uniform("lightPositions[3]", light3)
+    .setIntUniform("colorMap", 0)
+    .setIntUniform("normalMap", 1)
+    .setIntUniform("metallicRoughnessMap", 2);
 
     ShowWindow(window, showWindow);
     HDC deviceContext = GetDC(window);
@@ -331,8 +318,9 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
         }
 
         camera_buildMatrix(&camera);
-        glUniformMatrix4fv(viewLocation, 1, GL_FALSE, (const GLfloat *) &camera.matrix);
-        glUniform3fv(eyeLocation, 1, (const GLfloat *) &camera.position);
+
+        program.setMat4Uniform("view", (const GLfloat *) &camera.matrix)
+            .setVec3Uniform("eyePosition", (const GLfloat *) &camera.position);
         
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
@@ -350,7 +338,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, metalicRoughnessTexture);
 
-            glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object.transform);
+            program.setMat4Uniform("world", (const GLfloat *) &object.transform);
             glDrawElements(GL_TRIANGLES, object.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
         }
 
