@@ -6,27 +6,34 @@
 #define CONCAT(a, b) a##b
 #endif
 
-#ifndef APPEND_SUFFIX
-#define APPEND_SUFFIX(type, suffix) CONCAT(type, suffix)
+#ifndef PREFIX
+#define PREFIX(prefix, name) CONCAT(prefix, name)
 #endif
 
+#ifndef SUFFIX
+#define SUFFIX(name, suffix) CONCAT(name, suffix)
+#endif
+
+#define CONTAINER PREFIX(vector_, TYPE)
+#define METHOD(name) SUFFIX(CONTAINER, name)
+
 typedef struct {
-    VECTOR_TYPE* data;
+    TYPE* data;
     uint32_t length;
     uint32_t capacity;
-} APPEND_SUFFIX(VECTOR_TYPE, _vector);
+} CONTAINER;
 
-APPEND_SUFFIX(VECTOR_TYPE, _vector) APPEND_SUFFIX(VECTOR_TYPE, _vector_create)(void) {
-    return (APPEND_SUFFIX(VECTOR_TYPE, _vector)) {
-        .data = malloc(32 * sizeof(VECTOR_TYPE)),
+CONTAINER METHOD(_create)(void) {
+    return (CONTAINER) {
+        .data = malloc(32 * sizeof(TYPE)),
         .capacity = 32
     };
 }
 
-void APPEND_SUFFIX(VECTOR_TYPE, _vector_append)(APPEND_SUFFIX(VECTOR_TYPE, _vector)* v,  VECTOR_TYPE value) {
+void METHOD(_append)(CONTAINER* v,  TYPE value) {
     if (v->length == v->capacity) {
-        VECTOR_TYPE* newData = malloc(v->capacity * 2 * sizeof(VECTOR_TYPE));
-        memcpy(newData, v->data, v->capacity * sizeof(VECTOR_TYPE));
+        TYPE* newData = malloc(v->capacity * 2 * sizeof(TYPE));
+        memcpy(newData, v->data, v->capacity * sizeof(TYPE));
         v->data = newData;
         v->capacity *= 2;
     }
@@ -34,16 +41,18 @@ void APPEND_SUFFIX(VECTOR_TYPE, _vector_append)(APPEND_SUFFIX(VECTOR_TYPE, _vect
     v->data[v->length++] = value;
 }
 
-VECTOR_TYPE APPEND_SUFFIX(VECTOR_TYPE, _vector_get)(APPEND_SUFFIX(VECTOR_TYPE, _vector)* v, uint32_t i) {
+TYPE METHOD(_get)(CONTAINER* v, uint32_t i) {
     return v->data[i];
 }
 
-void APPEND_SUFFIX(VECTOR_TYPE, _vector_set)(APPEND_SUFFIX(VECTOR_TYPE, _vector)* v, uint32_t i, VECTOR_TYPE value) {
+void METHOD(_set)(CONTAINER* v, uint32_t i, TYPE value) {
     v->data[i] = value;
 }
 
-uint32_t APPEND_SUFFIX(VECTOR_TYPE, _vector_length)(APPEND_SUFFIX(VECTOR_TYPE, _vector)* v) {
+uint32_t METHOD(_length)(CONTAINER* v) {
     return v->length;
 }
 
-#undef VECTOR_TYPE
+#undef TYPE
+#undef CONTAINER
+#undef METHOD
