@@ -1,6 +1,17 @@
 #include <stdint.h>
 #include <malloc.h>
 
+/*****************************
+
+How I'm thinking this should be structured:
+- Have an array of entries and a continuous block
+of the key strings.
+- Entries will have an index into that array.
+- Iteration becomes easy, just iterate through the keys.
+- Remove is pretty easy, just memcopy over the deleted key.
+
+*******************************/
+
 typedef struct {
     const char* key;
     int value;
