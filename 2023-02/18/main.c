@@ -68,6 +68,11 @@ void main(void) {
     hash_table h = hash_create();
     hash_set(&h, "hello", 5);
     hash_set(&h, "goodbye", 7);
+    hash_set(&h, "are", 12);
+    hash_set(&h, "a", 74);
+    hash_set(&h, "few", 32);
+    hash_set(&h, "more", 52);
+    hash_set(&h, "things", 34);
 
     printf("Hash get: %d\n", hash_get(&h, "hello"));
     printf("Hash get: %d\n", hash_get(&h, "goodbye"));
