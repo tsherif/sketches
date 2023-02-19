@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include "with-resource.h"
+
 #include "hash.h"
 
 #define TYPE int
@@ -15,6 +17,26 @@ typedef struct {
 
 #define TYPE int
 #include "stack.h"
+
+float* createFloat(void) {
+    puts("CONSTRUCTOR");
+    return (float *) malloc(sizeof(float));
+}
+
+void destroyFloat(float *f) {
+    free(f);
+    puts("DESTRUCTOR");
+}
+
+float* createFloat2(void) {
+    puts("CONSTRUCTOR2");
+    return (float *) malloc(sizeof(float));
+}
+
+void destroyFloat2(float *f) {
+    free(f);
+    puts("DESTRUCTOR2");
+}
 
 void main(void) {
     vector_int v = vector_int_create();
@@ -81,5 +103,13 @@ void main(void) {
         if (h.entries[i].key) {
             printf("%d: %s -- %d\n", i, h.entries[i].key, h.entries[i].value);
         }
-    }   
+    }
+
+    WITH_RESOURCE(FLOAT1, float* f = createFloat(), f, destroyFloat(f)) {
+        puts("START BLOCK1");
+        WITH_RESOURCE(FLOAT2, float *f2 = createFloat2(), f2, destroyFloat2(f2)) {
+            puts("START BLOCK2");
+        }
+        puts("END BLOCK1");
+    }
 } 
