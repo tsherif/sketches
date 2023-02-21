@@ -1,0 +1,6 @@
+#ifndef WITH_RESOURCE_H_
+#define WITH_RESOURCE_H_
+
+#define WITH_RESOURCE(TAG, PRE, CHECK, POST) for (PRE, *TAG##_FLAG = 0; CHECK && !TAG##_FLAG; POST, ++TAG##_FLAG)
+
+#endif
