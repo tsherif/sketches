@@ -1,7 +1,12 @@
 #include <stdio.h>
 
 #define TYPE int
+#define IMPLEMENTATION
 #include "hash.h"
+
+#define TYPE int
+#define IMPLEMENTATION
+#include "vector.h"
 
 const char* words[] = {
     "Development",
@@ -408,4 +413,22 @@ void main(void) {
         }
     }
     printf("}\n");
+
+    vector_int v = vector_int_create();
+
+    for (int i = 0; i < 100; ++i) {
+        vector_int_push(&v, i);
+    }
+
+    for (int i = 0; i < 100; ++i) {
+        vector_int_set(&v, i, vector_int_get(&v, i) * 2);
+    }
+
+    for (size_t i = 0; i < vector_int_size(&v); ++i) {
+        printf("vector[%zd]: %d\n", i, vector_int_get(&v, i));
+    }
+
+    while (!vector_int_empty(&v)) {
+        printf("vector: %d\n", vector_int_pop(&v));
+    }
 } 

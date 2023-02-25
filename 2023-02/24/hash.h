@@ -6,10 +6,6 @@
 #define CONTAINER_PREFIX hash_
 #include "macros.h"
 
-#ifndef INITIAL_SIZE
-#define INITIAL_SIZE 32
-#endif
-
 typedef struct {
     char* key;
     TYPE value;
@@ -24,6 +20,18 @@ typedef struct {
     size_t keysSize;
     size_t keysCapacity;
 } CONTAINER;
+
+CONTAINER METHOD(_create)(void);
+void METHOD(_set)(CONTAINER* h, const char* key, TYPE value);
+TYPE METHOD(_get)(CONTAINER* h, const char* key);
+size_t METHOD(_size)(CONTAINER* h);
+void METHOD(_destroy)(CONTAINER* h);
+
+#ifdef IMPLEMENTATION
+
+#ifndef INITIAL_SIZE
+#define INITIAL_SIZE 32
+#endif
 
 uint64_t PRIVATE(_fnv1aHash)(const char* key) {
     const char* curr = key;
@@ -121,7 +129,7 @@ char* PRIVATE(_addKey)(CONTAINER* h, const char* key) {
     return keyLoc;
 }
 
-CONTAINER METHOD(_create)() {
+CONTAINER METHOD(_create)(void) {
     size_t capacity = INITIAL_SIZE;
     size_t keysCapacity = capacity * 8;
     return (CONTAINER) {
@@ -165,5 +173,27 @@ TYPE METHOD(_get)(CONTAINER* h, const char* key) {
     return e->value;
 }
 
+size_t METHOD(_size)(CONTAINER* h) {
+    return h->size;
+}
+
+void METHOD(_destroy)(CONTAINER* h) {
+    if (h->entries) {
+        free(h->entries);
+    }
+    if (h->keys) {
+        free(h->keys);
+    }
+    h->entries = 0;
+    h->keys = 0;
+    h->capacity = 0;
+    h->keysCapacity = 0;
+    h->size = 0;
+    h->keysSize = 0;
+}
+
+#endif
+
+#undef IMPLEMENTATION
 #undef CONTAINER_PREFIX
 #undef TYPE

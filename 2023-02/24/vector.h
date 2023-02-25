@@ -5,15 +5,29 @@
 #define CONTAINER_PREFIX vector_
 #include "macros.h"
 
+typedef struct {
+    TYPE* data;
+    size_t size;
+    size_t capacity;
+} CONTAINER;
+
+CONTAINER METHOD(_create)(void);
+void METHOD(_push)(CONTAINER* v,  TYPE value);
+TYPE METHOD(_pop)(CONTAINER* v);
+TYPE METHOD(_get)(CONTAINER* v, size_t i);
+void METHOD(_set)(CONTAINER* v, size_t i, TYPE value);
+bool METHOD(_clear)(CONTAINER* v);
+size_t METHOD(_size)(CONTAINER* v);
+bool METHOD(_empty)(CONTAINER* v);
+void METHOD(_destroy)(CONTAINER* v);
+
+
+#ifdef IMPLEMENTATION
+
 #ifndef INITIAL_SIZE
 #define INITIAL_SIZE 32
 #endif
 
-typedef struct {
-    TYPE* data;
-    uint32_t size;
-    uint32_t capacity;
-} CONTAINER;
 
 CONTAINER METHOD(_create)(void) {
     return (CONTAINER) {
@@ -22,7 +36,7 @@ CONTAINER METHOD(_create)(void) {
     };
 }
 
-void METHOD(_append)(CONTAINER* v,  TYPE value) {
+void METHOD(_push)(CONTAINER* v,  TYPE value) {
     if (v->size == v->capacity) {
         TYPE* newData = malloc(v->capacity * 2 * sizeof(TYPE));
         memcpy(newData, v->data, v->capacity * sizeof(TYPE));
@@ -34,17 +48,46 @@ void METHOD(_append)(CONTAINER* v,  TYPE value) {
     v->data[v->size++] = value;
 }
 
-TYPE METHOD(_get)(CONTAINER* v, uint32_t i) {
+TYPE METHOD(_pop)(CONTAINER* v) {
+    if (v->size == 0) {
+        return (*((TYPE[1]) { 0 }));
+    }
+
+    --v->size;
+    return v->data[v->size];
+}
+
+TYPE METHOD(_get)(CONTAINER* v, size_t i) {
     return v->data[i];
 }
 
-void METHOD(_set)(CONTAINER* v, uint32_t i, TYPE value) {
+void METHOD(_set)(CONTAINER* v, size_t i, TYPE value) {
     v->data[i] = value;
 }
 
-uint32_t METHOD(_size)(CONTAINER* v) {
+bool METHOD(_clear)(CONTAINER* v) {
+    return v->size = 0;
+}
+
+size_t METHOD(_size)(CONTAINER* v) {
     return v->size;
 }
 
+bool METHOD(_empty)(CONTAINER* v) {
+    return v->size == 0;
+}
+
+void METHOD(_destroy)(CONTAINER* v) {
+    if (v->data) {
+        free(v->data);
+    }
+    v->data = 0;
+    v->size = 0;
+    v->capacity = 0;
+}
+
+#endif
+
+#undef IMPLEMENTATION
 #undef CONTAINER_PREFIX
 #undef TYPE
