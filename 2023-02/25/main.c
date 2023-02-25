@@ -470,4 +470,14 @@ void main(void) {
     GUARD(res, deallocate("RES3", &res)) {
         printf("SHOULDN'T SEE THIS!!!!!!\n");
     }
+
+    int res1 = allocate("Nested RES1");
+    GUARD(res1, deallocate("Nested RES1", &res1)) {
+        printf("Using Nested RES1\n");
+
+        int res2 = allocate("Nested RES2");
+        GUARD(res2, deallocate("Nested RES2", &res2)) {
+            printf("Using Nested RES2\n");
+        }
+    }
 } 
