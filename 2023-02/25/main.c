@@ -459,7 +459,7 @@ void main(void) {
 
     res = allocate("RES2");
     GUARD(res, deallocate("RES2", &res)) {
-        printf("Using RES2\n");
+        printf("Using RES2 then breaking\n");
         if (res) {
             GUARD_BREAK;
         }
