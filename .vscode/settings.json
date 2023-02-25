@@ -70,6 +70,7 @@
         "xtr1common": "cpp",
         "xtree": "cpp",
         "stack.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "stddef.h": "c"
     }
 }
