@@ -71,6 +71,7 @@
         "xtree": "cpp",
         "stack.h": "c",
         "stdint.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "vertex-array.h": "c"
     }
 }

@@ -1,17 +1,20 @@
 #include "buffer.h"
 
-Buffer Buffer_create(void) {
-    Buffer buffer = { 0 };
+Buffer Buffer_create(GLuint binding) {
+    Buffer buffer = { 
+        .binding = binding
+    };
     glGenBuffers(1, &buffer.handle);
 
     return buffer;
 }
 
-void Buffer_data(Buffer* buffer, void* data, uint32_t size) {
-    glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
-    glBufferData(GL_ARRAY_BUFFER, size, data, GL_STATIC_DRAW);
+void Buffer_data(Buffer* buffer, void* data, GLsizei size) {
+    glBindBuffer(buffer->binding, buffer->handle);
+    glBufferData(buffer->binding, size, data, GL_STATIC_DRAW);
+    buffer->size = size;
 }
 
 void Buffer_bind(Buffer* buffer) {
-    glBindBuffer(GL_ARRAY_BUFFER, buffer->handle);
+    glBindBuffer(buffer->binding, buffer->handle);
 }

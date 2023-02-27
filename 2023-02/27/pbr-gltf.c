@@ -14,6 +14,7 @@
 #include "../../lib/windows-utils.h"
 #include "../../lib/camera.h"
 
+#include "buffer.h"
 #include "vertex-array.h"
 
 #include <windowsx.h>
@@ -38,18 +39,8 @@ struct {
 };
 
 typedef struct {
-    GLuint vao;
-    GLuint indexBuffer;
-    GLuint positionBuffer;
-    GLuint normalBuffer;
-    GLuint tangentBuffer;
-    GLuint uvBuffer;
-} GL_Buffers;
-
-
-typedef struct {
     GLTF_Mesh mesh;
-    GL_Buffers buffers;
+    VertexArray vao;
     hmm_mat4 transform;
 } Object;
 
@@ -87,57 +78,48 @@ static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam,
 }
 
 void initMeshBuffers(Object* object) {
-    glGenVertexArrays(1, &object->buffers.vao);
-    glBindVertexArray(object->buffers.vao);
+    Buffer indexBuffer = Buffer_create(GL_ELEMENT_ARRAY_BUFFER);
+    Buffer_data(&indexBuffer, object->mesh.indices, object->mesh.indicesByteLength);
 
-    GLuint vbos[5] = { 0 };
-    glGenBuffers(5, vbos);
-    object->buffers.indexBuffer = vbos[0];
-    object->buffers.positionBuffer = vbos[1];
-    object->buffers.normalBuffer = vbos[2];
-    object->buffers.tangentBuffer = vbos[3];
-    object->buffers.uvBuffer = vbos[4];
+    Buffer positionBuffer = Buffer_create(GL_ARRAY_BUFFER);
+    Buffer_data(&positionBuffer, object->mesh.positions,  object->mesh.vec3ArrayByteLength);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, object->buffers.indexBuffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, object->mesh.indicesByteLength, object->mesh.indices, GL_STATIC_DRAW);
+    Buffer normalBuffer = Buffer_create(GL_ARRAY_BUFFER);
+    Buffer_data(&normalBuffer, object->mesh.normals,  object->mesh.vec3ArrayByteLength);
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.positionBuffer,
-        .attributeIndex = 0,
-        .data = object->mesh.positions,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
+    Buffer tangentBuffer = Buffer_create(GL_ARRAY_BUFFER);
+    Buffer_data(&tangentBuffer, object->mesh.tangents,  object->mesh.vec3ArrayByteLength);
+
+    Buffer uvBuffer = Buffer_create(GL_ARRAY_BUFFER);
+    Buffer_data(&uvBuffer, object->mesh.uvs,  object->mesh.vec2ArrayByteLength);
+
+    object->vao = VertexArray_create();
+    VertexArray_vertexBuffer(&object->vao, &(VertexArray_VertexBufferOptions) {
+        .index = 0,
+        .buffer = &positionBuffer,
         .type = GL_FLOAT,
-        .vectorSize = 3
+        .vecSize = 3
+    });
+    VertexArray_vertexBuffer(&object->vao, &(VertexArray_VertexBufferOptions) {
+        .index = 1,
+        .buffer = &normalBuffer,
+        .type = GL_FLOAT,
+        .vecSize = 3
+    });
+    VertexArray_vertexBuffer(&object->vao, &(VertexArray_VertexBufferOptions) {
+        .index = 2,
+        .buffer = &tangentBuffer,
+        .type = GL_FLOAT,
+        .vecSize = 3
+    });
+    VertexArray_vertexBuffer(&object->vao, &(VertexArray_VertexBufferOptions) {
+        .index = 3,
+        .buffer = &uvBuffer,
+        .type = GL_FLOAT,
+        .vecSize = 2
     });
 
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.normalBuffer,
-        .attributeIndex = 1,
-        .data = object->mesh.normals,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
-
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.tangentBuffer,
-        .attributeIndex = 2,
-        .data = object->mesh.tangents,
-        .dataByteLength = object->mesh.vec3ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 3
-    });
-
-    attributeBufferData(& (AttributeBufferDataOpts) {
-        .vbo = object->buffers.uvBuffer,
-        .attributeIndex = 3,
-        .data = object->mesh.uvs,
-        .dataByteLength = object->mesh.vec2ArrayByteLength,
-        .type = GL_FLOAT,
-        .vectorSize = 2
-    });
-
-    glBindVertexArray(0);
+    VertexArray_indexBuffer(&object->vao, &indexBuffer, GL_UNSIGNED_SHORT);
 }
 
 GLuint createTexture(const char* filePath, bool srgb) {
@@ -384,7 +366,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             GLuint normalTexture = textures[object.mesh.material.normalTexture];
             GLuint metalicRoughnessTexture = textures[object.mesh.material.metallicRoughnessTexture];
 
-            glBindVertexArray(object.buffers.vao);
+            VertexArray_bind(&object.vao);
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, colorTexture);
@@ -394,7 +376,7 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             glBindTexture(GL_TEXTURE_2D, metalicRoughnessTexture);
 
             glUniformMatrix4fv(worldLocation, 1, GL_FALSE, (const GLfloat *) &object.transform);
-            glDrawElements(GL_TRIANGLES, object.mesh.elementCount, GL_UNSIGNED_SHORT, NULL);
+            glDrawElements(GL_TRIANGLES, object.vao.numElements, object.vao.indexType, NULL);
         }
 
         SwapBuffers(deviceContext);            
