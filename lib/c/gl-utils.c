@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include "utils.h"
+#include "gl-utils.h"
 
 GLuint createProgram(const char* vsSource, const char* fsSource, void logFn(const char*)) {
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
