@@ -14,8 +14,8 @@
 #include "../../lib/c/windows-utils.h"
 #include "../../lib/c/camera.h"
 
-#include "buffer.h"
-#include "vertex-array.h"
+#include "../../lib/c/buffer.h"
+#include "../../lib/c/vertex-array.h"
 
 #include <windowsx.h>
 #include <stdio.h>
@@ -52,7 +52,7 @@ typedef struct {
 
 #define TYPE Object
 #define IMPLEMENTATION
-#include "vector.h"
+#include "../../lib/c/vector.h"
 
 static LRESULT CALLBACK messageHandler(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {

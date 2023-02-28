@@ -72,6 +72,7 @@
         "stack.h": "c",
         "stdint.h": "c",
         "stddef.h": "c",
-        "vertex-array.h": "c"
+        "vertex-array.h": "c",
+        "vector.h": "c"
     }
 }
