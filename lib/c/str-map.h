@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define CONTAINER_PREFIX Hash_
+#define CONTAINER_PREFIX StrMap_
 #include "macros.h"
 
 typedef struct {
