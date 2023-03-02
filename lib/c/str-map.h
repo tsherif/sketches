@@ -23,6 +23,7 @@ typedef struct {
 CONTAINER METHOD(_create)(void);
 void METHOD(_set)(CONTAINER* h, const char* key, TYPE value);
 TYPE METHOD(_get)(CONTAINER* h, const char* key);
+bool METHOD(_has)(CONTAINER* h, const char* key);
 void METHOD(_clear)(CONTAINER* h);
 size_t METHOD(_size)(CONTAINER* h);
 bool METHOD(_empty)(CONTAINER* h);
@@ -175,6 +176,13 @@ TYPE METHOD(_get)(CONTAINER* h, const char* key) {
     PRIVATE(_entry)* e = h->entries + PRIVATE(_probe)(h, key, hash);
 
     return e->value;
+}
+
+bool METHOD(_has)(CONTAINER* h, const char* key) {
+    uint64_t hash = PRIVATE(_fnv1aHash)(key);
+    PRIVATE(_entry)* e = h->entries + PRIVATE(_probe)(h, key, hash);
+
+    return e->key != 0;
 }
 
 size_t METHOD(_size)(CONTAINER* h) {
