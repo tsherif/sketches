@@ -9,7 +9,7 @@
             overflow-y: hidden;
         }
     </style>
-    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/js/dat.gui.min.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -69,7 +69,7 @@
         const COLOR1 = PALETTE[0];
         const COLOR2 = PALETTE[3];
 
-        import {polygonCoordinates, drawPolygon, outsideEdge} from "../lib/polygon.js";
+        import {polygonCoordinates, drawPolygon, outsideEdge} from "../lib/js/polygon.js";
 
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;

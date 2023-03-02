@@ -2,9 +2,9 @@
 <html>
 <head>
     <title>Graphics Sketch by Tarek Sherif</title>
-    <script src="../lib/gl-matrix.js"></script>
-    <script src="../lib/picogl.min.js"></script>
-    <script src="../lib/noise3D.js"></script>
+    <script src="../lib/js/gl-matrix.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
+    <script src="../lib/js/noise3D.js"></script>
     <style>
         html, body {
             height: 100%;
@@ -39,7 +39,7 @@
 <body>
     <canvas id="canvas"></canvas>
     <script type="module">
-        import {createSphere, checkWebGL2} from "../lib/utils.js";
+        import {createSphere, checkWebGL2} from "../lib/js/utils.js";
 
         const canvas = document.getElementById("canvas");
         canvas.width = window.innerWidth;

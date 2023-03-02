@@ -20,8 +20,8 @@
             margin: 10px;
         }
     </style>
-    <script src="../lib/dat.gui.min.js"></script>
-    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/js/dat.gui.min.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -67,7 +67,7 @@
         GPU Runtime: <span id="gpu"></span>
     </div>
     <script type="module">
-        import {checkWebGL2, createQuad} from "../lib/utils.js";
+        import {checkWebGL2, createQuad} from "../lib/js/utils.js";
 
         // Input is (value, bin) pairs.
         // The values are first sorted into the appropriate bins and the averages

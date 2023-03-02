@@ -9,8 +9,8 @@
             overflow-y: hidden;
         }
     </style>
-    <script src="../lib/picogl.min.js"></script>
-    <script src="../lib/gl-matrix.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
+    <script src="../lib/js/gl-matrix.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -44,8 +44,8 @@
         createOctahedron,
         createDodecahedron,
         createIcosahedron
-    } from "../lib/polyhedra.js";
-    import {checkWebGL2, xformMatrix} from "../lib/utils.js";
+    } from "../lib/js/polyhedra.js";
+    import {checkWebGL2, xformMatrix} from "../lib/js/utils.js";
 
     const vsSource = `
         #version 300 es

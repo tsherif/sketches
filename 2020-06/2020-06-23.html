@@ -9,9 +9,9 @@
             overflow-y: hidden;
         }
     </style>
-    <script src="../lib/gl-matrix.js"></script>
-    <script src="../lib/picogl.min.js"></script>
-    <script src="../lib/dat.gui.min.js"></script>
+    <script src="../lib/js/gl-matrix.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
+    <script src="../lib/js/dat.gui.min.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -39,7 +39,7 @@
 <body>
     <canvas id="gl-canvas"></canvas>
     <script type="module">
-        import {createCube, checkWebGL2} from "../lib/utils.js";
+        import {createCube, checkWebGL2} from "../lib/js/utils.js";
         const FOCAL_LENGTH = 3;
         const COLORS = {
             frontX: new Float32Array([1, 0, 0]),

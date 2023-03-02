@@ -1,4 +1,4 @@
-importScripts("../../lib/gl-matrix.js");
+importScripts("../../lib/js/gl-matrix.js");
 
 const n = vec2.create();
 const d = vec2.create();

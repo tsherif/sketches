@@ -6,7 +6,7 @@
   "scripts": {
     "start": "run-p --race watch server",
     "watch": "chokidar index.ts --initial -p -c \"npm run build\"",
-    "server": "node ../../lib/live-server/live-server.js --poll --watch=*.js,*.vert,*.frag",
+    "server": "node ../../lib/js/live-server/live-server.js --poll --watch=*.js,*.vert,*.frag",
     "build": "tsc"
   },
   "author": "",

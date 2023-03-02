@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>July 16 Sketch</title>
-    <script src="../../lib/gl-matrix.js"></script>
-    <script src="../../lib/picogl.min.js"></script>
+    <script src="../../lib/js/gl-matrix.js"></script>
+    <script src="../../lib/js/picogl.min.js"></script>
     <style>
         html, body {
             height: 100%;
@@ -17,9 +17,9 @@
 <body>
 <canvas id="canvas"></canvas>
 <script type="module">
-    import {setupInteractions} from "../../lib/interactions.js";
-    import {orbitCamera, zoomCamera} from "../../lib/camera-utils.js";
-    import {createCube, loadImages} from "../../lib/utils.js";
+    import {setupInteractions} from "../../lib/js/interactions.js";
+    import {orbitCamera, zoomCamera} from "../../lib/js/camera-utils.js";
+    import {createCube, loadImages} from "../../lib/js/utils.js";
 
     (async () => {
         const canvas = document.getElementById("canvas");

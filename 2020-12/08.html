@@ -16,8 +16,8 @@
             margin-bottom: 10px;
         }
     </style>
-    <script src="../lib/dat.gui.min.js"></script>
-    <script src="../lib/picogl.min.js"></script>
+    <script src="../lib/js/dat.gui.min.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -60,7 +60,7 @@
         GPU Runtime: <span id="gpu"></span>
     </div>
     <script type="module">
-        import {checkWebGL2, createQuad} from "../lib/utils.js";
+        import {checkWebGL2, createQuad} from "../lib/js/utils.js";
 
         const NUM_BINS = 1000;
         const NUM_VALUES = 1000000;

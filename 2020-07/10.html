@@ -9,8 +9,8 @@
             overflow-y: hidden;
         }
     </style>
-    <script src="../lib/picogl.min.js"></script>
-    <script src="../lib/gl-matrix.js"></script>
+    <script src="../lib/js/picogl.min.js"></script>
+    <script src="../lib/js/gl-matrix.js"></script>
     <link rel="icon" type="image/png" href="../site/img/tiling-icon.png">
 </head>
 <!--
@@ -38,7 +38,7 @@
 <body>
 <canvas id="gl-canvas"></canvas>
 <script type="module">
-    import {checkWebGL2} from "../lib/utils.js";
+    import {checkWebGL2} from "../lib/js/utils.js";
 
     const vsSource = `
         #version 300 es
