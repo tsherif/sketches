@@ -5,9 +5,9 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../../lib/create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
-#include "../../lib/tiny_gltf.h"
+#include "../../lib/c/create-opengl-window.h"
+#include "../../lib/c/simple-opengl-loader.h"
+#include "../../lib/c/tiny_gltf.h"
 
 #include <iostream>
 

@@ -4,7 +4,7 @@
 #define SOGL_MINOR_VERSION 5
 #define SOGL_IMPLEMENTATION_WIN32
 #define STB_IMAGE_IMPLEMENTATION
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 #include <windows.h>
 #include <cstdint>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include "wglext.h"
 #include "../../lib/glm/glm.hpp"
 #include "../../lib/glm/ext.hpp"
-#include "../../lib/stb_image.h"
+#include "../../lib/c/stb_image.h"
 
 #define WIDTH 800
 #define HEIGHT 800

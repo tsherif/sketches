@@ -30,7 +30,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 
 #define CIRCLES_INITIAL_SIZE 32
 

@@ -1,7 +1,7 @@
 #ifndef BUFFER_H_
 #define BUFFER_H_
 
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 #include <stdint.h>
 
 typedef struct {

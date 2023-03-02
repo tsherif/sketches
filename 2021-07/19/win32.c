@@ -9,7 +9,7 @@
 #include <math.h>
 #include <profileapi.h>
 #include "create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 #include "input.h"
 
 #define WINDOW_WIDTH 800

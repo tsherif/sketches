@@ -27,8 +27,8 @@
 #include <stdbool.h>
 #include <time.h>
 #include <string.h>
-#include "../../lib/simple-opengl-loader.h"
-#include "../../lib/stb_image.h"
+#include "../../lib/c/simple-opengl-loader.h"
+#include "../../lib/c/stb_image.h"
 #include "types.h"
 
 static struct {

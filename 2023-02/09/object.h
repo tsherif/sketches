@@ -2,7 +2,7 @@
 #define OBJECT_H_
 
 #include <stdint.h>
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 #include "program.h"
 #include "vertex-array.h"
 

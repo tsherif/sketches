@@ -3,16 +3,16 @@
 #define CGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define _USE_MATH_DEFINES
-#include "../../lib/create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
-#include "../../lib/cgltf.h"
-#include "../../lib/HandmadeMath.h"
-#include "../../lib/gl-utils.h"
-#include "../../lib/gltf-utils.h"
-#include "../../lib/stb_image.h"
-#include "../../lib/utils.h"
-#include "../../lib/windows-utils.h"
-#include "../../lib/camera.h"
+#include "../../lib/c/create-opengl-window.h"
+#include "../../lib/c/simple-opengl-loader.h"
+#include "../../lib/c/cgltf.h"
+#include "../../lib/c/HandmadeMath.h"
+#include "../../lib/c/gl-utils.h"
+#include "../../lib/c/gltf-utils.h"
+#include "../../lib/c/stb_image.h"
+#include "../../lib/c/utils.h"
+#include "../../lib/c/windows-utils.h"
+#include "../../lib/c/camera.h"
 
 #include "../../lib/gl-utils/cpp/buffer.h"
 #include "../../lib/gl-utils/cpp/program.h"

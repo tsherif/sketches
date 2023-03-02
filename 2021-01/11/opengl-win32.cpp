@@ -15,7 +15,7 @@
 #include "wglext.h"
 #include "../../lib/glm/glm.hpp"
 #include "../../lib/glm/ext.hpp"
-#include "../../lib/stb_image.h"
+#include "../../lib/c/stb_image.h"
 
 
 

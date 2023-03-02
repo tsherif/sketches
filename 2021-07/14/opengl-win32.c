@@ -30,7 +30,7 @@
 #define SOGL_MAJOR_VERSION 4
 #define SOGL_MINOR_VERSION 5
 #define SOGL_IMPLEMENTATION_WIN32
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 #include <windows.h>
 #include <windowsx.h>
 #include <GL\gl.h>

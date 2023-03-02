@@ -4,8 +4,8 @@
 #include <AL/alc.h>
 #include <stdio.h>
 
-#include "../../lib/utils.h"
-#include "../../lib/linux-utils.h"
+#include "../../lib/c/utils.h"
+#include "../../lib/c/linux-utils.h"
 
 ALCdevice *device;
 ALCcontext *ctx;

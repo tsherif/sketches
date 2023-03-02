@@ -3,10 +3,10 @@
 #define SOGL_MINOR_VERSION 5
 #define CREATE_OPENGL_WINDOW_IMPLEMENTATION
 
-#include "../../lib/create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
-#include "../../lib/windows-utils.h"
-#include "../../lib/gl-utils.h"
+#include "../../lib/c/create-opengl-window.h"
+#include "../../lib/c/simple-opengl-loader.h"
+#include "../../lib/c/windows-utils.h"
+#include "../../lib/c/gl-utils.h"
 #include <string>
 
 LRESULT CALLBACK winProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {

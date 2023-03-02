@@ -1,6 +1,6 @@
 #include <alsa/asoundlib.h>
-#include "../../lib/utils.h"
-#include "../../lib/linux-utils.h"
+#include "../../lib/c/utils.h"
+#include "../../lib/c/linux-utils.h"
 
 #define SAMPLE_MAX 32767
 #define SAMPLE_MIN (-32768)

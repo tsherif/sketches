@@ -6,10 +6,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define _USE_MATH_DEFINES
-#include "../../lib/create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
-#include "../../lib/tiny_gltf.h"
-#include "../../lib/HandmadeMath.h"
+#include "../../lib/c/create-opengl-window.h"
+#include "../../lib/c/simple-opengl-loader.h"
+#include "../../lib/c/tiny_gltf.h"
+#include "../../lib/c/HandmadeMath.h"
 
 #include <iostream>
 #include <cmath>

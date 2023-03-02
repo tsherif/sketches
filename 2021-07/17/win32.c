@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <profileapi.h>
 #include "create-opengl-window.h"
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600

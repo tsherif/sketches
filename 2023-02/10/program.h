@@ -1,7 +1,7 @@
 #ifndef PROGRAM_H_
 #define PROGRAM_H_
 
-#include "../../lib/simple-opengl-loader.h"
+#include "../../lib/c/simple-opengl-loader.h"
 
 typedef struct {
     GLuint handle;
