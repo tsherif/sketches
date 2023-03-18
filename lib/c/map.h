@@ -3,11 +3,12 @@
 #include <stdbool.h>
 
 #define CONTAINER_PREFIX Map_
-#include "concat.h"
+#include "macros.h"
 
-#define MAP_CONTAINER CONCAT(CONCAT(CONCAT(CONTAINER_PREFIX, KEY_TYPE), _), TYPE)
-#define MAP_METHOD(name) CONCAT(MAP_CONTAINER, name)
-#define MAP_PRIVATE(name) CONCAT(_, MAP_METHOD(name))
+#ifndef CONTAINER
+#define CONTAINER CONCAT(CONCAT(CONCAT(Map_, KEY_TYPE), _), TYPE)
+#endif
+
 
 typedef struct {
     KEY_TYPE key;
@@ -142,6 +143,6 @@ void MAP_METHOD(_destroy)(MAP_CONTAINER* h) {
 #endif
 
 #undef IMPLEMENTATION
-#undef CONTAINER_PREFIX
+#undef CONTAINER
 #undef KEY_TYPE
 #undef TYPE

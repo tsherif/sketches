@@ -2,8 +2,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define CONTAINER_PREFIX StrMap_
 #include "macros.h"
+
+#ifndef CONTAINER
+#define CONTAINER CONCAT(StrMap_, TYPE)
+#endif
 
 typedef struct {
     char* key;
@@ -216,5 +219,5 @@ void METHOD(_destroy)(CONTAINER* h) {
 #endif
 
 #undef IMPLEMENTATION
-#undef CONTAINER_PREFIX
+#undef CONTAINER
 #undef TYPE

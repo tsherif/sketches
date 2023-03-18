@@ -1,8 +1,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define CONTAINER_PREFIX Vector_
 #include "macros.h"
+
+#ifndef CONTAINER
+#define CONTAINER CONCAT(Vector_, TYPE)
+#endif
 
 typedef struct {
     TYPE* data;
@@ -91,5 +94,5 @@ void METHOD(_destroy)(CONTAINER* v) {
 #endif
 
 #undef IMPLEMENTATION
-#undef CONTAINER_PREFIX
+#undef CONTAINER
 #undef TYPE

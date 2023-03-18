@@ -73,6 +73,8 @@
         "stdint.h": "c",
         "stddef.h": "c",
         "vertex-array.h": "c",
-        "vector.h": "c"
+        "vector.h": "c",
+        "str-map.h": "c",
+        "macros.h": "c"
     }
 }
