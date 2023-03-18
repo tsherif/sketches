@@ -20,6 +20,12 @@
 #define IMPLEMENTATION
 #include "../../lib/c/map.h"
 
+#define KEY_TYPE float
+#define TYPE int
+#define CONTAINER MY_MAP
+#define IMPLEMENTATION
+#include "../../lib/c/map.h"
+
 const char* words[] = {
     "Development",
     "on",
@@ -534,7 +540,28 @@ void main(void) {
         MY_VEC_push(&myv, i * 1.5f);
     }
 
-    printf("Custome-named vec size: %zd\n", MY_VEC_size(&myv));
+    printf("Custom-named vec size: %zd\n", MY_VEC_size(&myv));
 
 
+    MY_MAP mym = MY_MAP_create();
+
+    printf("Custom-named map is empty: %d\n", MY_MAP_empty(&mym));
+
+    printf("Custom-named map adding entries.\n");
+    MY_MAP_set(&mym, 1.5, 1);    
+    MY_MAP_set(&mym, 2.5, 2);    
+    MY_MAP_set(&mym, 3.5, 3);    
+    MY_MAP_set(&mym, 5.5, 4);    
+    MY_MAP_set(&mym, 6.5, 2);    
+    MY_MAP_set(&mym, 7.5, 3);    
+    MY_MAP_set(&mym, 8.5, 2);    
+    MY_MAP_set(&mym, 9.5, 1);
+    printf("Custom-named map size: %zd\n", MY_MAP_size(&mym));
+    printf("Custom-named map capacity: %zd\n", mym.capacity);
+
+    for (size_t i = 0; i < mym.capacity; ++i) {
+        if (mym.entries[i].active) {
+            printf("Custom-named map %f = %d\n", mym.entries[i].key, MY_MAP_get(&mym, mym.entries[i].key));
+        }
+    }
 } 
