@@ -75,6 +75,7 @@
         "vertex-array.h": "c",
         "vector.h": "c",
         "str-map.h": "c",
-        "macros.h": "c"
+        "macros.h": "c",
+        "guard.h": "c"
     }
 }
