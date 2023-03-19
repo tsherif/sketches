@@ -1,3 +1,5 @@
+#ifndef IMPLEMENTATION_ONLY
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -32,7 +34,9 @@ size_t METHOD(_size)(CONTAINER* h);
 bool METHOD(_empty)(CONTAINER* h);
 void METHOD(_destroy)(CONTAINER* h);
 
-#ifdef IMPLEMENTATION
+#endif
+
+#if defined(IMPLEMENTATION) || defined(IMPLEMENTATION_ONLY)
 
 #include <malloc.h>
 #include <string.h>

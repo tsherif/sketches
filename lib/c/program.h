@@ -2,11 +2,14 @@
 #define PROGRAM_H_
 
 #include "../../lib/c/simple-opengl-loader.h"
-#include "glint-map.h"
+
+#define CONTAINER Program_UniformMap
+#define TYPE GLint
+#include "../../lib/c/str-map.h"
 
 typedef struct {
     GLuint handle;
-    StrMap_GLint uniformLocations;
+    Program_UniformMap uniformLocations;
 } Program;
 
 typedef struct {

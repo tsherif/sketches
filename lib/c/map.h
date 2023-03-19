@@ -1,14 +1,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
+#ifndef IMPLEMENTATION_ONLY
 
-#define CONTAINER_PREFIX Map_
 #include "macros.h"
 
 #ifndef CONTAINER
 #define CONTAINER CONCAT(CONCAT(CONCAT(Map_, KEY_TYPE), _), TYPE)
 #endif
-
 
 typedef struct {
     KEY_TYPE key;
@@ -31,7 +30,10 @@ size_t METHOD(_size)(CONTAINER* h);
 bool METHOD(_empty)(CONTAINER* h);
 void METHOD(_destroy)(CONTAINER* h);
 
-#ifdef IMPLEMENTATION
+#endif
+
+
+#if defined(IMPLEMENTATION) || defined(IMPLEMENTATION_ONLY)
 
 #include <malloc.h>
 #include <string.h>

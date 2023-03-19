@@ -1,12 +1,17 @@
 #include "program.h"
 #include "../../lib/c/gl-utils.h"
 
+#define CONTAINER Program_UniformMap
+#define TYPE GLint
+#define IMPLEMENTATION_ONLY
+#include "../../lib/c/str-map.h"
+
 static GLint getLocation(Program* program, const char* name) {
-    if (!StrMap_GLint_has(&program->uniformLocations, name)) {
-        StrMap_GLint_set(&program->uniformLocations, name, glGetUniformLocation(program->handle, name));
+    if (!Program_UniformMap_has(&program->uniformLocations, name)) {
+        Program_UniformMap_set(&program->uniformLocations, name, glGetUniformLocation(program->handle, name));
     }
 
-    return StrMap_GLint_get(&program->uniformLocations, name);
+    return Program_UniformMap_get(&program->uniformLocations, name);
 }
 
 Program Program_create(Program_CreateOptions* options) {
@@ -16,7 +21,7 @@ Program Program_create(Program_CreateOptions* options) {
             options->fsSource,
             options->logFn
         ),
-        .uniformLocations = StrMap_GLint_create()
+        .uniformLocations = Program_UniformMap_create()
     };
 }
 
