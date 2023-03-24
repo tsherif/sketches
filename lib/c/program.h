@@ -25,7 +25,7 @@ typedef struct {
 } Program_CreateOptions;
 
 Program Program_create(Program_CreateOptions* options);
-void Program_setVecUniform(Program* program, const char* name, const GLfloat* value);
+void Program_setVecUniform(Program* program, const char* name, const void* value);
 void Program_setIntUniform(Program* program, const char* name, GLint value);
 void Program_bind(Program* program);
 

@@ -31,7 +31,7 @@ Program Program_create(Program_CreateOptions* options) {
     return program;
 }
 
-void Program_setVecUniform(Program* program, const char* name, const GLfloat* value) {
+void Program_setVecUniform(Program* program, const char* name, const void* value) {
     if (Program_UniformMap_has(&program->uniformData, name)) {
         Program_bind(program);
         Program_UniformData data = Program_UniformMap_get(&program->uniformData, name);
@@ -40,6 +40,15 @@ void Program_setVecUniform(Program* program, const char* name, const GLfloat* va
             case GL_FLOAT_VEC2: glUniform2fv(data.location, 1, value); break;
             case GL_FLOAT_VEC3: glUniform3fv(data.location, 1, value); break;
             case GL_FLOAT_VEC4: glUniform4fv(data.location, 1, value); break;
+            case GL_BOOL_VEC2:  // Fallthrough
+            case GL_INT_VEC2: glUniform2iv(data.location, 1, value); break;
+            case GL_BOOL_VEC3:  // Fallthrough
+            case GL_INT_VEC3: glUniform3iv(data.location, 1, value); break;
+            case GL_BOOL_VEC4:  // Fallthrough
+            case GL_INT_VEC4: glUniform4iv(data.location, 1, value); break;
+            case GL_UNSIGNED_INT_VEC2: glUniform2uiv(data.location, 1, value); break;
+            case GL_UNSIGNED_INT_VEC3: glUniform3uiv(data.location, 1, value); break;
+            case GL_UNSIGNED_INT_VEC4: glUniform4uiv(data.location, 1, value); break;
             case GL_FLOAT_MAT2: glUniformMatrix2fv(data.location, 1, GL_FALSE, value); break;
             case GL_FLOAT_MAT3: glUniformMatrix3fv(data.location, 1, GL_FALSE, value); break;
             case GL_FLOAT_MAT4: glUniformMatrix4fv(data.location, 1, GL_FALSE, value); break;
