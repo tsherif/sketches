@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "defines": [
+                "SOGL_MINOR_VERSION=4",
+                "SOGL_MAJOR_VERSION=6",
+                "SPACE_SHOOTER_DEBUG"
+            ]
+        }
+    ],
+    "version": 4
+}
