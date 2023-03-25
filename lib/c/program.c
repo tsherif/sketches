@@ -51,6 +51,7 @@ Program Program_create(Program_CreateOptions* options) {
             case GL_SAMPLER_BUFFER: // Fallthrough
             case GL_SAMPLER_2D_RECT: // Fallthrough
             case GL_SAMPLER_2D_RECT_SHADOW: // Fallthrough
+#if SOGL_TEST_VERSION(4, 2)
             case GL_INT_SAMPLER_1D: // Fallthrough
             case GL_INT_SAMPLER_2D: // Fallthrough
             case GL_INT_SAMPLER_3D: // Fallthrough
@@ -100,7 +101,9 @@ Program Program_create(Program_CreateOptions* options) {
             case GL_UNSIGNED_INT_IMAGE_1D_ARRAY: // Fallthrough
             case GL_UNSIGNED_INT_IMAGE_2D_ARRAY: // Fallthrough
             case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE: // Fallthrough
-            case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY: {
+            case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY: 
+#endif
+            {
                 GLint nextUnit = (GLint) Program_SamplerMap_size(&program.samplers);
                 Program_SamplerMap_set(&program.samplers, name, nextUnit);
                 glUniform1i(data.location, nextUnit);
