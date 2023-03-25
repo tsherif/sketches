@@ -13,9 +13,14 @@ typedef struct {
 #define TYPE Program_UniformData
 #include "../../lib/c/str-map.h"
 
+#define CONTAINER Program_SamplerMap
+#define TYPE GLint
+#include "../../lib/c/str-map.h"
+
 typedef struct {
     GLuint handle;
     Program_UniformMap uniformData;
+    Program_SamplerMap samplers;
 } Program;
 
 typedef struct {

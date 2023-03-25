@@ -6,6 +6,11 @@
 #define IMPLEMENTATION_ONLY
 #include "../../lib/c/str-map.h"
 
+#define CONTAINER Program_SamplerMap
+#define TYPE GLint
+#define IMPLEMENTATION_ONLY
+#include "../../lib/c/str-map.h"
+
 Program Program_create(Program_CreateOptions* options) {
     Program program =  {
         .handle = createProgram(
@@ -13,11 +18,13 @@ Program Program_create(Program_CreateOptions* options) {
             options->fsSource,
             options->logFn
         ),
-        .uniformData = Program_UniformMap_create()
+        .uniformData = Program_UniformMap_create(),
+        .samplers = Program_SamplerMap_create()
     };
 
     GLint numUniforms = 0;
 
+    Program_bind(&program);
     glGetProgramiv(program.handle, GL_ACTIVE_UNIFORMS, &numUniforms);
 
     for (GLint i = 0; i < numUniforms; ++i) {
@@ -26,6 +33,79 @@ Program Program_create(Program_CreateOptions* options) {
         glGetActiveUniform(program.handle, i, 256, 0, &data.size, &data.type, name);
         data.location = glGetUniformLocation(program.handle, name);
         Program_UniformMap_set(&program.uniformData, name, data);
+
+        switch (data.type) {
+            case GL_SAMPLER_1D: // Fallthrough
+            case GL_SAMPLER_2D: // Fallthrough
+            case GL_SAMPLER_3D: // Fallthrough
+            case GL_SAMPLER_CUBE: // Fallthrough
+            case GL_SAMPLER_1D_SHADOW: // Fallthrough
+            case GL_SAMPLER_2D_SHADOW: // Fallthrough
+            case GL_SAMPLER_1D_ARRAY: // Fallthrough
+            case GL_SAMPLER_2D_ARRAY: // Fallthrough
+            case GL_SAMPLER_1D_ARRAY_SHADOW: // Fallthrough
+            case GL_SAMPLER_2D_ARRAY_SHADOW: // Fallthrough
+            case GL_SAMPLER_2D_MULTISAMPLE: // Fallthrough
+            case GL_SAMPLER_2D_MULTISAMPLE_ARRAY: // Fallthrough
+            case GL_SAMPLER_CUBE_SHADOW: // Fallthrough
+            case GL_SAMPLER_BUFFER: // Fallthrough
+            case GL_SAMPLER_2D_RECT: // Fallthrough
+            case GL_SAMPLER_2D_RECT_SHADOW: // Fallthrough
+            case GL_INT_SAMPLER_1D: // Fallthrough
+            case GL_INT_SAMPLER_2D: // Fallthrough
+            case GL_INT_SAMPLER_3D: // Fallthrough
+            case GL_INT_SAMPLER_CUBE: // Fallthrough
+            case GL_INT_SAMPLER_1D_ARRAY: // Fallthrough
+            case GL_INT_SAMPLER_2D_ARRAY: // Fallthrough
+            case GL_INT_SAMPLER_2D_MULTISAMPLE: // Fallthrough
+            case GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY: // Fallthrough
+            case GL_INT_SAMPLER_BUFFER: // Fallthrough
+            case GL_INT_SAMPLER_2D_RECT: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_1D: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_2D: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_3D: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_CUBE: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_1D_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_2D_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_BUFFER: // Fallthrough
+            case GL_UNSIGNED_INT_SAMPLER_2D_RECT: // Fallthrough
+            case GL_IMAGE_1D: // Fallthrough
+            case GL_IMAGE_2D: // Fallthrough
+            case GL_IMAGE_3D: // Fallthrough
+            case GL_IMAGE_2D_RECT: // Fallthrough
+            case GL_IMAGE_CUBE: // Fallthrough
+            case GL_IMAGE_BUFFER: // Fallthrough
+            case GL_IMAGE_1D_ARRAY: // Fallthrough
+            case GL_IMAGE_2D_ARRAY: // Fallthrough
+            case GL_IMAGE_2D_MULTISAMPLE: // Fallthrough
+            case GL_IMAGE_2D_MULTISAMPLE_ARRAY: // Fallthrough
+            case GL_INT_IMAGE_1D: // Fallthrough
+            case GL_INT_IMAGE_2D: // Fallthrough
+            case GL_INT_IMAGE_3D: // Fallthrough
+            case GL_INT_IMAGE_2D_RECT: // Fallthrough
+            case GL_INT_IMAGE_CUBE: // Fallthrough
+            case GL_INT_IMAGE_BUFFER: // Fallthrough
+            case GL_INT_IMAGE_1D_ARRAY: // Fallthrough
+            case GL_INT_IMAGE_2D_ARRAY: // Fallthrough
+            case GL_INT_IMAGE_2D_MULTISAMPLE: // Fallthrough
+            case GL_INT_IMAGE_2D_MULTISAMPLE_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_1D: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_2D: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_3D: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_2D_RECT: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_CUBE: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_BUFFER: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_1D_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_2D_ARRAY: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE: // Fallthrough
+            case GL_UNSIGNED_INT_IMAGE_2D_MULTISAMPLE_ARRAY: {
+                GLint nextUnit = (GLint) Program_SamplerMap_size(&program.samplers);
+                Program_SamplerMap_set(&program.samplers, name, nextUnit);
+                glUniform1i(data.location, nextUnit);
+            }
+        }
     }
 
     return program;
