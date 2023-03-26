@@ -375,13 +375,10 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
             glActiveTexture(GL_TEXTURE0 + metallicRoughnessUnit);
             glBindTexture(GL_TEXTURE_2D, metalicRoughnessTexture);
 
-            Program_setVecUniform(&program, "view", &camera.matrix);
-            Program_setVecUniform(&program, "eyePosition", &camera.position);
-            Program_setVecUniform(&program, "world", &object.transform);
-            // Pipeline_draw(&object.pipeline);
-
-            VertexArray_bind(object.pipeline.vertexArray);
-            glDrawElements(GL_TRIANGLES, object.pipeline.vertexArray->numElements, object.pipeline.vertexArray->indexType, NULL);
+            Program_setVecUniform(object.pipeline.program, "view", &camera.matrix);
+            Program_setVecUniform(object.pipeline.program, "eyePosition", &camera.position);
+            Program_setVecUniform(object.pipeline.program, "world", &object.transform);
+            Pipeline_draw(&object.pipeline);
         }
 
         SwapBuffers(deviceContext);            
