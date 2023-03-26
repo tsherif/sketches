@@ -1,7 +1,5 @@
 #version 440
 
-#define NUM_LIGHTS 4
-
 layout(location=0) in vec4 position;
 layout(location=1) in vec3 normal;
 layout(location=2) in vec3 tangent;
@@ -11,10 +9,16 @@ uniform mat4 proj;
 uniform mat4 view;
 uniform mat4 world;
 uniform vec3 eyePosition;
-uniform vec3 lightPositions[NUM_LIGHTS];
+uniform vec3 lightPosition1;
+uniform vec3 lightPosition2;
+uniform vec3 lightPosition3;
+uniform vec3 lightPosition4;
 
 out vec3 vTangentEyeVec;
-out vec3 vTangentLightVecs[NUM_LIGHTS];
+out vec3 vTangentLightVec1;
+out vec3 vTangentLightVec2;
+out vec3 vTangentLightVec3;
+out vec3 vTangentLightVec4;
 out vec2 vUV;
 
 void main() {
@@ -34,11 +38,10 @@ void main() {
     vec3 worldEyeVec = normalize(eyePosition.xyz - worldPosition.xyz);
     vTangentEyeVec = inverseTBN * worldEyeVec;
 
-    for (int i = 0; i < NUM_LIGHTS; ++i) {
-        vec3 lightPosition = lightPositions[i];
-        vec3 worldLightVec = normalize(lightPosition.xyz - worldPosition.xyz);
-        vTangentLightVecs[i] = inverseTBN * worldLightVec;
-    }
+    vTangentLightVec1 = inverseTBN * normalize(lightPosition1.xyz - worldPosition.xyz);
+    vTangentLightVec2 = inverseTBN * normalize(lightPosition2.xyz - worldPosition.xyz);
+    vTangentLightVec3 = inverseTBN * normalize(lightPosition3.xyz - worldPosition.xyz);
+    vTangentLightVec4 = inverseTBN * normalize(lightPosition4.xyz - worldPosition.xyz);
 
     gl_Position = proj * view * worldPosition;
-};
+}

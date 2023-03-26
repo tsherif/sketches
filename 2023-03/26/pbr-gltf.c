@@ -304,10 +304,11 @@ int32_t WINAPI WinMain(HINSTANCE instance, HINSTANCE prevInstance, LPSTR cmdLine
     camera_buildMatrix(&camera);
 
     Program_setVecUniform(&program, "proj", &projMatrix);
-    Program_setVecUniform(&program, "lightPositions[0]", (GLfloat[]) { 5.0f,  10.0f, 5.0f });
-    Program_setVecUniform(&program, "lightPositions[1]", (GLfloat[]) { -5.0f,  10.0f, 5.0f });
-    Program_setVecUniform(&program, "lightPositions[2]", (GLfloat[]) { 5.0f, 10.0f, -5.0f });
-    Program_setVecUniform(&program, "lightPositions[3]", (GLfloat[]) { -5.0f, 10.0f, -5.0f });
+    Program_setVecUniform(&program, "lightPosition1", (GLfloat[]) { 5.0f,  10.0f, 5.0f });
+    Program_setVecUniform(&program, "lightPosition2", (GLfloat[]) { -5.0f,  10.0f, 5.0f });
+    Program_setVecUniform(&program, "lightPosition3", (GLfloat[]) { 5.0f, 10.0f, -5.0f });
+    Program_setVecUniform(&program, "lightPosition4", (GLfloat[]) { -5.0f, 10.0f, -5.0f });
+
 
     ShowWindow(window, showWindow);
     HDC deviceContext = GetDC(window);

@@ -1,7 +1,6 @@
 #version 440
 
 #define PI 3.14159265359
-#define NUM_LIGHTS 4
 #define LIGHT_COLOR vec3(7.0)
 
 uniform sampler2D colorMap;
@@ -9,7 +8,10 @@ uniform sampler2D normalMap;
 uniform sampler2D metallicRoughnessMap;
 
 in vec3 vTangentEyeVec;
-in vec3 vTangentLightVecs[NUM_LIGHTS];
+in vec3 vTangentLightVec1;
+in vec3 vTangentLightVec2;
+in vec3 vTangentLightVec3;
+in vec3 vTangentLightVec4;
 in vec2 vUV;
 
 out vec4 fragColor;
@@ -49,7 +51,24 @@ float geometrySmith(vec3 normal, vec3 viewVec, vec3 lightVec, float roughness)
 
 vec3 fresnelSchlick(float cosTheta, vec3 f0) {
     return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-}  
+}
+
+vec3 lightContribution(vec3 lightVec, vec3 eyeVec, vec3 normal, vec3 materialColor, vec3 f0, float metalness, float roughness) {
+    lightVec = normalize(lightVec);
+    vec3 halfway = normalize(eyeVec + lightVec);
+
+    float ndf = distributionGGX(normal, halfway, roughness);        
+    float g = geometrySmith(normal, eyeVec, lightVec, roughness);      
+    vec3 f = fresnelSchlick(max(dot(halfway, eyeVec), 0.0), f0);       
+    vec3 kS = f;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - metalness;     
+    vec3 numerator = ndf * g * f;
+    float denominator = 4.0 * max(dot(normal, eyeVec), 0.0) * max(dot(normal, lightVec), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;  
+    float nDotL = max(dot(normal, lightVec), 0.0);                
+    return (kD * materialColor / PI + specular) * LIGHT_COLOR * nDotL; 
+}
 
 void main() {
     vec3 materialColor = texture(colorMap, vUV).rgb;
@@ -69,22 +88,10 @@ void main() {
     vec3 ambient = vec3(0.0);
 
     vec3 light = vec3(0.0);
-    for (int i = 0; i < NUM_LIGHTS; ++i) {
-        vec3 lightVec = normalize(vTangentLightVecs[i]);
-        vec3 halfway = normalize(tangentEyeVec + lightVec);
-
-        float ndf = distributionGGX(tangentNormal, halfway, roughness);        
-        float g = geometrySmith(tangentNormal, tangentEyeVec, lightVec, roughness);      
-        vec3 f = fresnelSchlick(max(dot(halfway, tangentEyeVec), 0.0), f0);       
-        vec3 kS = f;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metalness;     
-        vec3 numerator = ndf * g * f;
-        float denominator = 4.0 * max(dot(tangentNormal, tangentEyeVec), 0.0) * max(dot(tangentNormal, lightVec), 0.0) + 0.0001;
-        vec3 specular = numerator / denominator;  
-        float nDotL = max(dot(tangentNormal, lightVec), 0.0);                
-        light += (kD * materialColor / PI + specular) * LIGHT_COLOR * nDotL; 
-    }
+    light += lightContribution(vTangentLightVec1, tangentEyeVec, tangentNormal, materialColor, f0, metalness, roughness);
+    light += lightContribution(vTangentLightVec2, tangentEyeVec, tangentNormal, materialColor, f0, metalness, roughness);
+    light += lightContribution(vTangentLightVec3, tangentEyeVec, tangentNormal, materialColor, f0, metalness, roughness);
+    light += lightContribution(vTangentLightVec4, tangentEyeVec, tangentNormal, materialColor, f0, metalness, roughness);
     
     ambient += 0.01 * materialColor;
     light += ambient;
@@ -92,4 +99,4 @@ void main() {
     fragColor = vec4(light + ambient, 1.0);
     fragColor.rgb = fragColor.rgb / (fragColor.rgb + vec3(1.0));
     fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));
-};
+}
