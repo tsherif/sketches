@@ -19,6 +19,7 @@ CONTAINER METHOD(_create)(void);
 void METHOD(_push)(CONTAINER* v,  TYPE value);
 TYPE METHOD(_pop)(CONTAINER* v);
 TYPE METHOD(_get)(CONTAINER* v, size_t i);
+TYPE* METHOD(_address)(CONTAINER* v, size_t i);
 void METHOD(_set)(CONTAINER* v, size_t i, TYPE value);
 size_t METHOD(_size)(CONTAINER* v);
 bool METHOD(_empty)(CONTAINER* v);
@@ -68,6 +69,10 @@ TYPE METHOD(_pop)(CONTAINER* v) {
 
 TYPE METHOD(_get)(CONTAINER* v, size_t i) {
     return v->data[i];
+}
+
+TYPE* METHOD(_address)(CONTAINER* v, size_t i) {
+    return &v->data[i];
 }
 
 void METHOD(_set)(CONTAINER* v, size_t i, TYPE value) {
