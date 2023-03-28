@@ -1,7 +1,11 @@
 #include "pipeline.h"
+#include "database.h"
+#include "vertex-array.h"
+#include "program.h"
 
-Pipeline Pipeline_create(GLuint prim, VertexArray* v, Program* p)  {
+Pipeline Pipeline_create(Database* db, GLuint prim, size_t v, size_t p) {
     return (Pipeline) {
+        .db = db,
         .vertexArray = v,
         .program = p,
         .primitive = prim
@@ -9,11 +13,14 @@ Pipeline Pipeline_create(GLuint prim, VertexArray* v, Program* p)  {
 }
 
 void Pipeline_draw(Pipeline* pipeline) {
-    glBindVertexArray(pipeline->vertexArray->handle);
-    glUseProgram(pipeline->program->handle);
-    if (pipeline->vertexArray->indexed) {
-        glDrawElements(pipeline->primitive, pipeline->vertexArray->numElements, pipeline->vertexArray->indexType, 0);
+    VertexArray vertexArrayObj = Database_getVertexArray(pipeline->db, pipeline->vertexArray);
+    Program programObj = Database_getProgram(pipeline->db, pipeline->program);
+
+    glBindVertexArray(vertexArrayObj.handle);
+    glUseProgram(programObj.handle);
+    if (vertexArrayObj.indexed) {
+        glDrawElements(pipeline->primitive, vertexArrayObj.numElements, vertexArrayObj.indexType, 0);
     } else {
-        glDrawArrays(pipeline->primitive, 0, pipeline->vertexArray->numElements);
+        glDrawArrays(pipeline->primitive, 0, vertexArrayObj.numElements);
     }
 }
