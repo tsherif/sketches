@@ -15,17 +15,11 @@
 #define IMPLEMENTATION_ONLY
 #include "vector.h"
 
-#define CONTAINER Database_PipelineList
-#define TYPE Pipeline
-#define IMPLEMENTATION_ONLY
-#include "vector.h"
-
 Database Database_create(void) {
     return (Database) {
         .buffers = Database_BufferList_create(),
         .vertexArrays = Database_VertexArrayList_create(),
-        .programs = Database_ProgramList_create(),
-        .pipelines = Database_PipelineList_create(),
+        .programs = Database_ProgramList_create()
     };
 }
 
@@ -47,12 +41,6 @@ size_t Database_addProgram(Database* db, Program program) {
     return handle;
 }
 
-size_t Database_addPipeline(Database* db, Pipeline buffer) {
-    size_t handle = Database_PipelineList_size(&db->pipelines);
-    Database_PipelineList_push(&db->pipelines, buffer);
-    return handle;
-}
-
 Buffer Database_getBuffer(Database* db, size_t handle) {
     return Database_BufferList_get(&db->buffers, handle);
 }
@@ -63,8 +51,4 @@ VertexArray Database_getVertexArray(Database* db, size_t handle) {
 
 Program Database_getProgram(Database* db, size_t handle) {
     return Database_ProgramList_get(&db->programs, handle);
-}
-
-Pipeline Database_getPipeline(Database* db, size_t handle) {
-    return Database_PipelineList_get(&db->pipelines, handle);
 }

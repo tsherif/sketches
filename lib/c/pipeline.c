@@ -3,7 +3,7 @@
 #include "vertex-array.h"
 #include "program.h"
 
-Pipeline Pipeline_create(Database* db, GLuint prim, size_t v, size_t p) {
+Pipeline Pipeline_create(GLuint prim, size_t v, size_t p, Database* db) {
     return (Pipeline) {
         .db = db,
         .vertexArray = v,

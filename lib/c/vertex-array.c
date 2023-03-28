@@ -1,5 +1,4 @@
 #include "vertex-array.h"
-#include "database.h"
 #include "buffer.h"
 
 static uint32_t getElementSize(GLuint type) {
@@ -19,36 +18,31 @@ static uint32_t getElementSize(GLuint type) {
     return 0;
 }
 
-VertexArray VertexArray_create(Database* db) {
-    VertexArray vertexArray = { .db = db };
+VertexArray VertexArray_create(void) {
+    VertexArray vertexArray = { 0 };
     glGenVertexArrays(1, &vertexArray.handle);
 
     return vertexArray;
 }
 
-void VertexArray_vertexBuffer(VertexArray* vertexArray, VertexArray_VertexBufferOptions* options) {
-    Buffer bufferObject = Database_getBuffer(vertexArray->db, options->buffer);
-    
+void VertexArray_vertexBuffer(VertexArray* vertexArray, VertexArray_VertexBufferOptions* options) {    
     VertexArray_bind(vertexArray);
-    Buffer_bind(&bufferObject);
+    Buffer_bind(options->buffer);
     glVertexAttribPointer(options->index, options->vecSize, options->type, options->normalized, 0, NULL);
     glEnableVertexAttribArray(options->index);
     VertexArray_unbind();
 
     if (!vertexArray->indexed) {
-        vertexArray->numElements = bufferObject.size / (options->vecSize * getElementSize(options->type));
+        vertexArray->numElements = options->buffer->size / (options->vecSize * getElementSize(options->type));
     }
 }
 
-void VertexArray_indexBuffer(VertexArray* vertexArray, size_t buffer, GLuint type) {
-    Buffer bufferObject = Database_getBuffer(vertexArray->db, buffer);
-
-
+void VertexArray_indexBuffer(VertexArray* vertexArray, Buffer* buffer, GLuint type) {
     VertexArray_bind(vertexArray);
-    Buffer_bind(&bufferObject);
+    Buffer_bind(buffer);
     VertexArray_unbind();
 
-    vertexArray->numElements = bufferObject.size / getElementSize(type);
+    vertexArray->numElements = buffer->size / getElementSize(type);
     vertexArray->indexType = type;
     vertexArray->indexed = true;
 }

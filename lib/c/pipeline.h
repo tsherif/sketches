@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 #include "../../lib/c/simple-opengl-loader.h"
-typedef struct Database Database;
+#include "database.h"
 
 typedef struct {
     Database* db;
@@ -12,7 +12,7 @@ typedef struct {
     GLuint primitive;
 } Pipeline;
 
-Pipeline Pipeline_create(Database* db, GLuint prim, size_t v, size_t p);
+Pipeline Pipeline_create(GLuint prim, size_t v, size_t p, Database* db);
 void Pipeline_draw(Pipeline* pipeline);
 
 #endif
