@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext("2d");
+
+        let x = canvas.width / 2;
+        let y = canvas.height / 2;
+        let vx = 1;
+        let vy = 1;
+        const r = 10;
+
+        requestAnimationFrame(function loop() {
+            requestAnimationFrame(loop);
+
+            x += vx;
+            y += vy;
+
+            if (x < r) {
+                x = r;
+                vx = -vx;
+            }
+
+            if (x > canvas.width - r) {
+                x = canvas.width - r;
+                vx = -vx;
+            }
+
+            if (y < 0) {
+                y = r;
+                vy = -vy;
+            }
+
+            if (y > canvas.height - r) {
+                y = canvas.height - r;
+                vy = -vy;
+            }
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "red";
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    </script>
+</body>
+</html>
