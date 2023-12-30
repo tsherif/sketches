@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>December 30, 2023 Sketch</title>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const ctx = canvas.getContext("2d");
+
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            r: 20,
+            vx: Math.random() * 20 - 10,
+            vy: Math.random() * 20 - 10,
+            color: "blue"
+        };
+        requestAnimationFrame(function loop() {
+            requestAnimationFrame(loop);
+
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+            ball.x = Math.max(ball.r, Math.min(ball.x + ball.vx, canvas.width - ball.r));
+            ball.y = Math.max(ball.r, Math.min(ball.y + ball.vy, canvas.height - ball.r));
+            
+            if (ball.x === ball.r || ball.x === canvas.width - ball.r) {
+                ball.vx *= -1;
+            }
+
+            if (ball.y === ball.r || ball.y === canvas.height - ball.r) {
+                ball.vy *= -1;
+            }
+
+            ctx.fillStyle = ball.color;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    </script>
+</body>
+</html>
