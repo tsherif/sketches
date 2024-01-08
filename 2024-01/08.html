@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    const device = await adapter?.requestDevice();
+    if (!device) {
+        console.error("No WebGPU!");
+        return;
+    }
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("webgpu");
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const module = device.createShaderModule({
+        label: 'first triangle shaders',
+        code: `
+            @vertex fn vs(
+                @builtin(vertex_index) vertexIndex: u32
+            ) -> @builtin(position) vec4f {
+                let pos = array(
+                    vec2f(0.0, 0.5),
+                    vec2f(-0.5, -0.5),
+                    vec2f(0.5, -0.5)
+                );
+
+                return vec4f(pos[vertexIndex], 0.0, 1.0);
+            }
+
+            @fragment fn fs() -> @location(0) vec4f {
+                return vec4f(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    });
+
+    const pipeline = device.createRenderPipeline({
+        label: 'first triangle pipeline',
+        layout: 'auto',
+        vertex: {
+            module,
+            entryPoint: 'vs'
+        },
+        fragment: {
+            module,
+            entryPoint: 'fs',
+            targets: [{ format: presentationFormat }]
+        }
+    });
+
+    const renderPassDescriptor = {
+        label: 'first triangle render pass',
+        colorAttachments: [
+            {
+                clearValue: [0, 0, 0, 1],
+                loadOp: 'clear',
+                storeOp: 'store',
+                view: context.getCurrentTexture().createView()
+            }
+        ], 
+    };
+
+    const encoder = device.createCommandEncoder({ label: 'first triangle encoder' });
+
+    const pass = encoder.beginRenderPass(renderPassDescriptor);
+    pass.setPipeline(pipeline);
+    pass.draw(3);
+    pass.end();
+
+    const commandBuffer = encoder.finish();
+    device.queue.submit([commandBuffer]);
+
+})();
+</script>
+</body>
+</html>
