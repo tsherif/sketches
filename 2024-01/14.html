@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    const device = await adapter?.requestDevice();
+    if (!device) {
+        console.error("No WebGPU!");
+        return;
+    }
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("webgpu");
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const module = device.createShaderModule({
+        label: 'uniform triangle shaders',
+        code: `
+            struct StaticUniforms {
+                color: vec4f,
+                offset: vec2f
+            };
+
+            struct DynamicUniforms {
+                scale: vec2f,
+            };
+
+            @group(0) @binding(0) var<uniform> staticUniforms: StaticUniforms;
+            @group(0) @binding(1) var<uniform> dynamicUniforms: DynamicUniforms;
+
+            @vertex fn vs(
+                @builtin(vertex_index) vertexIndex: u32
+            ) -> @builtin(position) vec4f {
+                let pos = array(
+                    vec2f(0.0, 0.5),
+                    vec2f(-0.5, -0.5),
+                    vec2f(0.5, -0.5)
+                );
+
+                return vec4f(pos[vertexIndex] * dynamicUniforms.scale + staticUniforms.offset, 0.0, 1.0);
+            }
+
+            @fragment fn fs() -> @location(0) vec4f {
+                return staticUniforms.color;
+            }
+        `
+    });
+
+    const pipeline = device.createRenderPipeline({
+        label: 'uniform triangle pipeline',
+        layout: 'auto',
+        vertex: {
+            module,
+            entryPoint: 'vs'
+        },
+        fragment: {
+            module,
+            entryPoint: 'fs',
+            targets: [{ format: presentationFormat }]
+        }
+    });
+
+    const staticUniformBufferSize = 
+        4 * 4 +
+        2 * 4 + 
+        2 * 4; // Pad to vec4
+
+    const colorOffset = 0;
+    const offsetOffset = 4;
+
+    const dynamicUniformBufferSize =
+        2 * 4;
+
+    const scaleOffset = 0;
+
+    const objects = new Array(100).fill(null).map(() => {
+        const staticUniformBuffer = device.createBuffer({
+            label: 'static uniform buffer',
+            size: staticUniformBufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        const staticUniformData = new Float32Array(staticUniformBufferSize / 4);
+    
+        staticUniformData.set([Math.random(), Math.random(), Math.random(), 1], colorOffset);
+        staticUniformData.set([Math.random() * 1.8 - 0.9, Math.random() * 1.8 - 0.9], offsetOffset);
+
+        device.queue.writeBuffer(staticUniformBuffer, 0, staticUniformData);
+
+        const dynamicUniformBuffer = device.createBuffer({
+            label: 'dynamic uniform buffer',
+            size: dynamicUniformBufferSize,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        const dynamicUniformData = new Float32Array(dynamicUniformBufferSize / 4);
+    
+
+        const bindGroup = device.createBindGroup({
+            label: 'uniform bind group',
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer: staticUniformBuffer }},
+                { binding: 1, resource: { buffer: dynamicUniformBuffer }}
+            ]
+        });
+
+        return {
+            dynamicUniformBuffer,
+            dynamicUniformData,
+            bindGroup,
+            scale: Math.random() * 0.3 + 0.2
+        }
+    })
+
+
+    const renderPassDescriptor = {
+        label: 'uniform triangle render pass',
+        colorAttachments: [
+            {
+                clearValue: [0, 0, 0, 1],
+                loadOp: 'clear',
+                storeOp: 'store',
+                view: context.getCurrentTexture().createView()
+            }
+        ], 
+    };
+
+    const encoder = device.createCommandEncoder({ label: 'uniform triangle encoder' });
+    const pass = encoder.beginRenderPass(renderPassDescriptor);
+    pass.setPipeline(pipeline);
+
+    const aspect = canvas.width / canvas.height;
+
+
+    for (const { bindGroup, dynamicUniformBuffer, dynamicUniformData, scale} of objects) {
+        dynamicUniformData.set([scale / aspect, scale], scaleOffset);
+        device.queue.writeBuffer(dynamicUniformBuffer, 0, dynamicUniformData);
+        pass.setBindGroup(0, bindGroup);
+        pass.draw(3);
+    }
+    
+    pass.end();
+
+    const commandBuffer = encoder.finish();
+    device.queue.submit([commandBuffer]);
+
+})();
+</script>
+</body>
+</html>
