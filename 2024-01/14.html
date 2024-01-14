@@ -14,7 +14,9 @@
 </head>
 <body>
 <canvas id="canvas"></canvas>
-<script>
+<script type="module">
+import { randomRange } from "../lib/js/utils.js";
+
 (async () => {
     const adapter = await navigator.gpu?.requestAdapter();
     const device = await adapter?.requestDevice();
@@ -101,8 +103,8 @@
         });
         const staticUniformData = new Float32Array(staticUniformBufferSize / 4);
     
-        staticUniformData.set([Math.random(), Math.random(), Math.random(), 1], colorOffset);
-        staticUniformData.set([Math.random() * 1.8 - 0.9, Math.random() * 1.8 - 0.9], offsetOffset);
+        staticUniformData.set([randomRange(0, 1), randomRange(0, 1), randomRange(0, 1), 1], colorOffset);
+        staticUniformData.set([randomRange(-0.9, 0.9), randomRange(-0.9, 0.9)], offsetOffset);
 
         device.queue.writeBuffer(staticUniformBuffer, 0, staticUniformData);
 
@@ -127,7 +129,7 @@
             dynamicUniformBuffer,
             dynamicUniformData,
             bindGroup,
-            scale: Math.random() * 0.3 + 0.2
+            scale: randomRange(0.2, 0.5)
         }
     })
 
