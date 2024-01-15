@@ -84,7 +84,7 @@ import { randomRange } from "../lib/js/utils.js";
             entryPoint: 'vs',
             buffers: [
                 {
-                    arrayStride: 5 * 4,
+                    arrayStride: 3 * 4,
                     attributes: [
                         // position
                         {
@@ -92,10 +92,11 @@ import { randomRange } from "../lib/js/utils.js";
                             offset: 0,
                             format: 'float32x2'
                         },
+                        // perVertexColor
                         {
                             shaderLocation: 4,
                             offset: 2 * 4,
-                            format: 'float32x3'
+                            format: 'unorm8x4'
                         }
                     ]
                 },
@@ -229,15 +230,20 @@ import { randomRange } from "../lib/js/utils.js";
         endAngle = 2 * Math.PI
     }) {
         const numVertices = numSubdivisions * 2 * 3;
-        const vertexData = new Float32Array(numVertices * (2 + 3));
+        const vertexData = new Float32Array(numVertices * (2 + 1));
+        const colorData = new Uint8Array(vertexData.buffer);
 
         let offset = 0;
+        let colorOffset = 8;
         function addVertex(x, y, r, g, b) {
             vertexData[offset++] = x;
             vertexData[offset++] = y;
-            vertexData[offset++] = r;
-            vertexData[offset++] = g;
-            vertexData[offset++] = b;
+            ++offset;
+
+            colorData[colorOffset++] = r;
+            colorData[colorOffset++] = g;
+            colorData[colorOffset++] = b;
+            colorOffset += 9;
         }
 
         for (let i = 0; i < numSubdivisions; ++i) {
@@ -249,8 +255,8 @@ import { randomRange } from "../lib/js/utils.js";
             const c2 = Math.cos(angle2);
             const s2 = Math.sin(angle2);
 
-            const innerColor = [1, 1, 1];
-            const outerColor = [0.1, 0.1, 0.1];
+            const innerColor = [255, 255, 255];
+            const outerColor = [25, 25, 25];
 
             // triangle 1
             addVertex(c1 * radius, s1 * radius, ...outerColor);
