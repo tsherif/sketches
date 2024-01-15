@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+import { randomRange } from "../lib/js/utils.js";
+
+(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    const device = await adapter?.requestDevice();
+    if (!device) {
+        console.error("No WebGPU!");
+        return;
+    }
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("webgpu");
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const module = device.createShaderModule({
+        label: 'uniform triangle shaders',
+        code: `
+            struct StaticUniforms {
+                color: vec4f,
+                offset: vec2f
+            };
+
+            struct DynamicUniforms {
+                scale: vec2f,
+            };
+
+            struct VSOutput {
+                @builtin(position) position: vec4f,
+                @location(0) color: vec4f
+            };
+
+            @group(0) @binding(0) var<storage> staticUniformStorage: array<StaticUniforms>;
+            @group(0) @binding(1) var<storage> dynamicUniformStorage: array<DynamicUniforms>;
+
+            @vertex fn vs(
+                @builtin(vertex_index) vertexIndex: u32,
+                @builtin(instance_index) instanceIndex: u32
+            ) -> VSOutput {
+                let pos = array(
+                    vec2f(0.0, 0.5),
+                    vec2f(-0.5, -0.5),
+                    vec2f(0.5, -0.5)
+                );
+
+                let staticUniforms = staticUniformStorage[instanceIndex];
+                let dynamicUniforms = dynamicUniformStorage[instanceIndex];
+
+                var vsOut: VSOutput;
+                vsOut.position = vec4f(pos[vertexIndex] * dynamicUniforms.scale + staticUniforms.offset, 0.0, 1.0);
+                vsOut.color = staticUniforms.color;
+
+                return vsOut;
+            }
+
+            @fragment fn fs(vsOut: VSOutput) -> @location(0) vec4f {
+                return vsOut.color;
+            }
+        `
+    });
+
+    const pipeline = device.createRenderPipeline({
+        label: 'uniform triangle pipeline',
+        layout: 'auto',
+        vertex: {
+            module,
+            entryPoint: 'vs'
+        },
+        fragment: {
+            module,
+            entryPoint: 'fs',
+            targets: [{ format: presentationFormat }]
+        }
+    });
+
+    const numObjects = 100;
+
+    const staticUnitSize = 
+        4 * 4 +
+        2 * 4 + 
+        2 * 4; // Pad to vec4
+    const staticStorageBufferSize = numObjects * staticUnitSize;
+    const colorOffset = 0;
+    const offsetOffset = 4;
+
+    const dynamicUnitSize =
+        2 * 4;
+    const dynamicStorageBufferSize = numObjects * dynamicUnitSize;
+    const scaleOffset = 0;
+
+    const staticUniformStorageBuffer = device.createBuffer({
+        label: 'static uniform storage buffer',
+        size: staticStorageBufferSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const staticUniformStorageData = new Float32Array(staticStorageBufferSize / 4);
+
+    const dynamicUniformStorageBuffer = device.createBuffer({
+        label: 'dynamic uniform storage buffer',
+        size: dynamicStorageBufferSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+    const dynamicUniformStorageData = new Float32Array(dynamicStorageBufferSize / 4);
+
+    const bindGroup = device.createBindGroup({
+        label: 'uniform storage bind group',
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+            { binding: 0, resource: { buffer: staticUniformStorageBuffer }},
+            { binding: 1, resource: { buffer: dynamicUniformStorageBuffer }}
+        ]
+    });
+
+    const objects = new Array(numObjects).fill(null).map((_, i) => {
+        const baseOffset = i * staticUnitSize / 4;
+        staticUniformStorageData.set([randomRange(0, 1), randomRange(0, 1), randomRange(0, 1), 1], baseOffset + colorOffset);
+        staticUniformStorageData.set([randomRange(-0.9, 0.9), randomRange(-0.9, 0.9)], baseOffset + offsetOffset);       
+
+        return {
+            scale: randomRange(0.2, 0.5)
+        }
+    });
+    device.queue.writeBuffer(staticUniformStorageBuffer, 0, staticUniformStorageData);
+
+    const renderPassDescriptor = {
+        label: 'uniform triangle render pass',
+        colorAttachments: [
+            {
+                clearValue: [0, 0, 0, 1],
+                loadOp: 'clear',
+                storeOp: 'store',
+                view: context.getCurrentTexture().createView()
+            }
+        ], 
+    };
+
+    const encoder = device.createCommandEncoder({ label: 'uniform triangle encoder' });
+    const pass = encoder.beginRenderPass(renderPassDescriptor);
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+
+    const aspect = canvas.width / canvas.height;
+    objects.forEach(({ scale }, i) => {
+        const baseOffset = i * dynamicUnitSize / 4;
+        dynamicUniformStorageData.set([scale / aspect, scale], baseOffset + scaleOffset);
+    });
+    device.queue.writeBuffer(dynamicUniformStorageBuffer, 0, dynamicUniformStorageData);
+
+    pass.draw(3, numObjects);    
+    pass.end();
+
+    const commandBuffer = encoder.finish();
+    device.queue.submit([commandBuffer]);
+
+})();
+</script>
+</body>
+</html>
