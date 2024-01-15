@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGPU Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+import { randomRange } from "../lib/js/utils.js";
+
+(async () => {
+    const adapter = await navigator.gpu?.requestAdapter();
+    const device = await adapter?.requestDevice();
+    if (!device) {
+        console.error("No WebGPU!");
+        return;
+    }
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const context = canvas.getContext("webgpu");
+    const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const module = device.createShaderModule({
+        label: 'uniform triangle shaders',
+        code: `
+            struct StaticUniforms {
+                color: vec4f,
+                offset: vec2f
+            };
+
+            struct DynamicUniforms {
+                scale: vec2f,
+            };
+
+            struct Vertex {
+                @location(0) position: vec2f,
+                @location(1) color: vec4f,
+                @location(2) offset: vec2f,
+                @location(3) scale: vec2f
+            }
+
+            struct VSOutput {
+                @builtin(position) position: vec4f,
+                @location(0) color: vec4f
+            };
+
+            @vertex fn vs(
+                vertex: Vertex,
+            ) -> VSOutput {
+                var vsOut: VSOutput;
+                vsOut.position = vec4f(vertex.position * vertex.scale + vertex.offset, 0.0, 1.0);
+                vsOut.color = vertex.color;
+
+                return vsOut;
+            }
+
+            @fragment fn fs(vsOut: VSOutput) -> @location(0) vec4f {
+                return vsOut.color;
+            }
+        `
+    });
+
+    const pipeline = device.createRenderPipeline({
+        label: 'uniform triangle pipeline',
+        layout: 'auto',
+        vertex: {
+            module,
+            entryPoint: 'vs',
+            buffers: [
+                {
+                    arrayStride: 2 * 4,
+                    attributes: [
+                        // position
+                        {
+                            shaderLocation: 0,
+                            offset: 0,
+                            format: 'float32x2'
+                        }
+                    ]
+                },
+                {
+                    arrayStride: 6 * 4,
+                    stepMode: 'instance',
+                    attributes: [
+                        // color
+                        {
+                            shaderLocation: 1,
+                            offset: 0,
+                            format: 'float32x4'
+                        },
+                        // offset
+                        {
+                            shaderLocation: 2,
+                            offset: 4 * 4,
+                            format: 'float32x2'
+                        }
+                    ]
+                },
+                {
+                    arrayStride: 2 * 4,
+                    stepMode: 'instance',
+                    attributes: [
+                        // scale
+                        {
+                            shaderLocation: 3,
+                            offset: 0,
+                            format: 'float32x2'
+                        }
+                    ]
+                }
+            ]
+        },
+        fragment: {
+            module,
+            entryPoint: 'fs',
+            targets: [{ format: presentationFormat }]
+        }
+    });
+
+    const numObjects = 100;
+
+    const staticUnitSize = 
+        4 * 4 +  // Color
+        2 * 4;   // Offset
+        
+    const staticVertexBufferSize = numObjects * staticUnitSize;
+    const colorOffset = 0;
+    const offsetOffset = 4;
+
+    const dynamicUnitSize =
+        2 * 4;    // Sca;e
+    const dynamicVertexBufferSize = numObjects * dynamicUnitSize;
+    const scaleOffset = 0;
+
+    const staticVertexBuffer = device.createBuffer({
+        label: 'static uniform storage buffer',
+        size: staticVertexBufferSize,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    });
+    const staticUniformVertexData = new Float32Array(staticVertexBufferSize / 4);
+
+    const dynamicVertexBuffer = device.createBuffer({
+        label: 'dynamic uniform storage buffer',
+        size: dynamicVertexBufferSize,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    });
+    const dynamicUniformVertexData = new Float32Array(dynamicVertexBufferSize / 4);
+
+
+    const circleData = createCircleVertices({ innerRadius: 0.25, radius: 0.5 })
+    const vertexBuffer = device.createBuffer({
+        label: 'vertex buffer',
+        size: circleData.vertexData.byteLength,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+    });
+    device.queue.writeBuffer(vertexBuffer, 0, circleData.vertexData);
+
+    const objects = new Array(numObjects).fill(null).map((_, i) => {
+        const baseOffset = i * staticUnitSize / 4;
+        staticUniformVertexData.set([randomRange(0, 1), randomRange(0, 1), randomRange(0, 1), 1], baseOffset + colorOffset);
+        staticUniformVertexData.set([randomRange(-0.9, 0.9), randomRange(-0.9, 0.9)], baseOffset + offsetOffset);       
+
+        return {
+            scale: randomRange(0.2, 0.5)
+        }
+    });
+    device.queue.writeBuffer(staticVertexBuffer, 0, staticUniformVertexData);
+
+    const renderPassDescriptor = {
+        label: 'uniform triangle render pass',
+        colorAttachments: [
+            {
+                clearValue: [0, 0, 0, 1],
+                loadOp: 'clear',
+                storeOp: 'store',
+                view: context.getCurrentTexture().createView()
+            }
+        ], 
+    };
+
+    const encoder = device.createCommandEncoder({ label: 'uniform triangle encoder' });
+    const pass = encoder.beginRenderPass(renderPassDescriptor);
+    pass.setPipeline(pipeline);
+    pass.setVertexBuffer(0, vertexBuffer);
+    pass.setVertexBuffer(1, staticVertexBuffer);
+    pass.setVertexBuffer(2, dynamicVertexBuffer);
+
+    const aspect = canvas.width / canvas.height;
+    objects.forEach(({ scale }, i) => {
+        const baseOffset = i * dynamicUnitSize / 4;
+        dynamicUniformVertexData.set([scale / aspect, scale], baseOffset + scaleOffset);
+    });
+    device.queue.writeBuffer(dynamicVertexBuffer, 0, dynamicUniformVertexData);
+
+    pass.draw(circleData.numVertices, numObjects);    
+    pass.end();
+
+    const commandBuffer = encoder.finish();
+    device.queue.submit([commandBuffer]);
+
+
+    function createCircleVertices({
+        radius = 1,
+        numSubdivisions = 24,
+        innerRadius = 0,
+        startAngle = 0,
+        endAngle = 2 * Math.PI
+    }) {
+        const numVertices = numSubdivisions * 2 * 3;
+        const vertexData = new Float32Array(numVertices * 2);
+
+        let offset = 0;
+        function addVertex(x, y) {
+            vertexData[offset++] = x;
+            vertexData[offset++] = y;
+        }
+
+        for (let i = 0; i < numSubdivisions; ++i) {
+            const angle1 = startAngle +  i      * (endAngle - startAngle) / numSubdivisions;
+            const angle2 = startAngle + (i + 1) * (endAngle - startAngle) / numSubdivisions;
+        
+            const c1 = Math.cos(angle1);
+            const s1 = Math.sin(angle1);
+            const c2 = Math.cos(angle2);
+            const s2 = Math.sin(angle2);
+
+            // triangle 1
+            addVertex(c1 * radius, s1 * radius);
+            addVertex(c2 * radius, s2 * radius);
+            addVertex(c1 * innerRadius, s1 * innerRadius);
+
+            // triangle 2
+            addVertex(c1 * innerRadius, s1 * innerRadius);
+            addVertex(c2 * radius, s2 * radius);
+            addVertex(c2 * innerRadius, s2 * innerRadius);
+        }
+
+        return {
+            vertexData,
+            numVertices
+        };
+    }
+
+})();
+</script>
+</body>
+</html>
