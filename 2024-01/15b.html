@@ -36,7 +36,7 @@ import { randomRange } from "../lib/js/utils.js";
     });
 
     const module = device.createShaderModule({
-        label: 'uniform triangle shaders',
+        label: 'vertex triangle shaders',
         code: `
             struct StaticUniforms {
                 color: vec4f,
@@ -51,7 +51,8 @@ import { randomRange } from "../lib/js/utils.js";
                 @location(0) position: vec2f,
                 @location(1) color: vec4f,
                 @location(2) offset: vec2f,
-                @location(3) scale: vec2f
+                @location(3) scale: vec2f,
+                @location(4) perVertexColor: vec3f,
             }
 
             struct VSOutput {
@@ -64,7 +65,7 @@ import { randomRange } from "../lib/js/utils.js";
             ) -> VSOutput {
                 var vsOut: VSOutput;
                 vsOut.position = vec4f(vertex.position * vertex.scale + vertex.offset, 0.0, 1.0);
-                vsOut.color = vertex.color;
+                vsOut.color = vertex.color * vec4f(vertex.perVertexColor, 1.0);
 
                 return vsOut;
             }
@@ -76,20 +77,25 @@ import { randomRange } from "../lib/js/utils.js";
     });
 
     const pipeline = device.createRenderPipeline({
-        label: 'uniform triangle pipeline',
+        label: 'vertex triangle pipeline',
         layout: 'auto',
         vertex: {
             module,
             entryPoint: 'vs',
             buffers: [
                 {
-                    arrayStride: 2 * 4,
+                    arrayStride: 5 * 4,
                     attributes: [
                         // position
                         {
                             shaderLocation: 0,
                             offset: 0,
                             format: 'float32x2'
+                        },
+                        {
+                            shaderLocation: 4,
+                            offset: 2 * 4,
+                            format: 'float32x3'
                         }
                     ]
                 },
@@ -181,20 +187,21 @@ import { randomRange } from "../lib/js/utils.js";
     });
     device.queue.writeBuffer(staticVertexBuffer, 0, staticUniformVertexData);
 
-    const renderPassDescriptor = {
-        label: 'uniform triangle render pass',
+
+    const encoder = device.createCommandEncoder({ label: 'vertex triangle encoder' });
+    
+    const pass = encoder.beginRenderPass({
+        label: 'vertex triangle render pass',
         colorAttachments: [
             {
-                clearValue: [0, 0, 0, 1],
+                clearValue: [0.3, 0.3, 0.3, 1],
                 loadOp: 'clear',
                 storeOp: 'store',
                 view: context.getCurrentTexture().createView()
             }
         ], 
-    };
+    });
 
-    const encoder = device.createCommandEncoder({ label: 'uniform triangle encoder' });
-    const pass = encoder.beginRenderPass(renderPassDescriptor);
     pass.setPipeline(pipeline);
     pass.setVertexBuffer(0, vertexBuffer);
     pass.setVertexBuffer(1, staticVertexBuffer);
@@ -222,12 +229,15 @@ import { randomRange } from "../lib/js/utils.js";
         endAngle = 2 * Math.PI
     }) {
         const numVertices = numSubdivisions * 2 * 3;
-        const vertexData = new Float32Array(numVertices * 2);
+        const vertexData = new Float32Array(numVertices * (2 + 3));
 
         let offset = 0;
-        function addVertex(x, y) {
+        function addVertex(x, y, r, g, b) {
             vertexData[offset++] = x;
             vertexData[offset++] = y;
+            vertexData[offset++] = r;
+            vertexData[offset++] = g;
+            vertexData[offset++] = b;
         }
 
         for (let i = 0; i < numSubdivisions; ++i) {
@@ -239,15 +249,18 @@ import { randomRange } from "../lib/js/utils.js";
             const c2 = Math.cos(angle2);
             const s2 = Math.sin(angle2);
 
+            const innerColor = [1, 1, 1];
+            const outerColor = [0.1, 0.1, 0.1];
+
             // triangle 1
-            addVertex(c1 * radius, s1 * radius);
-            addVertex(c2 * radius, s2 * radius);
-            addVertex(c1 * innerRadius, s1 * innerRadius);
+            addVertex(c1 * radius, s1 * radius, ...outerColor);
+            addVertex(c2 * radius, s2 * radius, ...outerColor);
+            addVertex(c1 * innerRadius, s1 * innerRadius, ...innerColor);
 
             // triangle 2
-            addVertex(c1 * innerRadius, s1 * innerRadius);
-            addVertex(c2 * radius, s2 * radius);
-            addVertex(c2 * innerRadius, s2 * innerRadius);
+            addVertex(c1 * innerRadius, s1 * innerRadius, ...innerColor);
+            addVertex(c2 * radius, s2 * radius, ...outerColor);
+            addVertex(c2 * innerRadius, s2 * innerRadius, ...innerColor);
         }
 
         return {
