@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+import {initWebGPU, createVertexBuffer, createRenderPipeline} from "../lib/js/webgpu.js"
+
+(async() => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const {device, presentationFormat} = await initWebGPU();
+
+    const context = canvas.getContext("webgpu");
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const positionBuffer = createVertexBuffer(device, new Float32Array([
+        -0.5, -0.5, 
+        0.5, -0.5,
+        0.0, 0.5
+    ]));
+
+    const colorBuffer = createVertexBuffer(device, new Uint8Array([
+        255, 0, 0, 255,
+        0, 255, 0, 255,
+        0, 0, 255, 255
+    ]));
+
+    const pipeline = createRenderPipeline(device, {
+        code: `
+            struct VSOut {
+                @builtin(position) position: vec4f,
+                @location(0) color: vec4f
+            };
+
+            @vertex
+            fn vs(
+                @location(0) position: vec4f,
+                @location(1) color: vec4f
+            ) -> VSOut {
+                return VSOut(position, color);
+            }
+
+            @fragment
+            fn fs(
+                @location(0) color: vec4f
+            ) -> @location(0) vec4f {
+                return color;
+            }
+        `,
+        vertexEntry: "vs",
+        fragmentEntry: "fs",
+        buffers: [
+            "float32x2",
+            "unorm8x4"
+        ],
+        presentationFormat,
+        topology: "triangle-list"
+    });
+
+    requestAnimationFrame(function draw() {
+        requestAnimationFrame(draw);
+
+        const commandEncoder = device.createCommandEncoder();
+        const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+                view: context.getCurrentTexture().createView(),
+                loadOp: "clear",
+                storeOp: "store",
+                clearValue: [0, 0, 0, 1]
+            }]
+        });
+
+        renderPass.setPipeline(pipeline);
+        renderPass.setVertexBuffer(0, positionBuffer);
+        renderPass.setVertexBuffer(1, colorBuffer);
+
+        renderPass.draw(3);
+
+        renderPass.end();
+
+        device.queue.submit([commandEncoder.finish()])
+    });
+})();
+</script>
+</body>
+</html>
