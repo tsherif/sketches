@@ -108,69 +108,6 @@ const {mat4} = glMatrix;
 
     generate2DMipmap(device, texture);
 
-    // ///////////////////////////
-    // // Create shader module
-    // ///////////////////////////  
-
-    // const cubeShaderModule = device.createShaderModule({
-    //     code: `
-    //         struct VertexUniforms {
-    //             worldMatrix: mat4x4f ,
-    //             viewProjectionMatrix: mat4x4f 
-    //         };
-
-    //         @group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
-
-    //         struct VSOut{
-    //             @builtin(position) clipPosition: vec4f,
-    //             @location(0) worldPosition: vec3f,
-    //             @location(1) normal: vec3f,
-    //             @location(2) uv: vec2f
-    //         };
-
-    //         @vertex
-    //         fn vs(
-    //             @location(0) position: vec4f,
-    //             @location(1) normal: vec3f,
-    //             @location(2) uv: vec2f,
-    //         ) -> VSOut {
-    //             let worldPosition: vec4f = vertexUniforms.worldMatrix * position;
-
-    //             var vsOut: VSOut;
-    //             vsOut.clipPosition = vertexUniforms.viewProjectionMatrix * worldPosition;
-    //             vsOut.worldPosition = worldPosition.xyz;
-    //             vsOut.normal = (vertexUniforms.worldMatrix * vec4f(normal, 0.0)).xyz;
-    //             vsOut.uv = uv;
-
-    //             return vsOut;
-    //         }
-
-    //         struct FragmentUniforms {
-    //             eyePosition: vec4f,
-    //             lightPosition: vec4f
-    //         };
-
-    //         @group(0) @binding(1) var<uniform> fragmentUniforms: FragmentUniforms;
-    //         @group(0) @binding(2) var textureSampler: sampler;
-    //         @group(0) @binding(3) var textureData: texture_2d<f32>;
-
-    //         @fragment
-    //         fn fs(fsIn: VSOut) -> @location(0) vec4f {
-    //             let surfaceColor: vec3f = textureSample(textureData, textureSampler, fsIn.uv).rgb;
-
-    //             let normal: vec3f = normalize(fsIn.normal);
-    //             let eyeVec: vec3f = normalize(fragmentUniforms.eyePosition.xyz - fsIn.worldPosition);
-    //             let incidentVec: vec3f = normalize(fsIn.worldPosition - fragmentUniforms.lightPosition.xyz);
-    //             let lightVec: vec3f = -incidentVec;
-    //             let diffuse: f32 = max(dot(lightVec, normal), 0.0);
-    //             let highlight: f32 = pow(max(dot(eyeVec, reflect(incidentVec, normal)), 0.0), 100.0);
-    //             let ambient: f32 = 0.1;
-    //             return vec4f(surfaceColor * (diffuse + highlight + ambient), 1.0);
-    //         }
-
-    //     `
-    // });
-
     ///////////////////////////
     // Create render pipeline
     ///////////////////////////
