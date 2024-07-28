@@ -17,7 +17,7 @@
 <canvas id="canvas"></canvas>
 <script type="module">
 
-import {initWebGPU, createVertexBuffer, createRenderPipeline, createTextureFromImage} from "../lib/js/webgpu.js"
+import {initWebGPU, createVertexBuffer, createRenderPipeline, createTextureFromImage, createUniformBuffer, updateUniformBuffer} from "../lib/js/webgpu.js"
 import {createCube, loadImageBitmaps, xformMatrix} from "../lib/js/utils.js";
 
 const {mat4} = glMatrix;
@@ -66,17 +66,18 @@ const {mat4} = glMatrix;
     // Create uniform buffers
     ////////////////////////////
 
-    const vertexUniformBuffer = device.createBuffer({
-        size: 128,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
+    const vertexUniformBuffer = createUniformBuffer(device, {
+        worldMatrix: "mat4x4f",
+        viewProjectionMatrix: "mat4x4f"
+    })
 
     const fragmentUniformBuffer = device.createBuffer({
         size: 32,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
-    device.queue.writeBuffer(vertexUniformBuffer, 64, viewProjectionMatrix);
+    updateUniformBuffer(device, vertexUniformBuffer, "viewProjectionMatrix", viewProjectionMatrix);
+
     device.queue.writeBuffer(fragmentUniformBuffer, 0, eyePosition);
     device.queue.writeBuffer(fragmentUniformBuffer, 16, lightPosition);
 
@@ -98,10 +99,7 @@ const {mat4} = glMatrix;
 
     const pipeline = createRenderPipeline(device, {
         code: `
-            struct VertexUniforms {
-                worldMatrix: mat4x4f ,
-                viewProjectionMatrix: mat4x4f 
-            };
+            struct VertexUniforms ${vertexUniformBuffer.shaderString}
 
             @group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
 
@@ -174,7 +172,7 @@ const {mat4} = glMatrix;
             {
                 binding: 0,
                 resource: {
-                    buffer: vertexUniformBuffer
+                    buffer: vertexUniformBuffer.buffer
                 }
             },
             {
@@ -237,7 +235,8 @@ const {mat4} = glMatrix;
         mat4.perspectiveZO(projectionMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0)
         mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
 
-        device.queue.writeBuffer(vertexUniformBuffer, 64, viewProjectionMatrix);
+        
+        updateUniformBuffer(device, vertexUniformBuffer, "viewProjectionMatrix", viewProjectionMatrix);
 
         msaaTexture.destroy();
         msaaTexture = device.createTexture({
@@ -276,7 +275,7 @@ const {mat4} = glMatrix;
 
         xformMatrix(modelMatrix, null, rotation, null);
         
-        device.queue.writeBuffer(vertexUniformBuffer, 0, modelMatrix);
+        updateUniformBuffer(device, vertexUniformBuffer, "worldMatrix", modelMatrix);
 
 
         renderPassDescription.colorAttachments[0].resolveTarget = context.getCurrentTexture().createView();
