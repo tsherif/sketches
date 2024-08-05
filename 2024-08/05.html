@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../lib/js/gl-matrix-3.4.0.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+
+import {
+    initWebGPU,
+    createVertexBuffer,
+    createRenderPipeline,
+    createTextureFromImage,
+    createUniformBuffer,
+    updateUniformBuffer,
+    createBindings,
+    createRenderPassConfig,
+    updateRenderPassConfigTextures,
+    encodeRenderPass
+} from "../lib/js/webgpu.js"
+
+import {
+    createCube,
+    loadImageBitmaps,
+    xformMatrix
+} from "../lib/js/utils.js";
+
+const {mat4} = glMatrix;
+
+(async () => {
+    const [{device, presentationFormat}, [image]] = await Promise.all([
+        initWebGPU(),
+        loadImageBitmaps(["../img/webgpu.png"])
+    ]);
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const context = canvas.getContext("webgpu");
+    context.configure({
+        device,
+        format: presentationFormat
+    });
+
+    const cubeData = createCube();
+    const numVertices = cubeData.positions.length / 3;
+
+    const positionBuffer = createVertexBuffer(device, cubeData.positions);
+    const normalBuffer = createVertexBuffer(device, cubeData.normals);
+    const uvBuffer = createVertexBuffer(device, cubeData.uvs);
+
+    /////////////////
+    // Uniform data
+    /////////////////
+
+    const eyePosition = new Float32Array([1, 1, 1]);
+    const lightPosition = new Float32Array([1, 1, 1]);
+
+    const projectionMatrix = mat4.create();
+    const viewMatrix = mat4.create();
+    const modelMatrix = mat4.create();
+    const viewProjectionMatrix = mat4.create();
+    const rotation = [0, 0, 0];
+
+    mat4.perspectiveZO(projectionMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0)
+    mat4.lookAt(viewMatrix, [1, 1, 1], [0, 0, 0], [0, 1, 0]);
+    mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
+    ////////////////////////////
+    // Create uniform buffers
+    ////////////////////////////
+
+    const vertexUniformBuffer = createUniformBuffer(device, {
+        worldMatrix: "mat4x4f",
+        viewProjectionMatrix: "mat4x4f"
+    })
+
+    const fragmentUniformBuffer = createUniformBuffer(device, {
+        eyePosition: "vec4f",
+        lightPosition: "vec4f"
+    });
+
+    updateUniformBuffer(device, vertexUniformBuffer, { viewProjectionMatrix });
+    updateUniformBuffer(device, fragmentUniformBuffer,{ eyePosition, lightPosition });
+
+    /////////////////////////////////////////
+    // Create texture, sampler and load data
+    /////////////////////////////////////////
+
+    const sampler = device.createSampler({
+        minFilter: "linear",
+        magFilter: "linear",
+        mipmapFilter: "linear"
+    });
+
+    const texture = createTextureFromImage(device, image);
+
+    ///////////////////////////
+    // Create render pipeline
+    ///////////////////////////
+
+    const pipeline = createRenderPipeline(device, {
+        code: `
+            struct VertexUniforms ${vertexUniformBuffer.shaderString}
+
+            @group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
+
+            struct VSOut{
+                @builtin(position) clipPosition: vec4f,
+                @location(0) worldPosition: vec3f,
+                @location(1) normal: vec3f,
+                @location(2) uv: vec2f
+            };
+
+            @vertex
+            fn vs(
+                @location(0) position: vec4f,
+                @location(1) normal: vec3f,
+                @location(2) uv: vec2f,
+            ) -> VSOut {
+                let worldPosition: vec4f = vertexUniforms.worldMatrix * position;
+
+                var vsOut: VSOut;
+                vsOut.clipPosition = vertexUniforms.viewProjectionMatrix * worldPosition;
+                vsOut.worldPosition = worldPosition.xyz;
+                vsOut.normal = (vertexUniforms.worldMatrix * vec4f(normal, 0.0)).xyz;
+                vsOut.uv = uv;
+
+                return vsOut;
+            }
+
+            struct FragmentUniforms ${fragmentUniformBuffer.shaderString};
+
+            @group(0) @binding(1) var<uniform> fragmentUniforms: FragmentUniforms;
+            @group(0) @binding(2) var textureSampler: sampler;
+            @group(0) @binding(3) var textureData: texture_2d<f32>;
+
+            @fragment
+            fn fs(fsIn: VSOut) -> @location(0) vec4f {
+                let surfaceColor: vec3f = textureSample(textureData, textureSampler, fsIn.uv).rgb;
+
+                let normal: vec3f = normalize(fsIn.normal);
+                let eyeVec: vec3f = normalize(fragmentUniforms.eyePosition.xyz - fsIn.worldPosition);
+                let incidentVec: vec3f = normalize(fsIn.worldPosition - fragmentUniforms.lightPosition.xyz);
+                let lightVec: vec3f = -incidentVec;
+                let diffuse: f32 = max(dot(lightVec, normal), 0.0);
+                let highlight: f32 = pow(max(dot(eyeVec, reflect(incidentVec, normal)), 0.0), 100.0);
+                let ambient: f32 = 0.1;
+                return vec4f(surfaceColor * (diffuse + highlight + ambient), 1.0);
+            }
+
+        `,
+        vertexEntry: "vs",
+        vertexBuffers: [
+            "float32x3",
+            "float32x3",
+            "float32x2"
+        ],
+        fragmentEntry: "fs",
+        presentationFormat,
+        multisample: true,
+        cullFace: "back",
+        topology: "triangle-list",
+        cull: "back",
+        depth: true
+    });
+
+    const sceneBindings = createBindings(device, pipeline, {
+        vertexBuffers: [
+            positionBuffer,
+            normalBuffer,
+            uvBuffer
+        ],
+        uniforms: [
+            [
+                { buffer: vertexUniformBuffer },
+                { buffer: fragmentUniformBuffer },
+                { sampler },
+                { texture }
+            ]
+        ]
+    });
+
+    ///////////////////////////
+    // Render pass description
+    ///////////////////////////
+
+    let msaaTexture = device.createTexture({
+        label: 'msaa texture',
+        size: [canvas.width, canvas.height],
+        format: presentationFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        sampleCount: 4
+    });
+    
+    let depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage:  GPUTextureUsage.RENDER_ATTACHMENT,
+        sampleCount: 4
+    });
+
+    const renderPassConfig = createRenderPassConfig({
+        context,
+        pipeline,
+        color: [{
+            texture: msaaTexture,
+            clearColor: [0, 0, 0, 1]
+        }],
+        depth: depthTexture,
+        bindings: sceneBindings,
+        vertices: numVertices
+    })
+
+    window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        mat4.perspectiveZO(projectionMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0)
+        mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
+        
+        updateUniformBuffer(device, vertexUniformBuffer, { viewProjectionMatrix });
+
+        msaaTexture.destroy();
+        msaaTexture = device.createTexture({
+            label: 'msaa texture',
+            size: [canvas.width, canvas.height],
+            format: presentationFormat,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            sampleCount: 4
+        });
+
+        depthTexture.destroy();
+        depthTexture = device.createTexture({
+            size: [canvas.width, canvas.height],
+            format: "depth24plus",
+            usage:  GPUTextureUsage.RENDER_ATTACHMENT,
+            sampleCount: 4
+        });
+
+        updateRenderPassConfigTextures(renderPassConfig, {
+            color: [msaaTexture],
+            depth: depthTexture
+        })
+
+    });
+
+    let lastTime;
+    requestAnimationFrame(function draw(time) {
+
+        lastTime = lastTime ?? time;
+        const dt = time - lastTime;
+        lastTime = time;
+
+        /////////////////////////
+        // Update uniform buffer
+        /////////////////////////
+        
+        rotation[0] += 0.001 * dt;
+        rotation[1] += 0.002 * dt;
+
+        xformMatrix(modelMatrix, null, rotation, null);
+        
+        updateUniformBuffer(device, vertexUniformBuffer, { worldMatrix: modelMatrix });
+
+        const commandEncoder = device.createCommandEncoder();
+
+        encodeRenderPass(commandEncoder, renderPassConfig);
+
+        device.queue.submit([commandEncoder.finish()]);
+
+        requestAnimationFrame(draw);
+    });
+})();
+</script>
+</body>
+</html>
