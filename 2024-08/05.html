@@ -113,7 +113,9 @@ const {mat4} = glMatrix;
 
     const pipeline = createRenderPipeline(device, {
         code: `
-            struct VertexUniforms ${vertexUniformBuffer.shaderString}
+            struct VertexUniforms {
+                ${vertexUniformBuffer.shaderString}
+            };
 
             @group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
 
@@ -141,7 +143,9 @@ const {mat4} = glMatrix;
                 return vsOut;
             }
 
-            struct FragmentUniforms ${fragmentUniformBuffer.shaderString};
+            struct FragmentUniforms {
+                ${fragmentUniformBuffer.shaderString}
+            };
 
             @group(0) @binding(1) var<uniform> fragmentUniforms: FragmentUniforms;
             @group(0) @binding(2) var textureSampler: sampler;

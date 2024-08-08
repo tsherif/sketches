@@ -123,10 +123,10 @@ const NUM_LIGHTS = 16;
     // Uniform buffer for view projection matrix
     // used in lights and gBuffer passes
     const viewProjectionMatrixBuffer = createUniformBuffer(device, {
-        matrix: 'mat4x4f'
+        viewProjectionMatrix: 'mat4x4f'
     })
 
-    updateUniformBuffer(device, viewProjectionMatrixBuffer, { matrix: viewProjectionMatrix });
+    updateUniformBuffer(device, viewProjectionMatrixBuffer, { viewProjectionMatrix });
 
     ///////////////////////////////
     // Lights pass
@@ -142,9 +142,7 @@ const NUM_LIGHTS = 16;
                 @location(0) color: vec3f
             };
 
-            struct ViewProjection ${viewProjectionMatrixBuffer.shaderString}
-
-            @group(0) @binding(0) var<uniform> viewProjection: ViewProjection;
+            @group(0) @binding(0) var<uniform> ${viewProjectionMatrixBuffer.shaderString};
 
             @vertex
             fn vs(
@@ -155,7 +153,7 @@ const NUM_LIGHTS = 16;
                 let worldPosition: vec4f = vec4f(vertexPosition * 0.02 + position, 1.0);
 
                 var vsOut: VSOut;
-                vsOut.clipPosition = viewProjection.matrix * worldPosition;
+                vsOut.clipPosition = viewProjectionMatrix * worldPosition;
                 vsOut.color = color.rgb;
 
                 return vsOut;
@@ -277,9 +275,7 @@ const NUM_LIGHTS = 16;
                 @location(2) uv: vec2f,
             };
 
-            struct ViewProjection ${viewProjectionMatrixBuffer.shaderString}
-            @group(0) @binding(0) var<uniform> viewProjection: ViewProjection;
-
+            @group(0) @binding(0) var<uniform> ${viewProjectionMatrixBuffer.shaderString};
             @group(0) @binding(1) var<uniform> worldMatrix: mat4x4f;
 
             @vertex
@@ -291,7 +287,7 @@ const NUM_LIGHTS = 16;
                 let worldPosition: vec4f = worldMatrix * position;
 
                 var vsOut: VSOut;
-                vsOut.clipPosition = viewProjection.matrix * worldPosition;
+                vsOut.clipPosition = viewProjectionMatrix * worldPosition;
                 vsOut.worldPosition = worldPosition.xyz;
                 vsOut.normal = (worldMatrix * vec4f(normal, 0.0)).xyz;
                 vsOut.uv = uv;
