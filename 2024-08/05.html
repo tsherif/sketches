@@ -217,9 +217,9 @@ const {mat4} = glMatrix;
     });
 
     const renderPassConfig = createRenderPassConfig({
-        context,
         pipeline,
         color: [{
+            context,
             texture: msaaTexture,
             clearColor: [0, 0, 0, 1]
         }],
