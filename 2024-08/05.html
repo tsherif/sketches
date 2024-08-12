@@ -173,7 +173,7 @@ const {mat4} = glMatrix;
             "float32x2"
         ],
         fragmentEntry: "fs",
-        presentationFormat,
+        renderTargets: [ presentationFormat ],
         multisample: true,
         cullFace: "back",
         topology: "triangle-list",

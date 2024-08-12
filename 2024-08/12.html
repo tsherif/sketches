@@ -173,7 +173,7 @@ const NUM_LIGHTS = 16;
             { step: "instance", format: "float32x3", stride: 16 },
         ],
         fragmentEntry: "fs",
-        presentationFormat,
+        renderTargets: [ presentationFormat ],
         multisample: true,
         topology: "triangle-list",
         cull: "back",
