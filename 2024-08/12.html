@@ -270,9 +270,8 @@ const NUM_LIGHTS = 16;
         sampleCount: 4
     });    
 
-    // Shader module
-    const gBufferShaderModule = device.createShaderModule({
-        label: 'gbuffer shader',
+    // Pipeline
+    const gBufferPipeline = createRenderPipeline(device, {
         code: `
             struct VSOut {
                 @builtin(position) clipPosition: vec4f,
@@ -320,71 +319,19 @@ const NUM_LIGHTS = 16;
                 return fsOut;
             }
 
-        `
-    });
-
-    // Pipeline 
-    const gBufferPipeline = device.createRenderPipeline({
-        label: 'gbuffer pipeline',
-        layout: 'auto',
-        vertex: {
-            module: gBufferShaderModule,
-            entryPoint: "vs",
-            buffers: [
-                {
-                    arrayStride: 12,
-                    attributes: [{
-                        shaderLocation: 0,
-                        format: "float32x3",
-                        offset: 0
-                    }]
-                },
-                {
-                    arrayStride: 12,
-                    attributes: [{
-                        shaderLocation: 1,
-                        format: "float32x3",
-                        offset: 0
-                    }]
-                },
-                {
-                    arrayStride: 8,
-                    attributes: [{
-                        shaderLocation: 2,
-                        format: "float32x2",
-                        offset: 0
-                    }]
-                }
-            ]
-        },
-        fragment: {
-            module: gBufferShaderModule,
-            entryPoint: "fs",
-
-            targets: [
-                {
-                    format: "rgba16float"
-                },
-                {
-                    format: "rgba16float"
-                },
-                {
-                    format: "rgba8unorm"
-                }
-            ]
-        },
-        multisample: {
-            count: 4
-        },
-        primitive: {
-            topology: "triangle-list",
-            cullMode: "back"
-        },
-        depthStencil: {
-            format: "depth24plus",
-            depthWriteEnabled: true,
-            depthCompare: "less"
-        }
+        `,
+        vertexEntry: "vs",
+        vertexBuffers: [
+            "float32x3",
+            "float32x3",
+            "float32x2",
+        ],
+        fragmentEntry: "fs",
+        renderTargets:[ "rgba16float", "rgba16float", "rgba8unorm" ],
+        multisample: true,
+        topology: "triangle-list",
+        cull: "back",
+        depth: true
     });
 
     // Objects
