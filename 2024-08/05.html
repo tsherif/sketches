@@ -221,9 +221,12 @@ const {mat4} = glMatrix;
         color: [{
             context,
             texture: msaaTexture,
-            clearColor: [0, 0, 0, 1]
+            clear: [0, 0, 0, 1]
         }],
-        depth: depthTexture,
+        depth: {
+            texture: depthTexture,
+            clear: 1
+        },
         bindings: sceneBindings,
         vertices: numVertices
     })
