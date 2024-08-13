@@ -335,7 +335,7 @@ const NUM_LIGHTS = 16;
     });
 
     // Objects
-    const boxes = new Array(NUM_BOXES).fill(null).map(() => {
+    const boxes = new Array(NUM_BOXES).fill(null).map((_, i) => {
         const translate = [
             randomRange(-3, 3),
             randomRange(-3, 3),
@@ -357,11 +357,11 @@ const NUM_LIGHTS = 16;
         });
        
         const bindings = createBindings(device, gBufferPipeline, {
-            vertexBuffers: [
+            vertexBuffers: i === 0 ? [
                 cube.positions,
                 cube.normals,
                 cube.uvs
-            ],
+            ] : undefined,
             uniforms: [
                 [
                     {
@@ -589,8 +589,8 @@ const NUM_LIGHTS = 16;
         depth: {
             texture: depthTexture
         },
-        draws: boxes.map(b => ({
-            pipeline: gBufferPipeline,
+        draws: boxes.map((b, i) => ({
+            pipeline: i === 0 ? gBufferPipeline : undefined,
             bindings: b.bindings,
             vertices: cube.count
         }))
