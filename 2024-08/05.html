@@ -217,7 +217,6 @@ const {mat4} = glMatrix;
     });
 
     const renderPassConfig = createRenderPassConfig({
-        pipeline,
         color: [{
             context,
             texture: msaaTexture,
@@ -227,8 +226,11 @@ const {mat4} = glMatrix;
             texture: depthTexture,
             clear: 1
         },
-        bindings: sceneBindings,
-        vertices: numVertices
+        draws: [{
+            pipeline,
+            bindings: sceneBindings,
+            vertices: numVertices
+        }]
     })
 
     window.addEventListener("resize", () => {
