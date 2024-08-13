@@ -356,29 +356,27 @@ const NUM_LIGHTS = 16;
             worldMatrix: "mat4x4f"
         });
        
-        const bindGroup = device.createBindGroup({
-            layout: gBufferPipeline.getBindGroupLayout(0),
-            entries: [
-                {
-                    binding: 0,
-                    resource: {
+        const bindings = createBindings(device, gBufferPipeline, {
+            vertexBuffers: [
+                cube.positions,
+                cube.normals,
+                cube.uvs
+            ],
+            uniforms: [
+                [
+                    {
                         buffer: viewProjectionMatrixBuffer.buffer
-                    }
-                },
-                {
-                    binding: 1,
-                    resource: {
+                    },
+                    {
                         buffer: uniformBuffer.buffer
+                    },
+                    {
+                        sampler
+                    },
+                    {
+                        texture: colorTexture
                     }
-                },
-                {
-                    binding: 2,
-                    resource: sampler
-                },
-                {
-                    binding: 3,
-                    resource: colorTexture.createView()
-                }
+                ]
             ]
         });
 
@@ -388,7 +386,7 @@ const NUM_LIGHTS = 16;
             scale,
             modelMatrix: mat4.create(),
             uniformBuffer,
-            bindGroup
+            bindings
         };
     });
 
@@ -573,38 +571,33 @@ const NUM_LIGHTS = 16;
         ]
     })
 
-    const gBufferRenderPassDescription = {
-        label: 'gbuffer render pass',
-        colorAttachments: [
+    const gBufferRenderPassConfig = createRenderPassConfig({
+        color: [
             {
-                view: gBufferPositionsTexture.createView(),
-                loadOp: "clear",
-                storeOp: "store",
-                clearValue: [0, 0, 0, 0]
+                texture: gBufferPositionsTexture,
+                clear: [0, 0, 0, 0]
             },
             {
-                view: gBufferNormalsTexture.createView(),
-                loadOp: "clear",
-                storeOp: "store",
-                clearValue: [0, 0, 0, 0]
+                texture: gBufferNormalsTexture,
+                clear: [0, 0, 0, 0]
             },
             {
-                view: gBufferColorsTexture.createView(),
-                loadOp: "clear",
-                storeOp: "store",
-                clearValue: [0, 0, 0, 0]
+                texture: gBufferColorsTexture,
+                clear: [0, 0, 0, 0]
             }
         ],
-        depthStencilAttachment: {
-            view: depthTexture.createView(),
-            depthLoadOp: "load",
-            depthStoreOp: "store"
-        }
-    };
+        depth: {
+            texture: depthTexture
+        },
+        draws: boxes.map(b => ({
+            pipeline: gBufferPipeline,
+            bindings: b.bindings,
+            vertices: cube.count
+        }))
+    });
 
 
     const lightingRenderPassDescription = {
-        label: 'lighting render pass',
         colorAttachments: [{
             view: msaaTexture.createView(),
             resolveTarget: context.getCurrentTexture().createView(),
@@ -764,18 +757,7 @@ const NUM_LIGHTS = 16;
         // (Depth buffer shared with previous pass)
         //////////////////////////////////////////////
 
-        const gBufferPass = commandEncoder.beginRenderPass(gBufferRenderPassDescription);
-        gBufferPass.setPipeline(gBufferPipeline);
-        gBufferPass.setVertexBuffer(0, cube.positions);
-        gBufferPass.setVertexBuffer(1, cube.normals);
-        gBufferPass.setVertexBuffer(2, cube.uvs);
-
-        for (const box of boxes) {
-            gBufferPass.setBindGroup(0, box.bindGroup);
-            gBufferPass.draw(cube.count);           
-        }
-
-        gBufferPass.end();
+        encodeRenderPass(commandEncoder, gBufferRenderPassConfig);
 
         //////////////////////////////////
         // Draw a full-screen quad and
