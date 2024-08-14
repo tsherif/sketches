@@ -23,7 +23,7 @@ import {
     createTextureFromImage,
     createUniformBuffer,
     updateUniformBuffer,
-    createBindings,
+    createUniformSet,
     createRenderPassConfig,
     updateRenderPassConfigTextures,
     encodeRenderPass
@@ -216,19 +216,15 @@ const NUM_LIGHTS = 16;
         positions: lightPositions,
         colorData: new Float32Array(NUM_LIGHTS * 4),
         colors: lightColors,
-        bindings: createBindings(device, lightsPipeline, {
-            vertexBuffers: [
+        vertexBuffers: [
                 sphere.positions,
                 lightPositions,
-                lightColors
-            ],
-            indexBuffer: sphere.indices,
-            uniforms: [
-                [
-                    { buffer: viewProjectionMatrixBuffer }
-                ]
-            ]
-        })
+            lightColors
+        ],
+        indexBuffer: sphere.indices,
+        uniforms: createUniformSet(device, lightsPipeline.getBindGroupLayout(0), [
+            { buffer: viewProjectionMatrixBuffer }
+        ])
     };
     
     lights.data.forEach((data, i) => {
@@ -335,6 +331,12 @@ const NUM_LIGHTS = 16;
     });
 
     // Objects
+    const boxVertexBuffers = [
+        cube.positions,
+        cube.normals,
+        cube.uvs
+    ];
+
     const boxes = new Array(NUM_BOXES).fill(null).map((_, i) => {
         const translate = [
             randomRange(-3, 3),
@@ -356,29 +358,20 @@ const NUM_LIGHTS = 16;
             worldMatrix: "mat4x4f"
         });
        
-        const bindings = createBindings(device, gBufferPipeline, {
-            vertexBuffers: i === 0 ? [
-                cube.positions,
-                cube.normals,
-                cube.uvs
-            ] : undefined,
-            uniforms: [
-                [
-                    {
-                        buffer: viewProjectionMatrixBuffer.buffer
-                    },
-                    {
-                        buffer: uniformBuffer.buffer
-                    },
-                    {
-                        sampler
-                    },
-                    {
-                        texture: colorTexture
-                    }
-                ]
-            ]
-        });
+        const uniforms = createUniformSet(device, gBufferPipeline.getBindGroupLayout(0), [
+            {
+                buffer: viewProjectionMatrixBuffer.buffer
+            },
+            {
+                buffer: uniformBuffer.buffer
+            },
+            {
+                sampler
+            },
+            {
+                texture: colorTexture
+            }
+        ]);
 
         return {
             translate,
@@ -386,7 +379,7 @@ const NUM_LIGHTS = 16;
             scale,
             modelMatrix: mat4.create(),
             uniformBuffer,
-            bindings
+            uniforms
         };
     });
 
@@ -564,7 +557,9 @@ const NUM_LIGHTS = 16;
         draws: [
             {
                 pipeline: lightsPipeline,
-                bindings: lights.bindings,
+                uniforms: [lights.uniforms],
+                vertexBuffers: lights.vertexBuffers,
+                indexBuffer: lights.indexBuffer,
                 vertices: sphere.count,
                 instances: NUM_LIGHTS
             }
@@ -589,11 +584,16 @@ const NUM_LIGHTS = 16;
         depth: {
             texture: depthTexture
         },
-        draws: boxes.map((b, i) => ({
-            pipeline: i === 0 ? gBufferPipeline : undefined,
-            bindings: b.bindings,
-            vertices: cube.count
-        }))
+        draws: [
+            {
+                pipeline: gBufferPipeline,
+                vertexBuffers: boxVertexBuffers
+            },
+            ...boxes.map((b, i) => ({
+                uniforms: [b.uniforms],
+                vertices: cube.count
+            }))
+        ]
     });
 
 
