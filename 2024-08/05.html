@@ -24,7 +24,7 @@ import {
     createTextureFromImage,
     createUniformBuffer,
     updateUniformBuffer,
-    createBindings,
+    createUniformSet,
     createRenderPassConfig,
     updateRenderPassConfigTextures,
     encodeRenderPass
@@ -181,21 +181,12 @@ const {mat4} = glMatrix;
         depth: true
     });
 
-    const sceneBindings = createBindings(device, pipeline, {
-        vertexBuffers: [
-            positionBuffer,
-            normalBuffer,
-            uvBuffer
-        ],
-        uniforms: [
-            [
-                { buffer: vertexUniformBuffer },
-                { buffer: fragmentUniformBuffer },
-                { sampler },
-                { texture }
-            ]
-        ]
-    });
+    const sceneUniforms = createUniformSet(device, pipeline.getBindGroupLayout(0), [
+        { buffer: vertexUniformBuffer },
+        { buffer: fragmentUniformBuffer },
+        { sampler },
+        { texture }
+    ]);
 
     ///////////////////////////
     // Render pass description
@@ -228,7 +219,12 @@ const {mat4} = glMatrix;
         },
         draws: [{
             pipeline,
-            bindings: sceneBindings,
+            vertexBuffers: [
+                positionBuffer,
+                normalBuffer,
+                uvBuffer
+            ],
+            uniforms: [sceneUniforms],
             vertices: numVertices
         }]
     })
