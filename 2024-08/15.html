@@ -500,14 +500,18 @@ const NUM_LIGHTS = 16;
             texture: depthTexture,
             clear: 1
         },
-        draws: [
+        commands: [
             {
                 pipeline: lightsPipeline,
                 uniforms: [lights.uniforms],
-                vertexBuffers: lights.vertexBuffers,
-                indexBuffer: lights.indexBuffer,
-                vertices: sphere.count,
-                instances: NUM_LIGHTS
+                mesh: {
+                    vertices: lights.vertexBuffers,
+                    indices: lights.indexBuffer
+                },
+                draw: {
+                    vertices: sphere.count,
+                    instances: NUM_LIGHTS
+                }
             }
         ]
     })
@@ -530,14 +534,18 @@ const NUM_LIGHTS = 16;
         depth: {
             texture: depthTexture
         },
-        draws: [
+        commands: [
             {
                 pipeline: gBufferPipeline,
-                vertexBuffers: boxVertexBuffers
+                mesh: {
+                    vertices: boxVertexBuffers
+                }
             },
             ...boxes.map((b, i) => ({
                 uniforms: [b.uniforms],
-                vertices: cube.count
+                draw: {
+                    vertices: cube.count
+                }
             }))
         ]
     });
@@ -548,12 +556,16 @@ const NUM_LIGHTS = 16;
             context,
             texture: msaaTexture,
         }],
-        draws: [
+        commands: [
             {
                 pipeline: lightingPipeline,
-                vertexBuffers: [ quad.positions ],
+                mesh: {
+                    vertices: [ quad.positions ],
+                },
                 uniforms: [lightingUniforms],
-                vertices: quad.count
+                draw: {
+                    vertices: quad.count
+                }
             }
         ]
     });

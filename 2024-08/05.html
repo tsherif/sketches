@@ -217,15 +217,19 @@ const {mat4} = glMatrix;
             texture: depthTexture,
             clear: 1
         },
-        draws: [{
+        commands: [{
             pipeline,
-            vertexBuffers: [
-                positionBuffer,
-                normalBuffer,
-                uvBuffer
-            ],
+            mesh: {
+                vertices: [
+                    positionBuffer,
+                    normalBuffer,
+                    uvBuffer
+                ]
+            },
             uniforms: [sceneUniforms],
-            vertices: numVertices
+            draw: {
+                vertices: numVertices
+            }
         }]
     })
 
