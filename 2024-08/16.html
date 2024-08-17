@@ -16,33 +16,37 @@
 <canvas id="canvas"></canvas>
 <script type="module">
 import {initWebGPU, createVertexBuffer, createRenderPipeline} from "../lib/js/webgpu-utils.js"
+import { WebGPU } from "../lib/js/webgpu/webgpu.js"
 
 (async() => {
     const canvas = document.getElementById("canvas");
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const {device, presentationFormat} = await initWebGPU();
+    const webgpu = await WebGPU.init();
 
     const context = canvas.getContext("webgpu");
-    context.configure({
-        device,
-        format: presentationFormat
+    webgpu.configureContext(context);
+
+    const positionBuffer = webgpu.buffers.create({
+        data: new Float32Array([
+            -0.5, -0.5, 
+            0.5, -0.5,
+            0.0, 0.5
+        ]),
+        usage: ["vertex", "copy-dst"]
     });
 
-    const positionBuffer = createVertexBuffer(device, new Float32Array([
-        -0.5, -0.5, 
-        0.5, -0.5,
-        0.0, 0.5
-    ]));
+    const colorBuffer = webgpu.buffers.create({
+        data: new Uint8Array([
+            255, 0, 0, 255,
+            0, 255, 0, 255,
+            0, 0, 255, 255
+        ]),
+        usage: ["vertex", "copy-dst"]
+    });
 
-    const colorBuffer = createVertexBuffer(device, new Uint8Array([
-        255, 0, 0, 255,
-        0, 255, 0, 255,
-        0, 0, 255, 255
-    ]));
-
-    const pipeline = createRenderPipeline(device, {
+    const pipeline = createRenderPipeline(webgpu.device, {
         code: `
             struct VSOut {
                 @builtin(position) position: vec4f,
@@ -66,18 +70,20 @@ import {initWebGPU, createVertexBuffer, createRenderPipeline} from "../lib/js/we
         `,
         vertexEntry: "vs",
         fragmentEntry: "fs",
-        buffers: [
+        vertexBuffers: [
             "float32x2",
             "unorm8x4"
         ],
-        presentationFormat,
+        renderTargets: [
+            webgpu.presentationFormat
+        ],
         topology: "triangle-list"
     });
 
     requestAnimationFrame(function draw() {
         requestAnimationFrame(draw);
 
-        const commandEncoder = device.createCommandEncoder();
+        const commandEncoder = webgpu.device.createCommandEncoder();
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: context.getCurrentTexture().createView(),
@@ -88,14 +94,14 @@ import {initWebGPU, createVertexBuffer, createRenderPipeline} from "../lib/js/we
         });
 
         renderPass.setPipeline(pipeline);
-        renderPass.setVertexBuffer(0, positionBuffer);
-        renderPass.setVertexBuffer(1, colorBuffer);
+        renderPass.setVertexBuffer(0, positionBuffer.handle);
+        renderPass.setVertexBuffer(1, colorBuffer.handle);
 
         renderPass.draw(3);
 
         renderPass.end();
 
-        device.queue.submit([commandEncoder.finish()])
+        webgpu.device.queue.submit([commandEncoder.finish()])
     });
 })();
 </script>
