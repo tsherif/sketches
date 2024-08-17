@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+import {initWebGPU, createVertexBuffer, createRenderPipeline} from "../lib/js/webgpu-utils.js"
+import { WebGPU } from "../lib/js/webgpu/webgpu.js"
+
+(async() => {
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const webgpu = await WebGPU.init();
+
+    const context = canvas.getContext("webgpu");
+    webgpu.configureContext(context);
+
+    const positionBuffer = webgpu.buffers.create({
+        data: new Float32Array([
+            -0.5, -0.5, 
+            0.5, -0.5,
+            0.0, 0.5
+        ]),
+        usage: ["vertex", "copy-dst"]
+    });
+
+    const colorBuffer = webgpu.buffers.create({
+        data: new Uint8Array([
+            255, 0, 0, 255,
+            0, 255, 0, 255,
+            0, 0, 255, 255
+        ]),
+        usage: ["vertex", "copy-dst"]
+    });
+
+    const pipeline = webgpu.render.createPipeline({
+        code: `
+            struct VSOut {
+                @builtin(position) position: vec4f,
+                @location(0) color: vec4f
+            };
+
+            @vertex
+            fn vs(
+                @location(0) position: vec4f,
+                @location(1) color: vec4f
+            ) -> VSOut {
+                return VSOut(position, color);
+            }
+
+            @fragment
+            fn fs(
+                @location(0) color: vec4f
+            ) -> @location(0) vec4f {
+                return color;
+            }
+        `,
+        vertexEntry: "vs",
+        fragmentEntry: "fs",
+        vertexBuffers: [
+            "float32x2",
+            "unorm8x4"
+        ],
+        renderTargets: [
+            webgpu.presentationFormat
+        ],
+        topology: "triangle-list"
+    });
+
+    requestAnimationFrame(function draw() {
+        requestAnimationFrame(draw);
+
+        const commandEncoder = webgpu.device.createCommandEncoder();
+        const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+                view: context.getCurrentTexture().createView(),
+                loadOp: "clear",
+                storeOp: "store",
+                clearValue: [0, 0, 0, 1]
+            }]
+        });
+
+        renderPass.setPipeline(pipeline.handle);
+        renderPass.setVertexBuffer(0, positionBuffer.handle);
+        renderPass.setVertexBuffer(1, colorBuffer.handle);
+
+        renderPass.draw(3);
+
+        renderPass.end();
+
+        webgpu.device.queue.submit([commandEncoder.finish()])
+    });
+})();
+</script>
+</body>
+</html>
