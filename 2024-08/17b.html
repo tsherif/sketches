@@ -18,16 +18,7 @@
 <script type="module">
 
 import {
-    initWebGPU,
-    createVertexBuffer,
-    createRenderPipeline,
-    createTextureFromImage,
-    createUniformBuffer,
-    updateUniformBuffer,
-    createUniformSet,
-    createRenderPassConfig,
     updateRenderPassConfigTextures,
-    encodeRenderPass
 } from "../lib/js/webgpu-utils.js"
 import { WebGPU } from "../lib/js/webgpu/webgpu.js"
 
@@ -115,13 +106,13 @@ const {mat4} = glMatrix;
 
     const { device, presentationFormat } = webgpu;
 
-    const sampler = device.createSampler({
+    const sampler = webgpu.textures.createSampler({
         minFilter: "linear",
         magFilter: "linear",
         mipmapFilter: "linear"
     });
 
-    const texture = createTextureFromImage(device, image);
+    const texture = webgpu.textures.createFromImage(image);
 
     ///////////////////////////
     // Create render pipeline
@@ -199,8 +190,8 @@ const {mat4} = glMatrix;
     });
 
     const sceneUniforms = webgpu.bindings.create(bindingLayout, [
-        { buffer: vertexUniformBuffer.handle },
-        { buffer: fragmentUniformBuffer.handle },
+        { buffer: vertexUniformBuffer },
+        { buffer: fragmentUniformBuffer },
         { sampler },
         { texture }
     ]);
