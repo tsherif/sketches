@@ -80,28 +80,29 @@ import { WebGPU } from "../lib/js/webgpu/webgpu.js"
         topology: "triangle-list"
     });
 
+    const renderPass = webgpu.render.createPass({
+        color: [{
+            context,
+            clear: [0, 0, 0, 1]
+        }],
+        commands: [
+            {
+                pipeline: pipeline,
+                mesh: {
+                    vertices: [positionBuffer, colorBuffer],
+                },
+                draw: {
+                    vertices: 3,
+                }
+            }
+        ]
+    });
+
+
     requestAnimationFrame(function draw() {
         requestAnimationFrame(draw);
 
-        const commandEncoder = webgpu.device.createCommandEncoder();
-        const renderPass = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                view: context.getCurrentTexture().createView(),
-                loadOp: "clear",
-                storeOp: "store",
-                clearValue: [0, 0, 0, 1]
-            }]
-        });
-
-        renderPass.setPipeline(pipeline.handle);
-        renderPass.setVertexBuffer(0, positionBuffer.handle);
-        renderPass.setVertexBuffer(1, colorBuffer.handle);
-
-        renderPass.draw(3);
-
-        renderPass.end();
-
-        webgpu.device.queue.submit([commandEncoder.finish()])
+        webgpu.commands.submit([renderPass]);
     });
 })();
 </script>
