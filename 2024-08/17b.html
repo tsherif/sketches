@@ -198,7 +198,7 @@ const {mat4} = glMatrix;
         depth: true
     });
 
-    const sceneUniforms = createUniformSet(device, pipeline.handle.getBindGroupLayout(0), [
+    const sceneUniforms = webgpu.bindings.create(bindingLayout, [
         { buffer: vertexUniformBuffer.handle },
         { buffer: fragmentUniformBuffer.handle },
         { sampler },
