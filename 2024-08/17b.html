@@ -89,6 +89,13 @@ const {mat4} = glMatrix;
     // Create uniform buffers
     ////////////////////////////
 
+    const bindingLayout = webgpu.bindings.createLayout([
+        "buffer",
+        "buffer",
+        "sampler",
+        "texture"
+    ])
+
     const vertexUniformBuffer = webgpu.buffers.uniform.create({
         worldMatrix: "mat4x4f",
         viewProjectionMatrix: "mat4x4f"
@@ -121,6 +128,7 @@ const {mat4} = glMatrix;
     ///////////////////////////
 
     const pipeline = webgpu.render.createPipeline({
+        layout: [bindingLayout],
         code: `
             struct VertexUniforms {
                 ${vertexUniformBuffer.shaderString}
