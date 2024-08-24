@@ -193,14 +193,14 @@ const NUM_LIGHTS = 16;
     // Objects
     // Buffers used as vertex data in the lights pass,
     // uniform data in the lighting pass.
-    const lightPositions = device.createBuffer({
+    const lightPositions = webgpu.buffers.create({
         size: NUM_LIGHTS * 4 * Float32Array.BYTES_PER_ELEMENT,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        usage: ["vertex", "uniform", "copy-dst"]
     });
 
-    const lightColors = device.createBuffer({
+    const lightColors = webgpu.buffers.create({
         size: NUM_LIGHTS * 4 * Float32Array.BYTES_PER_ELEMENT,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        usage: ["vertex", "uniform", "copy-dst"]
     });
 
     const lights = {
@@ -228,8 +228,8 @@ const NUM_LIGHTS = 16;
         colors: lightColors,
         vertexBuffers: [
             sphere.positions.handle,
-            lightPositions,
-            lightColors
+            lightPositions.handle,
+            lightColors.handle
         ],
         indexBuffer: { ...sphere.indices, buffer: sphere.indices.handle },
         uniforms: lightsBindings
@@ -241,8 +241,8 @@ const NUM_LIGHTS = 16;
         lights.colorData.set(data.color, index);
     });
 
-    device.queue.writeBuffer(lights.positions, 0, lights.positionData);
-    device.queue.writeBuffer(lights.colors, 0, lights.colorData);
+    webgpu.buffers.update(lights.positions, lights.positionData);
+    webgpu.buffers.update(lights.colors, lights.colorData);
 
     ////////////////////////////
     // GBuffer pass
@@ -473,8 +473,8 @@ const NUM_LIGHTS = 16;
     // Bind group
     let lightingUniforms = createUniformSet(device, lightingPipeline.getBindGroupLayout(0), [
         { buffer: lightingEyePositionBuffer.buffer },
-        { buffer: lights.positions },
-        { buffer: lights.colors },
+        { buffer: lights.positions.handle },
+        { buffer: lights.colors.handle },
         { texture: gBufferPositionsTexture },
         { texture: gBufferNormalsTexture },
         { texture: gBufferColorsTexture }
@@ -709,7 +709,7 @@ const NUM_LIGHTS = 16;
             vec3.add(position, light.position, position);
         });
 
-        device.queue.writeBuffer(lights.positions, 0, lights.positionData);
+        webgpu.buffers.update(lights.positions, lights.positionData);
 
 
         /////////////////////////////////////
