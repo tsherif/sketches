@@ -269,8 +269,69 @@ const NUM_LIGHTS = 16;
         multisample: true
     });    
 
+    // Objects
+    const boxVertexBuffers = [
+        cube.positions.handle,
+        cube.normals.handle,
+        cube.uvs.handle
+    ];
+
+    const gBufferBindingLayout = webgpu.bindings.createLayout([
+        "buffer",
+        "buffer",
+        "sampler",
+        "texture"
+    ])
+
+    const boxes = new Array(NUM_BOXES).fill(null).map((_, i) => {
+        const translate = [
+            randomRange(-3, 3),
+            randomRange(-3, 3),
+            randomRange(-3, 0)
+        ];
+        const rotate = [
+                randomRange(0, 2 * Math.PI),
+                randomRange(0, 2 * Math.PI),
+                randomRange(0, 2 * Math.PI) 
+        ];
+        const scale = [
+            0.25,
+            0.25,
+            0.25
+        ];
+
+        const worldMatrixBuffer = webgpu.buffers.uniform.create({
+            worldMatrix: "mat4x4f"
+        });
+       
+        const uniforms = webgpu.bindings.create(gBufferBindingLayout, [
+            {
+                buffer: viewProjectionMatrixBuffer
+            },
+            {
+                buffer: worldMatrixBuffer
+            },
+            {
+                sampler: sampler
+            },
+            {
+                texture: colorTexture
+            }
+        ]);
+
+        return {
+            translate,
+            rotate,
+            scale,
+            modelMatrix: mat4.create(),
+            worldMatrixBuffer,
+            uniforms
+        };
+    });
+
     // Pipeline
-    const gBufferPipeline = createRenderPipeline(device, {
+    const gBufferPipeline = webgpu.render.createPipeline({
+        layout: [gBufferBindingLayout],
         code: `
             struct VSOut {
                 @builtin(position) clipPosition: vec4f,
@@ -333,58 +394,7 @@ const NUM_LIGHTS = 16;
         depth: true
     });
 
-    // Objects
-    const boxVertexBuffers = [
-        cube.positions.handle,
-        cube.normals.handle,
-        cube.uvs.handle
-    ];
-
-    const boxes = new Array(NUM_BOXES).fill(null).map((_, i) => {
-        const translate = [
-            randomRange(-3, 3),
-            randomRange(-3, 3),
-            randomRange(-3, 0)
-        ];
-        const rotate = [
-                randomRange(0, 2 * Math.PI),
-                randomRange(0, 2 * Math.PI),
-                randomRange(0, 2 * Math.PI) 
-        ];
-        const scale = [
-            0.25,
-            0.25,
-            0.25
-        ];
-
-        const uniformBuffer = createUniformBuffer(device, {
-            worldMatrix: "mat4x4f"
-        });
-       
-        const uniforms = createUniformSet(device, gBufferPipeline.getBindGroupLayout(0), [
-            {
-                buffer: viewProjectionMatrixBuffer.handle
-            },
-            {
-                buffer: uniformBuffer
-            },
-            {
-                sampler: sampler.handle
-            },
-            {
-                texture: colorTexture.handle
-            }
-        ]);
-
-        return {
-            translate,
-            rotate,
-            scale,
-            modelMatrix: mat4.create(),
-            uniformBuffer,
-            uniforms
-        };
-    });
+    
 
     /////////////////////////////////////////
     // Lighting pass
@@ -539,7 +549,7 @@ const NUM_LIGHTS = 16;
         },
         commands: [
             {
-                pipeline: gBufferPipeline,
+                pipeline: gBufferPipeline.handle,
                 mesh: {
                     vertices: boxVertexBuffers
                 }
@@ -689,7 +699,7 @@ const NUM_LIGHTS = 16;
 
             xformMatrix(box.modelMatrix, box.translate, box.rotate, box.scale);
             
-            device.queue.writeBuffer(box.uniformBuffer.buffer, 0, box.modelMatrix);
+            device.queue.writeBuffer(box.worldMatrixBuffer.handle, 0, box.modelMatrix);
         }
 
 
