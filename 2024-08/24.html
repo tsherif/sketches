@@ -402,16 +402,36 @@ const NUM_LIGHTS = 16;
     //  lighting to data in gBuffer)
     /////////////////////////////////////////
 
+    const lightingUniformLayout = webgpu.bindings.createLayout([
+        "buffer",
+        "buffer",
+        "buffer",
+        ["texture", { multisampled: true, sampleType: "unfilterable-float" }],
+        ["texture", { multisampled: true, sampleType: "unfilterable-float" }],
+        ["texture", { multisampled: true, sampleType: "unfilterable-float" }]
+    ])
+
     // Uniforms
-    const lightingEyePositionBuffer = createUniformBuffer(device, {
+    const lightingEyePositionBuffer = webgpu.buffers.uniform.create({
         eyePosition: "vec4f"
     });
 
-    updateUniformBuffer(device, lightingEyePositionBuffer, { eyePosition })
+    webgpu.buffers.uniform.update(lightingEyePositionBuffer, { eyePosition })
+
+    // Bind group
+    let lightingUniforms = webgpu.bindings.create(lightingUniformLayout, [
+        { buffer: lightingEyePositionBuffer },
+        { buffer: lights.positions },
+        { buffer: lights.colors },
+        { texture: gBufferPositionsTexture },
+        { texture: gBufferNormalsTexture },
+        { texture: gBufferColorsTexture }
+    ]);
 
 
     // Pipeline
-    const lightingPipeline = createRenderPipeline(device, {
+    const lightingPipeline = webgpu.render.createPipeline({
+        layout: [lightingUniformLayout],
         code: `
 
             @vertex
@@ -475,15 +495,7 @@ const NUM_LIGHTS = 16;
         cull: "back"
     });
 
-    // Bind group
-    let lightingUniforms = createUniformSet(device, lightingPipeline.getBindGroupLayout(0), [
-        { buffer: lightingEyePositionBuffer.buffer },
-        { buffer: lights.positions.handle },
-        { buffer: lights.colors.handle },
-        { texture: gBufferPositionsTexture.handle },
-        { texture: gBufferNormalsTexture.handle },
-        { texture: gBufferColorsTexture.handle }
-    ]);
+    
 
 
     //////////////////////////////
@@ -571,7 +583,7 @@ const NUM_LIGHTS = 16;
         }],
         commands: [
             {
-                pipeline: lightingPipeline,
+                pipeline: lightingPipeline.handle,
                 mesh: {
                     vertices: [ quad.positions.handle ],
                 },
