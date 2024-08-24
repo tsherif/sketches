@@ -16,11 +16,7 @@
 <canvas id="webgpu-canvas"></canvas>
 <script type="module">
 import {
-    initWebGPU,
-    createVertexBuffer,
-    createIndexBuffer,
     createRenderPipeline,
-    createTextureFromImage,
     createUniformBuffer,
     updateUniformBuffer,
     createUniformSet,
@@ -250,28 +246,27 @@ const NUM_LIGHTS = 16;
     ////////////////////////////
 
     // Render targets
-    let gBufferPositionsTexture = device.createTexture({
-        label: "gBuffer positions texture",
+    let gBufferPositionsTexture = webgpu.textures.create({
         size: [canvas.width, canvas.height],
         format: "rgba16float",
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
-        sampleCount: 4
+        usage: ["texture", "render"],
+        multisample: true
     });
 
-    let gBufferNormalsTexture = device.createTexture({
+    let gBufferNormalsTexture = webgpu.textures.create({
         label: "gBuffer normals texture",
         size: [canvas.width, canvas.height],
         format: "rgba16float",
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
-        sampleCount: 4
+        usage: ["texture", "render"],
+        multisample: true
     });
 
-    let gBufferColorsTexture = device.createTexture({
+    let gBufferColorsTexture = webgpu.textures.create({
         label: "gBuffer colors texture",
         size: [canvas.width, canvas.height],
         format: "rgba8unorm",
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
-        sampleCount: 4
+        usage: ["texture", "render"],
+        multisample: true
     });    
 
     // Pipeline
@@ -475,9 +470,9 @@ const NUM_LIGHTS = 16;
         { buffer: lightingEyePositionBuffer.buffer },
         { buffer: lights.positions.handle },
         { buffer: lights.colors.handle },
-        { texture: gBufferPositionsTexture },
-        { texture: gBufferNormalsTexture },
-        { texture: gBufferColorsTexture }
+        { texture: gBufferPositionsTexture.handle },
+        { texture: gBufferNormalsTexture.handle },
+        { texture: gBufferColorsTexture.handle }
     ]);
 
 
@@ -527,15 +522,15 @@ const NUM_LIGHTS = 16;
     const gBufferRenderPassConfig = createRenderPassConfig({
         color: [
             {
-                texture: gBufferPositionsTexture,
+                texture: gBufferPositionsTexture.handle,
                 clear: [0, 0, 0, 0]
             },
             {
-                texture: gBufferNormalsTexture,
+                texture: gBufferNormalsTexture.handle,
                 clear: [0, 0, 0, 0]
             },
             {
-                texture: gBufferColorsTexture,
+                texture: gBufferColorsTexture.handle,
                 clear: [0, 0, 0, 0]
             }
         ],
