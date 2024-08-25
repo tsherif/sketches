@@ -27,11 +27,13 @@
     const imageData = ctx.getImageData(0, 0, image.width, image.height);
 
     requestAnimationFrame(() => {
-        const transform = fourier(imageData.data, imageData.width, imageData.height);
-        const inverse = inverseFourier(transform, imageData.width, imageData.height);
+        requestAnimationFrame(() => {
+            const transform = fourier(imageData.data, imageData.width, imageData.height);
+            const inverse = inverseFourier(transform, imageData.width, imageData.height);
 
-        const retrieved = new ImageData(inverse, imageData.width, imageData.height);
-        ctx.putImageData(retrieved, 200, 0);
+            const retrieved = new ImageData(inverse, imageData.width, imageData.height);
+            ctx.putImageData(retrieved, 200, 0);
+        })
     })
 
 
