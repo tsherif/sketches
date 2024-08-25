@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Fourier</title>
+    <style>
+        #canvas {
+            width: 900px;
+            height: 900px;
+        }
+    </style>
 </head>
 <body>
-<canvas id="canvas" width="500" height="500"></canvas>
+<canvas id="canvas" width="300" height="300"></canvas>
 <script type="module">
     import { fourier, inverseFourier } from "../lib/js/fourier.js";
     import { loadImageBitmaps } from "../lib/js/utils.js";
