@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+<canvas id="canvas" width="500" height="500"></canvas>
+<script type="module">
+    import { fourier, inverseFourier } from "../lib/js/fourier.js";
+    import { loadImageBitmaps } from "../lib/js/utils.js";
+
+(async () => {
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const [image] = await loadImageBitmaps(["../img/test-image-lions.jpg"]);
+    ctx.drawImage(image, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, image.width, image.height);
+
+    requestAnimationFrame(() => {
+        const transform = fourier(imageData.data, imageData.width, imageData.height);
+        const inverse = inverseFourier(transform, imageData.width, imageData.height);
+
+        const retrieved = new ImageData(inverse, imageData.width, imageData.height);
+        ctx.putImageData(retrieved, 200, 0);
+    })
+
+
+})();
+
+
+
+</script>
+    
+</body>
+</html>
