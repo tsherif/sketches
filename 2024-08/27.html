@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fourier</title>
+    <style>
+        #cell {
+            display: inline-block;
+            margin: 10px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #cell div {
+            margin-bottom: 4px;
+        }
+                
+        canvas {
+            width: 300px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div id="cell">
+        <div>Input</div>
+        <canvas id="inputCanvas" width="100" height="100"></canvas>
+    </div>
+    <div id="cell">
+        <div>Magnitude</div>
+        <canvas id="magnitudeCanvas" width="100" height="100"></canvas>
+    </div>
+    <div id="cell">
+        <div>Phase</div>
+        <canvas id="phaseCanvas" width="100" height="100"></canvas>
+    </div>
+    <div id="cell">
+        <div>Recovered</div>
+        <canvas id="outputCanvas" width="100" height="100"></canvas>
+    </div>
+<canvas id="inputCanvas" width="100" height="100"></canvas>
+<script type="module">
+    import { fourier, inverseFourier, transformImages } from "../lib/js/fourier.js";
+    import { loadImageBitmaps } from "../lib/js/utils.js";
+
+(async () => {
+    const inputCanvas = document.getElementById("inputCanvas")
+    const inputCtx = inputCanvas.getContext("2d");
+
+    const magnitudeCanvas = document.getElementById("magnitudeCanvas")
+    const magnitudeCtx = magnitudeCanvas.getContext("2d");
+
+    const phaseCanvas = document.getElementById("phaseCanvas")
+    const phaseCtx = phaseCanvas.getContext("2d");
+
+    const outputCanvas = document.getElementById("outputCanvas")
+    const outputCtx = outputCanvas.getContext("2d");
+
+    const [image] = await loadImageBitmaps(["../img/test-image-lions.jpg"]);
+    inputCtx.drawImage(image, 0, 0);
+
+    const imageData = inputCtx.getImageData(0, 0, image.width, image.height);
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const transform = fourier(imageData.data, imageData.width, imageData.height);
+            const { magnitude, phase } = transformImages(transform, imageData.width, imageData.height);
+            const inverse = inverseFourier(transform, imageData.width, imageData.height);
+
+            const magImage = new ImageData(magnitude, imageData.width, imageData.height);
+            magnitudeCtx.putImageData(magImage, 0, 0);
+
+            const phaseImage = new ImageData(phase, imageData.width, imageData.height);
+            phaseCtx.putImageData(phaseImage, 0, 0);
+            
+            const retrieved = new ImageData(inverse, imageData.width, imageData.height);
+            outputCtx.putImageData(retrieved, 0, 0);
+        })
+    })
+
+
+})();
+
+
+
+</script>
+    
+</body>
+</html>
