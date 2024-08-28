@@ -34,6 +34,13 @@
         <div id="cell">
             <canvas id="inputCanvas" width="100" height="100"></canvas>
         </div>
+        <div id="cell">
+            <select id="image-select">
+                <option value="pattern">Pattern</option>
+                <option value="photo">Photo</option>
+                <option value="sketch">Sketch</option>
+            </select>
+        </div>
     </div>
     <div>
         <h2>
@@ -119,55 +126,87 @@
     const outputCanvas = document.getElementById("outputCanvas")
     const outputCtx = outputCanvas.getContext("2d");
 
-    const [image] = await loadImageBitmaps(["../img/test-image-pattern.png"]);
-    inputCtx.drawImage(image, 0, 0);
+    const [patternImage, photoImage, sketchImage] = await loadImageBitmaps([
+        "../img/test-image-pattern.png",
+        "../img/test-image-lions.jpg",
+        "../img/test-image-figure.png"
+    ]);
 
-    const imageData = inputCtx.getImageData(0, 0, image.width, image.height);
+    const imageSelect = document.getElementById("image-select")
+    imageSelect.addEventListener("change", () => {
+        if (imageSelect.value === "pattern") {
+            calculateFourier(patternImage);
+        } else if (imageSelect.value === "photo") {
+            calculateFourier(photoImage);
+        } else if (imageSelect.value === "sketch") {
+            calculateFourier(sketchImage);
+        }
+    });
 
-    requestAnimationFrame(() => {
+    calculateFourier(patternImage);
+
+    function calculateFourier(currentImage) {
+        inputCtx.drawImage(currentImage, 0, 0);
+        const imageData = inputCtx.getImageData(0, 0, currentImage.width, currentImage.height);
+
+        magnitudeCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        redMagnitudeCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        greenMagnitudeCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        blueMagnitudeCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        phaseCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        redPhaseCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        greenPhaseCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        bluePhaseCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+        outputCtx.clearRect(0, 0, currentImage.width, currentImage.height);
+
+
         requestAnimationFrame(() => {
-            const transform = fourier(imageData.data, imageData.width, imageData.height);
-            const { 
-                magnitude,
-                redMagnitude,
-                greenMagnitude,
-                blueMagnitude,
-                phase,
-                redPhase,
-                greenPhase,
-                bluePhase,
-            } = transformImages(transform, imageData.width, imageData.height);
+            requestAnimationFrame(() => {
+                const transform = fourier(imageData.data, imageData.width, imageData.height);
+                const { 
+                    magnitude,
+                    redMagnitude,
+                    greenMagnitude,
+                    blueMagnitude,
+                    phase,
+                    redPhase,
+                    greenPhase,
+                    bluePhase,
+                } = transformImages(transform, imageData.width, imageData.height);
 
-            const inverse = inverseFourier(transform, imageData.width, imageData.height);
+                const inverse = inverseFourier(transform, imageData.width, imageData.height);
 
-            const magImage = new ImageData(magnitude, imageData.width, imageData.height);
-            magnitudeCtx.putImageData(magImage, 0, 0);
+                const magImage = new ImageData(magnitude, imageData.width, imageData.height);
+                magnitudeCtx.putImageData(magImage, 0, 0);
 
-            const redMagImage = new ImageData(redMagnitude, imageData.width, imageData.height);
-            redMagnitudeCtx.putImageData(redMagImage, 0, 0);
+                const redMagImage = new ImageData(redMagnitude, imageData.width, imageData.height);
+                redMagnitudeCtx.putImageData(redMagImage, 0, 0);
 
-            const greenMagImage = new ImageData(greenMagnitude, imageData.width, imageData.height);
-            greenMagnitudeCtx.putImageData(greenMagImage, 0, 0);
+                const greenMagImage = new ImageData(greenMagnitude, imageData.width, imageData.height);
+                greenMagnitudeCtx.putImageData(greenMagImage, 0, 0);
 
-            const blueMagImage = new ImageData(blueMagnitude, imageData.width, imageData.height);
-            blueMagnitudeCtx.putImageData(blueMagImage, 0, 0);
+                const blueMagImage = new ImageData(blueMagnitude, imageData.width, imageData.height);
+                blueMagnitudeCtx.putImageData(blueMagImage, 0, 0);
 
-            const phaseImage = new ImageData(phase, imageData.width, imageData.height);
-            phaseCtx.putImageData(phaseImage, 0, 0);
+                const phaseImage = new ImageData(phase, imageData.width, imageData.height);
+                phaseCtx.putImageData(phaseImage, 0, 0);
 
-            const redPhaseImage = new ImageData(redPhase, imageData.width, imageData.height);
-            redPhaseCtx.putImageData(redPhaseImage, 0, 0);
+                const redPhaseImage = new ImageData(redPhase, imageData.width, imageData.height);
+                redPhaseCtx.putImageData(redPhaseImage, 0, 0);
 
-            const greenPhaseImage = new ImageData(greenPhase, imageData.width, imageData.height);
-            greenPhaseCtx.putImageData(greenPhaseImage, 0, 0);
+                const greenPhaseImage = new ImageData(greenPhase, imageData.width, imageData.height);
+                greenPhaseCtx.putImageData(greenPhaseImage, 0, 0);
 
-            const bluePhaseImage = new ImageData(bluePhase, imageData.width, imageData.height);
-            bluePhaseCtx.putImageData(bluePhaseImage, 0, 0);
-            
-            const retrieved = new ImageData(inverse, imageData.width, imageData.height);
-            outputCtx.putImageData(retrieved, 0, 0);
+                const bluePhaseImage = new ImageData(bluePhase, imageData.width, imageData.height);
+                bluePhaseCtx.putImageData(bluePhaseImage, 0, 0);
+                
+                const retrieved = new ImageData(inverse, imageData.width, imageData.height);
+                outputCtx.putImageData(retrieved, 0, 0);
+            })
         })
-    })
+    }
+
+    
 
 
 })();
