@@ -57,9 +57,24 @@
         </div>
     </div>
     <div>
-        <h2>Phase</h2>
+        <h2>
+            Phase
+        </h2>
         <div id="cell">
+            <h3>Combined</h3>
             <canvas id="phaseCanvas" width="100" height="100"></canvas>
+        </div>
+        <div id="cell">
+            <h3>Red</h3>
+            <canvas id="redPhaseCanvas" width="100" height="100"></canvas>
+        </div>
+        <div id="cell">
+            <h3>Green</h3>
+            <canvas id="greenPhaseCanvas" width="100" height="100"></canvas>
+        </div>
+        <div id="cell">
+            <h3>Blue</h3>
+            <canvas id="bluePhaseCanvas" width="100" height="100"></canvas>
         </div>
     </div>
     <div>
@@ -92,6 +107,15 @@
     const phaseCanvas = document.getElementById("phaseCanvas")
     const phaseCtx = phaseCanvas.getContext("2d");
 
+    const redPhaseCanvas = document.getElementById("redPhaseCanvas")
+    const redPhaseCtx = redPhaseCanvas.getContext("2d");
+
+    const bluePhaseCanvas = document.getElementById("bluePhaseCanvas")
+    const bluePhaseCtx = bluePhaseCanvas.getContext("2d");
+
+    const greenPhaseCanvas = document.getElementById("greenPhaseCanvas")
+    const greenPhaseCtx = greenPhaseCanvas.getContext("2d");
+
     const outputCanvas = document.getElementById("outputCanvas")
     const outputCtx = outputCanvas.getContext("2d");
 
@@ -103,7 +127,17 @@
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             const transform = fourier(imageData.data, imageData.width, imageData.height);
-            const { magnitude, redMagnitude, greenMagnitude, blueMagnitude, phase } = transformImages(transform, imageData.width, imageData.height);
+            const { 
+                magnitude,
+                redMagnitude,
+                greenMagnitude,
+                blueMagnitude,
+                phase,
+                redPhase,
+                greenPhase,
+                bluePhase,
+            } = transformImages(transform, imageData.width, imageData.height);
+
             const inverse = inverseFourier(transform, imageData.width, imageData.height);
 
             const magImage = new ImageData(magnitude, imageData.width, imageData.height);
@@ -120,6 +154,15 @@
 
             const phaseImage = new ImageData(phase, imageData.width, imageData.height);
             phaseCtx.putImageData(phaseImage, 0, 0);
+
+            const redPhaseImage = new ImageData(redPhase, imageData.width, imageData.height);
+            redPhaseCtx.putImageData(redPhaseImage, 0, 0);
+
+            const greenPhaseImage = new ImageData(greenPhase, imageData.width, imageData.height);
+            greenPhaseCtx.putImageData(greenPhaseImage, 0, 0);
+
+            const bluePhaseImage = new ImageData(bluePhase, imageData.width, imageData.height);
+            bluePhaseCtx.putImageData(bluePhaseImage, 0, 0);
             
             const retrieved = new ImageData(inverse, imageData.width, imageData.height);
             outputCtx.putImageData(retrieved, 0, 0);
