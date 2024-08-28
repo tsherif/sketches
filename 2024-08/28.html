@@ -41,6 +41,11 @@
                 <option value="sketch">Sketch</option>
             </select>
         </div>
+        <div id="cell">
+            <span id="processing">
+                Processing...
+            </span>
+        </div>
     </div>
     <div>
         <h2>
@@ -143,9 +148,13 @@
         }
     });
 
+    const processing = document.getElementById("processing");
+
     calculateFourier(patternImage);
 
     function calculateFourier(currentImage) {
+        processing.innerText = "Processing...";
+
         inputCtx.drawImage(currentImage, 0, 0);
         const imageData = inputCtx.getImageData(0, 0, currentImage.width, currentImage.height);
 
@@ -202,6 +211,8 @@
                 
                 const retrieved = new ImageData(inverse, imageData.width, imageData.height);
                 outputCtx.putImageData(retrieved, 0, 0);
+
+                processing.innerText = "";
             })
         })
     }
