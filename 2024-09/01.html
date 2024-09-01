@@ -231,14 +231,14 @@
 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        const lowPass = filter(transform, imageData.width, imageData.height, { max: 80 });
+                        const lowPass = filter(transform, imageData.width, imageData.height, { max: 90 });
                         const lowPassInverse = inverseFourier(lowPass, imageData.width, imageData.height);
                         const lowPassImage = new ImageData(lowPassInverse, imageData.width, imageData.height);
                         lowPassCtx.putImageData(lowPassImage, 0, 0);
 
                         requestAnimationFrame(() => {
                             requestAnimationFrame(() => {
-                                 const highPass = filter(transform, imageData.width, imageData.height, { min: 20, scale: 2 });
+                                 const highPass = filter(transform, imageData.width, imageData.height, { min: 10, scale: 2 });
                                 const highPassInverse = inverseFourier(highPass, imageData.width, imageData.height);
                                 const highPassImage = new ImageData(highPassInverse, imageData.width, imageData.height);
                                 highPassCtx.putImageData(highPassImage, 0, 0);
