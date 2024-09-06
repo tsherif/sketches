@@ -20,7 +20,7 @@
 import {
     updateRenderPassConfigTextures,
 } from "../lib/js/webgpu-utils.js"
-import { WebGPU } from "../lib/js/webgpu/webgpu.js"
+import { WebGPU } from "../lib/js/webgpu2/webgpu.js"
 
 import {
     createCube,
@@ -80,12 +80,22 @@ const {mat4} = glMatrix;
     // Create uniform buffers
     ////////////////////////////
 
-    const bindingLayout = webgpu.bindings.createLayout([
-        "buffer",
-        "buffer",
-        "sampler",
-        "texture"
-    ])
+    const bindingLayout = webgpu.bindings.createLayout({
+        vertexUniforms: {
+            type: "buffer",
+            shaderType: "VertexUniforms"
+        },
+        fragmentUniforms: {
+            type: "buffer",
+            shaderType: "FragmentUniforms"
+        },
+        textureSampler: {
+            type: "sampler"
+        },
+        textureData: {
+            type: "texture"
+        }
+    })
 
     const vertexUniformBuffer = webgpu.buffers.uniform.create({
         worldMatrix: "mat4x4f",
@@ -130,8 +140,6 @@ const {mat4} = glMatrix;
                 ${vertexUniformBuffer.shaderString}
             };
 
-            @group(0) @binding(0) var<uniform> vertexUniforms: VertexUniforms;
-
             struct VSOut{
                 @builtin(position) clipPosition: vec4f,
                 @location(0) worldPosition: vec3f,
@@ -160,10 +168,6 @@ const {mat4} = glMatrix;
                 ${fragmentUniformBuffer.shaderString}
             };
 
-            @group(0) @binding(1) var<uniform> fragmentUniforms: FragmentUniforms;
-            @group(0) @binding(2) var textureSampler: sampler;
-            @group(0) @binding(3) var textureData: texture_2d<f32>;
-
             @fragment
             fn fs(fsIn: VSOut) -> @location(0) vec4f {
                 let surfaceColor: vec3f = textureSample(textureData, textureSampler, fsIn.uv).rgb;
@@ -188,6 +192,7 @@ const {mat4} = glMatrix;
         fragmentEntry: "fs",
         renderTargets: [ webgpu.CANVAS_FORMAT ],
         multisample: true,
+        cullFace: "back",
         topology: "triangle-list",
         cull: "back",
         depth: true
