@@ -122,12 +122,12 @@ const {mat4} = glMatrix;
 
     const texture = webgpu.textures.createFromImage(image);
 
-    const sceneUniforms = webgpu.bindings.create(bindingLayout, [
-        { buffer: vertexUniformBuffer },
-        { buffer: fragmentUniformBuffer },
-        { sampler },
-        { texture }
-    ]);
+    const sceneUniforms = webgpu.bindings.create(bindingLayout, {
+        vertexUniforms: vertexUniformBuffer,
+        fragmentUniforms: fragmentUniformBuffer,
+        textureSampler: sampler,
+        textureData: texture
+    });
 
     ///////////////////////////
     // Create render pipeline
