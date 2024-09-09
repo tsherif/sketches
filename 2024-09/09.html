@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sketch</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../lib/js/gl-matrix-3.4.0.js"></script>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script type="module">
+
+import {
+    updateRenderPassConfigTextures,
+} from "../lib/js/webgpu-utils.js"
+import { WebGPU } from "../lib/js/webgpu2/webgpu.js"
+
+import {
+    createCube,
+    loadImageBitmaps,
+    xformMatrix
+} from "../lib/js/utils.js";
+
+const {mat4} = glMatrix;
+
+(async () => {
+    const [webgpu, [image]] = await Promise.all([
+        WebGPU.init(),
+        loadImageBitmaps(["../img/webgpu.png"])
+    ]);
+
+    const canvas = document.getElementById("canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const context = canvas.getContext("webgpu");
+    webgpu.configureContext(context);
+
+    const cubeData = createCube();
+    const numVertices = cubeData.positions.length / 3;
+
+    const positionBuffer = webgpu.buffers.create({
+        data: cubeData.positions,
+        usage: ["vertex", "copy-dst"]
+    });
+    const normalBuffer = webgpu.buffers.create({
+        data: cubeData.normals,
+        usage: ["vertex", "copy-dst"]
+    });
+    const uvBuffer = webgpu.buffers.create({
+        data: cubeData.uvs,
+        usage: ["vertex", "copy-dst"]
+    });
+
+    /////////////////
+    // Uniform data
+    /////////////////
+
+    const eyePosition = new Float32Array([1, 1, 1]);
+    const lightPosition = new Float32Array([1, 1, 1]);
+
+    const projectionMatrix = mat4.create();
+    const viewMatrix = mat4.create();
+    const modelMatrix = mat4.create();
+    const viewProjectionMatrix = mat4.create();
+    const rotation = [0, 0, 0];
+
+    mat4.perspectiveZO(projectionMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0)
+    mat4.lookAt(viewMatrix, [1, 1, 1], [0, 0, 0], [0, 1, 0]);
+    mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
+    ////////////////////////////
+    // Create uniform buffers
+    ////////////////////////////
+
+    const vextexUniformStruct = webgpu.bindings.createStruct({
+        worldMatrix: "mat4x4f",
+        viewProjectionMatrix: "mat4x4f"
+    });
+
+    const fragmentUniformStruct = webgpu.bindings.createStruct({
+        eyePosition: "vec4f",
+        lightPosition: "vec4f"
+    });
+
+    const bindingLayout = webgpu.bindings.createLayout({
+        vertexUniforms: {
+            type: "buffer",
+            struct: vextexUniformStruct
+        },
+        fragmentUniforms: {
+            type: "buffer",
+            struct: fragmentUniformStruct
+        },
+        textureSampler: {
+            type: "sampler"
+        },
+        textureData: {
+            type: "texture"
+        }
+    })
+
+    const vertexUniformBuffer = webgpu.buffers.createStruct(vextexUniformStruct, { viewProjectionMatrix });
+    const fragmentUniformBuffer = webgpu.buffers.createStruct(fragmentUniformStruct, { eyePosition, lightPosition });
+
+    /////////////////////////////////////////
+    // Create texture, sampler and load data
+    /////////////////////////////////////////
+
+    const sampler = webgpu.textures.createSampler({
+        minFilter: "linear",
+        magFilter: "linear",
+        mipmapFilter: "linear"
+    });
+
+    const texture = webgpu.textures.createFromImage(image);
+
+    const sceneUniforms = webgpu.bindings.create(bindingLayout, {
+        vertexUniforms: vertexUniformBuffer,
+        fragmentUniforms: fragmentUniformBuffer,
+        textureSampler: sampler,
+        textureData: texture
+    });
+
+    ///////////////////////////
+    // Create render pipeline
+    ///////////////////////////
+
+    const pipeline = webgpu.render.createPipeline({
+        layout: [bindingLayout],
+        code: `
+            struct VSOut{
+                @builtin(position) clipPosition: vec4f,
+                @location(0) worldPosition: vec3f,
+                @location(1) normal: vec3f,
+                @location(2) uv: vec2f
+            };
+
+            @vertex
+            fn vs(
+                @location(0) position: vec4f,
+                @location(1) normal: vec3f,
+                @location(2) uv: vec2f,
+            ) -> VSOut {
+                let worldPosition: vec4f = vertexUniforms.worldMatrix * position;
+
+                var vsOut: VSOut;
+                vsOut.clipPosition = vertexUniforms.viewProjectionMatrix * worldPosition;
+                vsOut.worldPosition = worldPosition.xyz;
+                vsOut.normal = (vertexUniforms.worldMatrix * vec4f(normal, 0.0)).xyz;
+                vsOut.uv = uv;
+
+                return vsOut;
+            }
+
+            @fragment
+            fn fs(fsIn: VSOut) -> @location(0) vec4f {
+                let surfaceColor: vec3f = textureSample(textureData, textureSampler, fsIn.uv).rgb;
+
+                let normal: vec3f = normalize(fsIn.normal);
+                let eyeVec: vec3f = normalize(fragmentUniforms.eyePosition.xyz - fsIn.worldPosition);
+                let incidentVec: vec3f = normalize(fsIn.worldPosition - fragmentUniforms.lightPosition.xyz);
+                let lightVec: vec3f = -incidentVec;
+                let diffuse: f32 = max(dot(lightVec, normal), 0.0);
+                let highlight: f32 = pow(max(dot(eyeVec, reflect(incidentVec, normal)), 0.0), 100.0);
+                let ambient: f32 = 0.1;
+                return vec4f(surfaceColor * (diffuse + highlight + ambient), 1.0);
+            }
+
+        `,
+        vertexEntry: "vs",
+        vertexBuffers: [
+            "float32x3",
+            "float32x3",
+            "float32x2"
+        ],
+        fragmentEntry: "fs",
+        renderTargets: [ webgpu.CANVAS_FORMAT ],
+        multisample: true,
+        cullFace: "back",
+        topology: "triangle-list",
+        cull: "back",
+        depth: true
+    });
+
+    ///////////////////////////
+    // Render pass description
+    ///////////////////////////
+
+    let msaaTexture = webgpu.textures.create({
+        size: [canvas.width, canvas.height],
+        format: webgpu.CANVAS_FORMAT,
+        usage: ["render"],
+        multisample: true
+    });
+    
+    let depthTexture = webgpu.textures.create({
+        size: [canvas.width, canvas.height],
+        format: "depth24plus",
+        usage:  ["render"],
+        multisample: true
+    });
+
+    const renderPass = webgpu.render.createPass({
+        color: [{
+            context,
+            texture: msaaTexture,
+            clear: [0, 0, 0, 1]
+        }],
+        depth: {
+            texture: depthTexture,
+            clear: 1
+        },
+        commands: [{
+            pipeline,
+            mesh: {
+                vertices: [
+                    positionBuffer,
+                    normalBuffer,
+                    uvBuffer
+                ]
+            },
+            uniforms: [sceneUniforms],
+            draw: {
+                vertices: numVertices
+            }
+        }]
+    })
+
+    window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        mat4.perspectiveZO(projectionMatrix, Math.PI / 2, canvas.width / canvas.height, 0.1, 10.0)
+        mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
+
+        
+        webgpu.buffers.updateStruct(vertexUniformBuffer, { viewProjectionMatrix });
+
+        msaaTexture.destroy();
+        msaaTexture = device.createTexture({
+            label: 'msaa texture',
+            size: [canvas.width, canvas.height],
+            format: webgpu.CANVAS_FORMAT,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            sampleCount: 4
+        });
+
+        depthTexture.destroy();
+        depthTexture = device.createTexture({
+            size: [canvas.width, canvas.height],
+            format: "depth24plus",
+            usage:  GPUTextureUsage.RENDER_ATTACHMENT,
+            sampleCount: 4
+        });
+
+        updateRenderPassConfigTextures(renderPassConfig, {
+            color: [msaaTexture],
+            depth: depthTexture
+        })
+
+    });
+
+    let lastTime;
+    requestAnimationFrame(function draw(time) {
+
+        lastTime = lastTime ?? time;
+        const dt = time - lastTime;
+        lastTime = time;
+
+        /////////////////////////
+        // Update uniform buffer
+        /////////////////////////
+        
+        rotation[0] += 0.001 * dt;
+        rotation[1] += 0.002 * dt;
+
+        xformMatrix(modelMatrix, null, rotation, null);
+        
+        webgpu.buffers.updateStruct(vertexUniformBuffer, { worldMatrix: modelMatrix });
+        webgpu.commands.submit([renderPass]);
+
+        requestAnimationFrame(draw);
+    });
+})();
+</script>
+</body>
+</html>
