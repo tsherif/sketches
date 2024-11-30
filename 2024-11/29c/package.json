@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "start": "webpack-dev-server"
+  },
+  "devDependencies": {
+    "@babel/preset-react": "^7.25.9",
+    "babel": "^5.8.38",
+    "babel-loader": "^9.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.1.0"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.118.0",
+    "@react-three/fiber": "^8.17.10",
+    "@types/three": "^0.170.0",
+    "three": "^0.170.0"
+  }
+}
