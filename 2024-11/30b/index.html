@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offscreen Canvas</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const offscreen = canvas.transferControlToOffscreen();
+
+const worker = new Worker("./worker.js");
+worker.addEventListener("message", ({data}) => {
+    console.log(data);
+});
+worker.postMessage({ canvas: offscreen }, [offscreen]);
+
+</script>
+
+</body>
+</html>
