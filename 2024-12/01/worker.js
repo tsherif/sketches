@@ -1,6 +1,7 @@
 let canvas;
 let ctx;
 let balls;
+let hoveredBall = -1;
 let selectedBall = -1;
 
 const input = {
@@ -8,8 +9,6 @@ const input = {
     y: -1,
     lastX: -1,
     lastY: -1,
-    dx: 0,
-    dy: 0,
     dragging: false
 }
 
@@ -32,10 +31,13 @@ addEventListener("message", ({data}) => {
                 ctx.fillStyle = "black";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+
                 balls.forEach((b, i) => {
-                    if (selectedBall === i) {
-                        b.x += input.dx;
-                        b.y += input.dy;
+                    if (selectedBall === i && input.dragging) {
+                        const dx = input.x - input.lastX;
+                        const dy = input.y - input.lastY;
+                        b.x += dx;
+                        b.y += dy;
                     }
 
                     if (b.x < b.r) {
@@ -54,32 +56,19 @@ addEventListener("message", ({data}) => {
                         b.y = canvas.height -  b.r;
                     }
 
-                    ctx.fillStyle = selectedBall === i ? "yellow": b.color;
+                    ctx.fillStyle = hoveredBall === i ? "yellow": b.color;
                     ctx.beginPath();
                     ctx.arc(b.x, b.y, b.r, 0, 2 * Math.PI);
                     ctx.fill();
                 });
 
-                input.dx = 0;
-                input.dy = 0;
+                input.lastX = input.x;
+                input.lastY = input.y;
             });
             return;
         case "input":
             switch (data.event) {
                 case "mousedown":
-                    input.x = input.lastX = data.x;
-                    input.y = input.lastY = data.y;
-                    input.dx = input.dy = 0;
-                    input.dragging = true;
-                    return;
-                case "mouseup":
-                    input.y = input.lastX = -1;
-                    input.x = input.lastY = -1;
-                    input.dx = input.dy = 0;
-                    input.dragging = false;
-                    return;
-                case "mousemove":
-                    selectedBall = -1;
                     balls.forEach((b, i) => {
                         const vx = data.x - b.x;
                         const vy = data.y - b.y;
@@ -87,13 +76,32 @@ addEventListener("message", ({data}) => {
                             selectedBall = i;
                         }
                     })
-                    if (input.dragging) {
-                        input.dx += data.x - input.lastX;
-                        input.dy += data.y - input.lastY;
-                        input.lastX = data.x;
-                        input.lastY = data.y;
+                    input.x = input.lastX = data.x;
+                    input.y = input.lastY = data.y;
+                    input.dragging = true;
+                    return;
+                case "mouseup":
+                    selectedBall = -1;
+                    input.y = input.lastX = -1;
+                    input.x = input.lastY = -1;
+                    input.dragging = false;
+                    return;
+                case "mousemove":
+                    input.x = data.x;
+                    input.y = data.y;
+                    if (selectedBall > -1) {
+                        hoveredBall = selectedBall;
+                        return;
                     }
-                return;
+                    hoveredBall = -1;
+                    balls.forEach((b, i) => {
+                        const vx = data.x - b.x;
+                        const vy = data.y - b.y;
+                        if (vx * vx + vy * vy < b.r * b.r) {
+                            hoveredBall = i;
+                        }
+                    })
+                    return;
             }
             return;
     }
